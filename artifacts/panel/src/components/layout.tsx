@@ -156,7 +156,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
   const isYonetici = kullanici?.rol === "yonetici";
 
   const allNav = isYonetici
-    ? [...navigation, { name: "Kullanıcılar", href: "/kullanicilar", icon: UserCog }]
+    ? [...navigation, { name: "Kullanıcılar", href: "/kullanicilar", icon: UserCog }, { name: "Ayarlar", href: "/ayarlar", icon: ShieldCheck }]
     : navigation;
 
   const currentPage =

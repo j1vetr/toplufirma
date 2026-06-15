@@ -12,9 +12,11 @@ import raporlarRouter from "./raporlar";
 import kullanicilarRouter from "./kullanicilar";
 import tekrarlayanFaturalarRouter from "./tekrarlayanFaturalar";
 import aramaRouter from "./arama";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
+router.use(adminRouter);
 router.use(firmaRouter);
 router.use(gemilerRouter);
 router.use(bankaHesaplariRouter);
