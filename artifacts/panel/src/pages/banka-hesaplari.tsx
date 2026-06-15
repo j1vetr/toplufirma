@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Landmark, ChevronRight, TrendingUp, TrendingDown, FileText } from "lucide-react";
+import { useSirket } from "@/contexts/sirket-context";
 
 interface HesapForm {
   catiFirmaId: string;
@@ -42,6 +43,7 @@ const fmt = (n: number, pb = "TRY") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
 
 export default function BankaHesaplari() {
+  const { aktifSirketId } = useSirket();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [modalAcik, setModalAcik] = useState(false);
@@ -49,7 +51,10 @@ export default function BankaHesaplari() {
   const [form, setForm] = useState<HesapForm>(BOSH);
   const [silId, setSilId] = useState<number | null>(null);
 
-  const { data: hesaplar = [], isLoading } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
+  const { data: hesaplar = [], isLoading } = useListBankaHesaplari(
+    aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined,
+    { query: { queryKey: [...getListBankaHesaplariQueryKey(), aktifSirketId] } },
+  );
   const { data: catiFirmalar = [] } = useListFirmalar(
     { tip: "cati" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },

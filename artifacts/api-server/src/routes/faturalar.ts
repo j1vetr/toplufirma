@@ -183,7 +183,7 @@ router.get("/faturalar/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [row] = await db
-      .select({ f: faturalar, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
+      .select({ f: faturalar, catiFirmaAd: firmalar.ad, catiFirmaLogoUrl: firmalar.logo, gemiAd: gemiler.ad })
       .from(faturalar)
       .leftJoin(firmalar, eq(faturalar.catiFirmaId, firmalar.id))
       .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
@@ -198,6 +198,7 @@ router.get("/faturalar/:id", async (req, res) => {
 
     res.json({
       ...formatFatura(row.f, row.catiFirmaAd, bagliFirmaAd, row.gemiAd, odenen),
+      catiFirmaLogoUrl: row.catiFirmaLogoUrl ?? null,
       kalemler: kalemler.map(k => ({
         id: k.id, faturaId: k.faturaId, aciklama: k.aciklama,
         miktar: Number(k.miktar), birimFiyat: Number(k.birimFiyat),

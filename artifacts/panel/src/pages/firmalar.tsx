@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListFirmalar, getListFirmalarQueryKey,
@@ -79,6 +79,21 @@ export default function Firmalar() {
   const { data: smtpData } = useGetFirmaEpostaAyarlari(smtpFirmaId!, {
     query: { enabled: !!smtpFirmaId, queryKey: getGetFirmaEpostaAyarlariQueryKey(smtpFirmaId!) },
   });
+
+  useEffect(() => {
+    if (smtpData) {
+      setSmtpForm({
+        smtpHost: smtpData.smtpHost ?? "",
+        smtpPort: String(smtpData.smtpPort ?? 587),
+        smtpGuvenlik: smtpData.smtpGuvenlik ?? "starttls",
+        smtpKullanici: smtpData.smtpKullanici ?? "",
+        smtpSifre: "",
+        gonderenAd: smtpData.gonderenAd ?? "",
+        gonderenAdres: smtpData.gonderenAdres ?? "",
+      });
+    }
+  }, [smtpData]);
+
   const upsertSmtp = useUpsertFirmaEpostaAyarlari();
 
   const { data: ekstreData, isLoading: ekstreYukleniyor } = useGetFirmaEkstre(

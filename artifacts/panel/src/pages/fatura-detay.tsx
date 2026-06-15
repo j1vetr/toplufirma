@@ -148,12 +148,16 @@ export default function FaturaDetay() {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
         <Link href="/faturalar"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-4 w-4" /></Button></Link>
+        {fatura.catiFirmaLogoUrl && (
+          <img src={fatura.catiFirmaLogoUrl} alt={fatura.catiFirmaAd ?? ""} className="h-10 w-auto max-w-[100px] object-contain rounded" />
+        )}
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-display font-semibold">{fatura.faturaNo}</h2>
             <span className={`text-sm px-2.5 py-0.5 rounded-full font-medium ${DURUM_RENK[fatura.durum]}`}>{DURUM_ETIKET[fatura.durum]}</span>
           </div>
           <p className="text-sm text-muted-foreground">{fatura.bagliFirmaAd} {fatura.gemiAd ? `- ${fatura.gemiAd}` : ""}</p>
+          <p className="text-xs text-muted-foreground">{fatura.catiFirmaAd}</p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
           <Button

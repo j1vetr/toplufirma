@@ -6,6 +6,7 @@ import {
   useDeleteFatura, useCreateOdeme, getListOdemelerQueryKey,
 } from "@workspace/api-client-react";
 import type { Fatura } from "@workspace/api-client-react";
+import { useSirket } from "@/contexts/sirket-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -63,6 +64,7 @@ async function pdfIndir(id: number, faturaNo: string) {
 export default function Faturalar() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { aktifSirketId } = useSirket();
   const [arama, setArama] = useState("");
   const [durumFiltre, setDurumFiltre] = useState("tumu");
   const [silId, setSilId] = useState<number | null>(null);
@@ -80,7 +82,11 @@ export default function Faturalar() {
   const [gonderiyor, setGonderiyor] = useState(false);
   const [pdfIndiriyor, setPdfIndiriyor] = useState<number | null>(null);
 
-  const { data: faturalar = [], isLoading } = useListFaturalar(undefined, { query: { queryKey: getListFaturalarQueryKey() } });
+  const faturalarParams = aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined;
+  const { data: faturalar = [], isLoading } = useListFaturalar(
+    faturalarParams,
+    { query: { queryKey: [...getListFaturalarQueryKey(), aktifSirketId] } },
+  );
   const deleteFatura = useDeleteFatura();
   const createOdeme = useCreateOdeme();
 
@@ -145,6 +151,74 @@ export default function Faturalar() {
     }
   }
 
+  const gruplu = aktifSirketId === null
+    ? Object.entries(
+        filtrelenmis.reduce<Record<string, Fatura[]>>((acc, f) => {
+          const k = f.catiFirmaAd ?? "Diğer";
+          (acc[k] ??= []).push(f);
+          return acc;
+        }, {})
+      )
+    : null;
+
+  function faturaSatiri(f: Fatura) {
+    const vadesiGecmis = f.vadeTarihi < bugun && (f.durum === "acik" || f.durum === "kismi_odendi");
+    return (
+      <Card key={f.id} className={`hover:shadow-sm transition-shadow ${vadesiGecmis ? "border-red-300" : ""}`} data-testid={`card-fatura-${f.id}`}>
+        <CardContent className="p-4 flex items-center gap-4">
+          <div className={`p-2 rounded-full ${vadesiGecmis ? "bg-red-500/10" : "bg-orange-500/10"}`}>
+            {vadesiGecmis ? <AlertCircle className="h-4 w-4 text-red-500" /> : <FileText className="h-4 w-4 text-orange-500" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link href={`/faturalar/${f.id}`} className="font-semibold hover:text-primary" data-testid={`link-fatura-${f.id}`}>{f.faturaNo}</Link>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${DURUM_RENK[f.durum]}`}>{DURUM_ETIKET[f.durum]}</span>
+              {vadesiGecmis && <span className="text-xs text-red-500 font-medium">Vadesi Geçmiş</span>}
+            </div>
+            <p className="text-sm text-muted-foreground mt-0.5">{f.bagliFirmaAd} {f.gemiAd ? `- ${f.gemiAd}` : ""}</p>
+            <p className="text-xs text-muted-foreground">{f.faturaTarihi} — Vade: {f.vadeTarihi}</p>
+          </div>
+          <div className="text-right shrink-0 hidden sm:block">
+            <p className="font-semibold">{fmt(f.genelToplam, f.paraBirimi)}</p>
+            {(f.kalanTutar ?? 0) > 0 && f.durum !== "odendi" && (
+              <p className="text-xs text-muted-foreground">Kalan: {fmt(f.kalanTutar ?? 0, f.paraBirimi)}</p>
+            )}
+          </div>
+          <div className="flex gap-1 shrink-0">
+            {(f.durum === "acik" || f.durum === "kismi_odendi") && (
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" title="Ödeme Kaydet" onClick={() => acOdemeModal(f)}>
+                <CreditCard className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button
+              size="icon" variant="ghost" className="h-8 w-8" title="PDF İndir"
+              disabled={pdfIndiriyor === f.id}
+              onClick={async () => {
+                setPdfIndiriyor(f.id);
+                try { await pdfIndir(f.id, f.faturaNo); }
+                catch { toast({ title: "PDF indirilemedi", variant: "destructive" }); }
+                finally { setPdfIndiriyor(null); }
+              }}
+            >
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8" title="E-posta Gönder" onClick={() => { setGonderFaturaId(f.id); setGonderModal(true); }}>
+              <Mail className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(f.id)}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+            <Link href={`/faturalar/${f.id}`}>
+              <Button size="icon" variant="ghost" className="h-8 w-8">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-16 bg-muted rounded-lg" />)}</div>;
 
   return (
@@ -171,71 +245,32 @@ export default function Faturalar() {
       </div>
       <p className="text-sm text-muted-foreground">{filtrelenmis.length} fatura</p>
 
-      <div className="space-y-2">
-        {filtrelenmis.map(f => {
-          const vadesiGecmis = f.vadeTarihi < bugun && (f.durum === "acik" || f.durum === "kismi_odendi");
-          return (
-            <Card key={f.id} className={`hover:shadow-sm transition-shadow ${vadesiGecmis ? "border-red-300" : ""}`} data-testid={`card-fatura-${f.id}`}>
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className={`p-2 rounded-full ${vadesiGecmis ? "bg-red-500/10" : "bg-orange-500/10"}`}>
-                  {vadesiGecmis ? <AlertCircle className="h-4 w-4 text-red-500" /> : <FileText className="h-4 w-4 text-orange-500" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Link href={`/faturalar/${f.id}`} className="font-semibold hover:text-primary" data-testid={`link-fatura-${f.id}`}>{f.faturaNo}</Link>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${DURUM_RENK[f.durum]}`}>{DURUM_ETIKET[f.durum]}</span>
-                    {vadesiGecmis && <span className="text-xs text-red-500 font-medium">Vadesi Geçmiş</span>}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">{f.bagliFirmaAd} {f.gemiAd ? `- ${f.gemiAd}` : ""}</p>
-                  <p className="text-xs text-muted-foreground">{f.faturaTarihi} — Vade: {f.vadeTarihi}</p>
-                </div>
-                <div className="text-right shrink-0 hidden sm:block">
-                  <p className="font-semibold">{fmt(f.genelToplam, f.paraBirimi)}</p>
-                  {(f.kalanTutar ?? 0) > 0 && f.durum !== "odendi" && (
-                    <p className="text-xs text-muted-foreground">Kalan: {fmt(f.kalanTutar ?? 0, f.paraBirimi)}</p>
-                  )}
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  {(f.durum === "acik" || f.durum === "kismi_odendi") && (
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" title="Ödeme Kaydet" onClick={() => acOdemeModal(f)}>
-                      <CreditCard className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  <Button
-                    size="icon" variant="ghost" className="h-8 w-8" title="PDF İndir"
-                    disabled={pdfIndiriyor === f.id}
-                    onClick={async () => {
-                      setPdfIndiriyor(f.id);
-                      try { await pdfIndir(f.id, f.faturaNo); }
-                      catch { toast({ title: "PDF indirilemedi", variant: "destructive" }); }
-                      finally { setPdfIndiriyor(null); }
-                    }}
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" title="E-posta Gönder" onClick={() => { setGonderFaturaId(f.id); setGonderModal(true); }}>
-                    <Mail className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(f.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                  <Link href={`/faturalar/${f.id}`}>
-                    <Button size="icon" variant="ghost" className="h-8 w-8">
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-        {filtrelenmis.length === 0 && (
-          <div className="text-center text-muted-foreground py-16">
-            <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p>Fatura bulunamadı.</p>
-          </div>
-        )}
-      </div>
+      {gruplu ? (
+        <div className="space-y-6">
+          {gruplu.map(([firmaAd, faturaGrubu]) => (
+            <div key={firmaAd}>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{firmaAd}</h3>
+              <div className="space-y-2">{faturaGrubu.map(faturaSatiri)}</div>
+            </div>
+          ))}
+          {filtrelenmis.length === 0 && (
+            <div className="text-center text-muted-foreground py-16">
+              <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p>Fatura bulunamadı.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtrelenmis.map(faturaSatiri)}
+          {filtrelenmis.length === 0 && (
+            <div className="text-center text-muted-foreground py-16">
+              <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p>Fatura bulunamadı.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       <Dialog open={odemeModal} onOpenChange={setOdemeModal}>
         <DialogContent>

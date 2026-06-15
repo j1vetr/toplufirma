@@ -1576,6 +1576,8 @@ components:
           type: integer
         catiFirmaAd:
           type: ["string", "null"]
+        catiFirmaLogoUrl:
+          type: ["string", "null"]
         bagliFirmaId:
           type: integer
         bagliFirmaAd:

@@ -635,6 +635,7 @@ export const GetFaturaResponse = zod.object({
   "id": zod.number(),
   "catiFirmaId": zod.number(),
   "catiFirmaAd": zod.string().nullish(),
+  "catiFirmaLogoUrl": zod.string().nullish(),
   "bagliFirmaId": zod.number(),
   "bagliFirmaAd": zod.string().nullish(),
   "gemiId": zod.number().nullish(),

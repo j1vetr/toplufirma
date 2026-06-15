@@ -13,6 +13,8 @@ export interface FaturaDetay {
   catiFirmaId: number;
   /** @nullable */
   catiFirmaAd?: string | null;
+  /** @nullable */
+  catiFirmaLogoUrl?: string | null;
   bagliFirmaId: number;
   /** @nullable */
   bagliFirmaAd?: string | null;

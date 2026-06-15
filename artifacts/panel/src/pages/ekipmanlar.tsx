@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, HardDrive, AlertTriangle, Ship } from "lucide-react";
+import { useSirket } from "@/contexts/sirket-context";
 
 interface EkipmanForm {
   catiFirmaId: string; gemiId: string; tip: string; seriNo: string;
@@ -35,6 +36,7 @@ const BOSH: EkipmanForm = { catiFirmaId: "", gemiId: "", tip: "", seriNo: "", ku
 const EKIPMAN_TIPLERI = ["Starlink Terminal", "Router", "Kablo Seti", "Montaj Kiti", "Güç Kaynağı", "Diğer"];
 
 export default function Ekipmanlar() {
+  const { aktifSirketId } = useSirket();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [secilenGemiId, setSecilenGemiId] = useState("");
@@ -43,8 +45,14 @@ export default function Ekipmanlar() {
   const [form, setForm] = useState<EkipmanForm>(BOSH);
   const [silId, setSilId] = useState<number | null>(null);
 
-  const { data: ekipmanlar = [], isLoading } = useListEkipmanlar(undefined, { query: { queryKey: getListEkipmanlarQueryKey() } });
-  const { data: gemiler = [] } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
+  const { data: ekipmanlar = [], isLoading } = useListEkipmanlar(
+    aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined,
+    { query: { queryKey: [...getListEkipmanlarQueryKey(), aktifSirketId] } },
+  );
+  const { data: gemiler = [] } = useListGemiler(
+    aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined,
+    { query: { queryKey: [...getListGemilerQueryKey(), aktifSirketId] } },
+  );
   const { data: catiFirmalar = [] } = useListFirmalar(
     { tip: "cati" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Wallet, TrendingUp, TrendingDown, Search } from "lucide-react";
+import { useSirket } from "@/contexts/sirket-context";
 
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
@@ -33,6 +34,7 @@ const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
 
 export default function Odemeler() {
+  const { aktifSirketId } = useSirket();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [arama, setArama] = useState("");
@@ -50,7 +52,10 @@ export default function Odemeler() {
   const [bankaId, setBankaId] = useState("");
   const [aciklama, setAciklama] = useState("");
 
-  const { data: odemeler = [], isLoading } = useListOdemeler(undefined, { query: { queryKey: getListOdemelerQueryKey() } });
+  const { data: odemeler = [], isLoading } = useListOdemeler(
+    aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined,
+    { query: { queryKey: [...getListOdemelerQueryKey(), aktifSirketId] } },
+  );
   const { data: catiFirmalar = [] } = useListFirmalar(
     { tip: "cati" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },

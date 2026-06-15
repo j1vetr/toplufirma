@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Ship, ChevronRight, Search } from "lucide-react";
+import { useSirket } from "@/contexts/sirket-context";
 
 interface GemiForm {
   firmaId: string;
@@ -36,6 +37,7 @@ interface GemiForm {
 const BOSH: GemiForm = { firmaId: "", ad: "", imoNumarasi: "", bayrakDevleti: "", notlar: "" };
 
 export default function Gemiler() {
+  const { aktifSirketId } = useSirket();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [arama, setArama] = useState("");
@@ -44,7 +46,10 @@ export default function Gemiler() {
   const [form, setForm] = useState<GemiForm>(BOSH);
   const [silId, setSilId] = useState<number | null>(null);
 
-  const { data: gemiler = [], isLoading } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
+  const { data: gemiler = [], isLoading } = useListGemiler(
+    aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined,
+    { query: { queryKey: [...getListGemilerQueryKey(), aktifSirketId] } },
+  );
   const { data: bagliFirmalar = [] } = useListFirmalar(
     { tip: "bagli" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
