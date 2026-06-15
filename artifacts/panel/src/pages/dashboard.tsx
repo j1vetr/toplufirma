@@ -186,29 +186,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {agingData && (agingData.dilimler ?? []).some(d => d.toplamTutar > 0) && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="font-display text-base flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              Alacak Yaşlandırma
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {(agingData.dilimler ?? []).map((d, i) => (
-                <div key={i} className="space-y-1 text-center p-3 rounded-xl bg-muted/40">
-                  <p className="text-xs text-muted-foreground font-medium">{d.etiket}</p>
-                  <p className={`text-lg font-display font-bold ${DILIM_RENK[d.etiket] ?? "text-foreground"}`}>
-                    {fmt(d.toplamTutar)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{d.faturaSayisi} fatura</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {sonIslemler && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
