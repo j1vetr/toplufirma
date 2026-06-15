@@ -54,6 +54,12 @@ router.post("/odemeler", requireYazma, async (req, res) => {
       const [bh] = await db.select({ sid: bankaHesaplari.sirketId }).from(bankaHesaplari).where(eq(bankaHesaplari.id, Number(bankaHesabiId)));
       if (!bh || bh.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen banka hesabı bu şirkete ait değil" }); return; }
     }
+    if (gemiId) {
+      const [gemiCari] = await db.select({ sid: cariler.sirketId }).from(gemiler)
+        .innerJoin(cariler, eq(gemiler.cariId, cariler.id))
+        .where(eq(gemiler.id, Number(gemiId)));
+      if (!gemiCari || gemiCari.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen gemi bu şirkete ait değil" }); return; }
+    }
 
     const [row] = await db.insert(odemeler).values({
       sirketId, cariId, gemiId: gemiId ?? null, bankaHesabiId: bankaHesabiId ?? null,

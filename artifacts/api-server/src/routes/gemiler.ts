@@ -107,6 +107,10 @@ router.patch("/gemiler/:id", requireYazma, async (req, res) => {
     if (existing.cariSirketId && !sirketErisimKontrol(existing.cariSirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { ad, imoNumarasi, bayrakDevleti, notlar, aktif, cariId } = req.body;
+    if (cariId !== undefined) {
+      const [newCari] = await db.select({ sid: cariler.sirketId }).from(cariler).where(eq(cariler.id, Number(cariId)));
+      if (!newCari || newCari.sid !== existing.cariSirketId) { res.status(400).json({ error: "Belirtilen cari bu şirkete ait değil" }); return; }
+    }
     const [row] = await db.update(gemiler)
       .set({ ad, imoNumarasi, bayrakDevleti, notlar, aktif, cariId })
       .where(eq(gemiler.id, id)).returning();

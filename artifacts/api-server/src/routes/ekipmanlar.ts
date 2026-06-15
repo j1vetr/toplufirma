@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { ekipmanlar, gemiler } from "@workspace/db";
+import { ekipmanlar, gemiler, cariler } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 
@@ -35,6 +35,13 @@ router.post("/ekipmanlar", requireYazma, async (req, res) => {
     if (!sirketId || !gemiId || !tip || !seriNo) { res.status(400).json({ error: "Zorunlu alanlar eksik" }); return; }
     if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
+    {
+      const [gemiCari] = await db.select({ sid: cariler.sirketId }).from(gemiler)
+        .innerJoin(cariler, eq(gemiler.cariId, cariler.id))
+        .where(eq(gemiler.id, Number(gemiId)));
+      if (!gemiCari || gemiCari.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen gemi bu şirkete ait değil" }); return; }
+    }
+
     const [row] = await db.insert(ekipmanlar).values({
       sirketId, gemiId, tip, seriNo, kurulumTarihi, garantiBitisTarihi, notlar, aktif: aktif ?? true,
     }).returning();
@@ -52,6 +59,12 @@ router.patch("/ekipmanlar/:id", requireYazma, async (req, res) => {
     if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { tip, seriNo, kurulumTarihi, garantiBitisTarihi, notlar, aktif, gemiId } = req.body;
+    if (gemiId !== undefined) {
+      const [gemiCari] = await db.select({ sid: cariler.sirketId }).from(gemiler)
+        .innerJoin(cariler, eq(gemiler.cariId, cariler.id))
+        .where(eq(gemiler.id, Number(gemiId)));
+      if (!gemiCari || gemiCari.sid !== existing.sirketId) { res.status(400).json({ error: "Belirtilen gemi bu şirkete ait değil" }); return; }
+    }
     const [row] = await db.update(ekipmanlar)
       .set({ tip, seriNo, kurulumTarihi, garantiBitisTarihi, notlar, aktif, gemiId })
       .where(eq(ekipmanlar.id, id)).returning();
