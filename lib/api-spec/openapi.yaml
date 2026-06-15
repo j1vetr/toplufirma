@@ -1,29 +1,1184 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Çoklu Firma Muhasebe ve Cari Takip Paneli API
 servers:
   - url: /api
-    description: Base API path
+    description: API temel yolu
 tags:
   - name: health
-    description: Health operations
+    description: Sağlık kontrolü
+  - name: sirketler
+    description: Şirket yönetimi
+  - name: cariler
+    description: Cari ve müşteri yönetimi
+  - name: gemiler
+    description: Gemi yönetimi
+  - name: banka-hesaplari
+    description: Banka hesabı yönetimi
+  - name: faturalar
+    description: Fatura yönetimi
+  - name: odemeler
+    description: Ödeme ve tahsilat yönetimi
+  - name: starlink-planlari
+    description: Starlink abonelik planı yönetimi
+  - name: ekipmanlar
+    description: Ekipman yönetimi
+  - name: kdv-oranlari
+    description: KDV oranı yönetimi
+  - name: fatura-serileri
+    description: Fatura serisi yönetimi
+  - name: dashboard
+    description: Dashboard özet verileri
+  - name: raporlar
+    description: Raporlama ve dışa aktarma
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
-      summary: Health check
-      description: Returns server health status
+      summary: Sağlık kontrolü
       responses:
         "200":
-          description: Healthy
+          description: Sağlıklı
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Şirketler ──────────────────────────────────────────────────────────────
+  /sirketler:
+    get:
+      operationId: listSirketler
+      tags: [sirketler]
+      summary: Şirketleri listele
+      responses:
+        "200":
+          description: Şirket listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sirket"
+    post:
+      operationId: createSirket
+      tags: [sirketler]
+      summary: Yeni şirket oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SirketInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sirket"
+
+  /sirketler/{id}:
+    get:
+      operationId: getSirket
+      tags: [sirketler]
+      summary: Şirketi getir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Şirket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sirket"
+    patch:
+      operationId: updateSirket
+      tags: [sirketler]
+      summary: Şirketi güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SirketUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sirket"
+    delete:
+      operationId: deleteSirket
+      tags: [sirketler]
+      summary: Şirketi sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  # ── Cariler ────────────────────────────────────────────────────────────────
+  /cariler:
+    get:
+      operationId: listCariler
+      tags: [cariler]
+      summary: Carileri listele
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: integer
+        - name: tip
+          in: query
+          schema:
+            type: string
+        - name: arama
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cari listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Cari"
+    post:
+      operationId: createCari
+      tags: [cariler]
+      summary: Yeni cari oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CariInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cari"
+
+  /cariler/{id}:
+    get:
+      operationId: getCari
+      tags: [cariler]
+      summary: Cariyi getir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cari
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CariDetay"
+    patch:
+      operationId: updateCari
+      tags: [cariler]
+      summary: Cariyi güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CariUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cari"
+    delete:
+      operationId: deleteCari
+      tags: [cariler]
+      summary: Cariyi sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  /cariler/{id}/ekstre:
+    get:
+      operationId: getCariEkstre
+      tags: [cariler]
+      summary: Cari ekstre
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cari ekstre
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CariEkstre"
+
+  # ── Gemiler ────────────────────────────────────────────────────────────────
+  /gemiler:
+    get:
+      operationId: listGemiler
+      tags: [gemiler]
+      summary: Gemileri listele
+      parameters:
+        - name: cariId
+          in: query
+          schema:
+            type: integer
+        - name: sirketId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Gemi listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Gemi"
+    post:
+      operationId: createGemi
+      tags: [gemiler]
+      summary: Yeni gemi oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GemiInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gemi"
+
+  /gemiler/{id}:
+    get:
+      operationId: getGemi
+      tags: [gemiler]
+      summary: Gemiyi getir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Gemi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GemiDetay"
+    patch:
+      operationId: updateGemi
+      tags: [gemiler]
+      summary: Gemiyi güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GemiUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gemi"
+    delete:
+      operationId: deleteGemi
+      tags: [gemiler]
+      summary: Gemiyi sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  # ── Banka Hesapları ────────────────────────────────────────────────────────
+  /banka-hesaplari:
+    get:
+      operationId: listBankaHesaplari
+      tags: [banka-hesaplari]
+      summary: Banka hesaplarını listele
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Banka hesabı listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BankaHesabi"
+    post:
+      operationId: createBankaHesabi
+      tags: [banka-hesaplari]
+      summary: Yeni banka hesabı oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BankaHesabiInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankaHesabi"
+
+  /banka-hesaplari/{id}:
+    get:
+      operationId: getBankaHesabi
+      tags: [banka-hesaplari]
+      summary: Banka hesabını getir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Banka hesabı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankaHesabi"
+    patch:
+      operationId: updateBankaHesabi
+      tags: [banka-hesaplari]
+      summary: Banka hesabını güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BankaHesabiUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankaHesabi"
+    delete:
+      operationId: deleteBankaHesabi
+      tags: [banka-hesaplari]
+      summary: Banka hesabını sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  /banka-hesaplari/{id}/hareketler:
+    get:
+      operationId: getBankaHesabiHareketleri
+      tags: [banka-hesaplari]
+      summary: Banka hesabı hareketleri
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Hareketler
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankaHareketleri"
+
+  # ── Faturalar ──────────────────────────────────────────────────────────────
+  /faturalar:
+    get:
+      operationId: listFaturalar
+      tags: [faturalar]
+      summary: Faturaları listele
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: integer
+        - name: cariId
+          in: query
+          schema:
+            type: integer
+        - name: durum
+          in: query
+          schema:
+            type: string
+        - name: paraBirimi
+          in: query
+          schema:
+            type: string
+        - name: baslangicTarihi
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: bitisTarihi
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Fatura listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Fatura"
+    post:
+      operationId: createFatura
+      tags: [faturalar]
+      summary: Yeni fatura oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FaturaInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fatura"
+
+  /faturalar/{id}:
+    get:
+      operationId: getFatura
+      tags: [faturalar]
+      summary: Faturayı getir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Fatura
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FaturaDetay"
+    patch:
+      operationId: updateFatura
+      tags: [faturalar]
+      summary: Faturayı güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FaturaUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fatura"
+    delete:
+      operationId: deleteFatura
+      tags: [faturalar]
+      summary: Faturayı sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  # ── Ödemeler ───────────────────────────────────────────────────────────────
+  /odemeler:
+    get:
+      operationId: listOdemeler
+      tags: [odemeler]
+      summary: Ödemeleri listele
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: integer
+        - name: cariId
+          in: query
+          schema:
+            type: integer
+        - name: faturaId
+          in: query
+          schema:
+            type: integer
+        - name: tip
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ödeme listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Odeme"
+    post:
+      operationId: createOdeme
+      tags: [odemeler]
+      summary: Yeni ödeme/tahsilat oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OdemeInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Odeme"
+
+  /odemeler/{id}:
+    get:
+      operationId: getOdeme
+      tags: [odemeler]
+      summary: Ödemeyi getir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ödeme
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Odeme"
+    patch:
+      operationId: updateOdeme
+      tags: [odemeler]
+      summary: Ödemeyi güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OdemeUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Odeme"
+    delete:
+      operationId: deleteOdeme
+      tags: [odemeler]
+      summary: Ödemeyi sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  # ── Starlink Planları ──────────────────────────────────────────────────────
+  /starlink-planlari:
+    get:
+      operationId: listStarlinkPlanlari
+      tags: [starlink-planlari]
+      summary: Starlink planlarını listele
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: integer
+        - name: gemiId
+          in: query
+          schema:
+            type: integer
+        - name: aktif
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Starlink planı listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StarlinkPlani"
+    post:
+      operationId: createStarlinkPlani
+      tags: [starlink-planlari]
+      summary: Yeni Starlink planı oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StarlinkPlaniInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarlinkPlani"
+
+  /starlink-planlari/{id}:
+    get:
+      operationId: getStarlinkPlani
+      tags: [starlink-planlari]
+      summary: Starlink planını getir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Starlink planı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarlinkPlani"
+    patch:
+      operationId: updateStarlinkPlani
+      tags: [starlink-planlari]
+      summary: Starlink planını güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StarlinkPlaniUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarlinkPlani"
+    delete:
+      operationId: deleteStarlinkPlani
+      tags: [starlink-planlari]
+      summary: Starlink planını sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  # ── Ekipmanlar ─────────────────────────────────────────────────────────────
+  /ekipmanlar:
+    get:
+      operationId: listEkipmanlar
+      tags: [ekipmanlar]
+      summary: Ekipmanları listele
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: integer
+        - name: gemiId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ekipman listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ekipman"
+    post:
+      operationId: createEkipman
+      tags: [ekipmanlar]
+      summary: Yeni ekipman oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EkipmanInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ekipman"
+
+  /ekipmanlar/{id}:
+    patch:
+      operationId: updateEkipman
+      tags: [ekipmanlar]
+      summary: Ekipmanı güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EkipmanUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ekipman"
+    delete:
+      operationId: deleteEkipman
+      tags: [ekipmanlar]
+      summary: Ekipmanı sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  # ── KDV Oranları ───────────────────────────────────────────────────────────
+  /kdv-oranlari:
+    get:
+      operationId: listKdvOranlari
+      tags: [kdv-oranlari]
+      summary: KDV oranlarını listele
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: KDV oranı listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KdvOrani"
+    post:
+      operationId: createKdvOrani
+      tags: [kdv-oranlari]
+      summary: Yeni KDV oranı oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KdvOraniInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KdvOrani"
+
+  /kdv-oranlari/{id}:
+    patch:
+      operationId: updateKdvOrani
+      tags: [kdv-oranlari]
+      summary: KDV oranını güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KdvOraniUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KdvOrani"
+    delete:
+      operationId: deleteKdvOrani
+      tags: [kdv-oranlari]
+      summary: KDV oranını sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  # ── Fatura Serileri ────────────────────────────────────────────────────────
+  /fatura-serileri:
+    get:
+      operationId: listFaturaSerileri
+      tags: [fatura-serileri]
+      summary: Fatura serilerini listele
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Fatura serisi listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FaturaSeri"
+    post:
+      operationId: createFaturaSeri
+      tags: [fatura-serileri]
+      summary: Yeni fatura serisi oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FaturaSeriInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FaturaSeri"
+
+  /fatura-serileri/{id}:
+    patch:
+      operationId: updateFaturaSeri
+      tags: [fatura-serileri]
+      summary: Fatura serisini güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FaturaSeriUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FaturaSeri"
+    delete:
+      operationId: deleteFaturaSeri
+      tags: [fatura-serileri]
+      summary: Fatura serisini sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  # ── Dashboard ──────────────────────────────────────────────────────────────
+  /dashboard/ozet:
+    get:
+      operationId: getDashboardOzet
+      tags: [dashboard]
+      summary: Dashboard özet verileri
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Özet veriler
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardOzet"
+
+  /dashboard/vadesi-yaklasan:
+    get:
+      operationId: getVadesiYaklasanFaturalar
+      tags: [dashboard]
+      summary: Vadesi yaklaşan faturalar
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: gun
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Vadesi yaklaşan faturalar
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Fatura"
+
+  /dashboard/son-islemler:
+    get:
+      operationId: getSonIslemler
+      tags: [dashboard]
+      summary: Son işlemler
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Son işlemler
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SonIslemler"
+
+  /dashboard/aylik-gelir:
+    get:
+      operationId: getAylikGelir
+      tags: [dashboard]
+      summary: Aylık gelir grafik verisi
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: yil
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Aylık gelir
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AylikGelirNoktasi"
+
+  /dashboard/yenileme-uyarilari:
+    get:
+      operationId: getYenilemeyeYaklasanPlanlar
+      tags: [dashboard]
+      summary: Süresi dolmak üzere olan Starlink planları
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: gun
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Yenileme uyarıları
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StarlinkPlani"
+
+  # ── Raporlar ───────────────────────────────────────────────────────────────
+  /raporlar/kdv-ozeti:
+    get:
+      operationId: getKdvOzeti
+      tags: [raporlar]
+      summary: KDV özet raporu
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: yil
+          in: query
+          schema:
+            type: integer
+        - name: ay
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: KDV özeti
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KdvOzeti"
+
+  /raporlar/alacak-yaslandirma:
+    get:
+      operationId: getAlacakYaslandirma
+      tags: [raporlar]
+      summary: Alacak yaşlandırma raporu
+      parameters:
+        - name: sirketId
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Yaşlandırma raporu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlacakYaslandirma"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +1189,1175 @@ components:
       required:
         - status
 
+    # ── Şirket ──────────────────────────────────────────────────────────────
+    Sirket:
+      type: object
+      required: [id, ad, seriOneki, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        ad:
+          type: string
+        vergiNo:
+          type: ["string", "null"]
+        vergiDairesi:
+          type: ["string", "null"]
+        adres:
+          type: ["string", "null"]
+        telefon:
+          type: ["string", "null"]
+        eposta:
+          type: ["string", "null"]
+        seriOneki:
+          type: string
+        logo:
+          type: ["string", "null"]
+        aktif:
+          type: boolean
+          default: true
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    SirketInput:
+      type: object
+      required: [ad, seriOneki]
+      properties:
+        ad:
+          type: string
+        vergiNo:
+          type: string
+        vergiDairesi:
+          type: string
+        adres:
+          type: string
+        telefon:
+          type: string
+        eposta:
+          type: string
+        seriOneki:
+          type: string
+        aktif:
+          type: boolean
+
+    SirketUpdate:
+      type: object
+      properties:
+        ad:
+          type: string
+        vergiNo:
+          type: string
+        vergiDairesi:
+          type: string
+        adres:
+          type: string
+        telefon:
+          type: string
+        eposta:
+          type: string
+        seriOneki:
+          type: string
+        aktif:
+          type: boolean
+
+    # ── Cari ────────────────────────────────────────────────────────────────
+    Cari:
+      type: object
+      required: [id, sirketId, ad, tip, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        sirketId:
+          type: integer
+        sirketAd:
+          type: ["string", "null"]
+        ad:
+          type: string
+        tip:
+          type: string
+          enum: [musteri, tedarikci, ana_firma, bagli_firma, gemi_sahibi, diger]
+        vergiNo:
+          type: ["string", "null"]
+        vergiDairesi:
+          type: ["string", "null"]
+        telefon:
+          type: ["string", "null"]
+        eposta:
+          type: ["string", "null"]
+        adres:
+          type: ["string", "null"]
+        yetkiliKisi:
+          type: ["string", "null"]
+        paraBirimi:
+          type: string
+          default: "USD"
+        notlar:
+          type: ["string", "null"]
+        aktif:
+          type: boolean
+        toplamBorc:
+          type: number
+        toplamAlacak:
+          type: number
+        kalanBakiye:
+          type: number
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    CariDetay:
+      type: object
+      required: [id, sirketId, ad, tip, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        sirketId:
+          type: integer
+        sirketAd:
+          type: ["string", "null"]
+        ad:
+          type: string
+        tip:
+          type: string
+        vergiNo:
+          type: ["string", "null"]
+        vergiDairesi:
+          type: ["string", "null"]
+        telefon:
+          type: ["string", "null"]
+        eposta:
+          type: ["string", "null"]
+        adres:
+          type: ["string", "null"]
+        yetkiliKisi:
+          type: ["string", "null"]
+        paraBirimi:
+          type: string
+        notlar:
+          type: ["string", "null"]
+        aktif:
+          type: boolean
+        toplamBorc:
+          type: number
+        toplamAlacak:
+          type: number
+        kalanBakiye:
+          type: number
+        acikFaturalar:
+          type: array
+          items:
+            $ref: "#/components/schemas/Fatura"
+        bagliGemiler:
+          type: array
+          items:
+            $ref: "#/components/schemas/Gemi"
+        sonIslemler:
+          type: array
+          items:
+            $ref: "#/components/schemas/EkstreKalemi"
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    CariInput:
+      type: object
+      required: [sirketId, ad, tip]
+      properties:
+        sirketId:
+          type: integer
+        ad:
+          type: string
+        tip:
+          type: string
+          enum: [musteri, tedarikci, ana_firma, bagli_firma, gemi_sahibi, diger]
+        vergiNo:
+          type: string
+        vergiDairesi:
+          type: string
+        telefon:
+          type: string
+        eposta:
+          type: string
+        adres:
+          type: string
+        yetkiliKisi:
+          type: string
+        paraBirimi:
+          type: string
+        notlar:
+          type: string
+        aktif:
+          type: boolean
+
+    CariUpdate:
+      type: object
+      properties:
+        ad:
+          type: string
+        tip:
+          type: string
+        vergiNo:
+          type: string
+        vergiDairesi:
+          type: string
+        telefon:
+          type: string
+        eposta:
+          type: string
+        adres:
+          type: string
+        yetkiliKisi:
+          type: string
+        paraBirimi:
+          type: string
+        notlar:
+          type: string
+        aktif:
+          type: boolean
+
+    CariEkstre:
+      type: object
+      required: [cariId, cariAd, kalemler, toplamBorc, toplamAlacak, kalanBakiye]
+      properties:
+        cariId:
+          type: integer
+        cariAd:
+          type: string
+        kalemler:
+          type: array
+          items:
+            $ref: "#/components/schemas/EkstreKalemi"
+        toplamBorc:
+          type: number
+        toplamAlacak:
+          type: number
+        kalanBakiye:
+          type: number
+
+    EkstreKalemi:
+      type: object
+      required: [id, tip, tarih, tutar, paraBirimi, bakiye]
+      properties:
+        id:
+          type: integer
+        tip:
+          type: string
+          enum: [fatura, odeme, tahsilat]
+        tarih:
+          type: string
+          format: date
+        aciklama:
+          type: ["string", "null"]
+        referansNo:
+          type: ["string", "null"]
+        gemiAd:
+          type: ["string", "null"]
+        borc:
+          type: ["number", "null"]
+        alacak:
+          type: ["number", "null"]
+        tutar:
+          type: number
+        paraBirimi:
+          type: string
+        bakiye:
+          type: number
+
+    # ── Gemi ────────────────────────────────────────────────────────────────
+    Gemi:
+      type: object
+      required: [id, cariId, ad, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        cariId:
+          type: integer
+        cariAd:
+          type: ["string", "null"]
+        sirketId:
+          type: ["integer", "null"]
+        ad:
+          type: string
+        imoNumarasi:
+          type: ["string", "null"]
+        bayrakDevleti:
+          type: ["string", "null"]
+        notlar:
+          type: ["string", "null"]
+        aktif:
+          type: boolean
+        aktifPlan:
+          type: ["string", "null"]
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    GemiDetay:
+      type: object
+      required: [id, cariId, ad, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        cariId:
+          type: integer
+        cariAd:
+          type: ["string", "null"]
+        ad:
+          type: string
+        imoNumarasi:
+          type: ["string", "null"]
+        bayrakDevleti:
+          type: ["string", "null"]
+        notlar:
+          type: ["string", "null"]
+        aktif:
+          type: boolean
+        starlinkPlanlari:
+          type: array
+          items:
+            $ref: "#/components/schemas/StarlinkPlani"
+        ekipmanlar:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ekipman"
+        faturalar:
+          type: array
+          items:
+            $ref: "#/components/schemas/Fatura"
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    GemiInput:
+      type: object
+      required: [cariId, ad]
+      properties:
+        cariId:
+          type: integer
+        ad:
+          type: string
+        imoNumarasi:
+          type: string
+        bayrakDevleti:
+          type: string
+        notlar:
+          type: string
+        aktif:
+          type: boolean
+
+    GemiUpdate:
+      type: object
+      properties:
+        ad:
+          type: string
+        imoNumarasi:
+          type: string
+        bayrakDevleti:
+          type: string
+        notlar:
+          type: string
+        aktif:
+          type: boolean
+        cariId:
+          type: integer
+
+    # ── Banka Hesabı ──────────────────────────────────────────────────────
+    BankaHesabi:
+      type: object
+      required: [id, sirketId, bankaAdi, hesapAdi, paraBirimi, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        sirketId:
+          type: integer
+        sirketAd:
+          type: ["string", "null"]
+        bankaAdi:
+          type: string
+        hesapAdi:
+          type: string
+        iban:
+          type: ["string", "null"]
+        paraBirimi:
+          type: string
+        subeAdi:
+          type: ["string", "null"]
+        aciklama:
+          type: ["string", "null"]
+        aktif:
+          type: boolean
+        bakiye:
+          type: number
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    BankaHesabiInput:
+      type: object
+      required: [sirketId, bankaAdi, hesapAdi, paraBirimi]
+      properties:
+        sirketId:
+          type: integer
+        bankaAdi:
+          type: string
+        hesapAdi:
+          type: string
+        iban:
+          type: string
+        paraBirimi:
+          type: string
+        subeAdi:
+          type: string
+        aciklama:
+          type: string
+        aktif:
+          type: boolean
+
+    BankaHesabiUpdate:
+      type: object
+      properties:
+        bankaAdi:
+          type: string
+        hesapAdi:
+          type: string
+        iban:
+          type: string
+        paraBirimi:
+          type: string
+        subeAdi:
+          type: string
+        aciklama:
+          type: string
+        aktif:
+          type: boolean
+
+    BankaHareketleri:
+      type: object
+      required: [hesapId, hareketler, toplamGelen, toplamGiden, netBakiye]
+      properties:
+        hesapId:
+          type: integer
+        hareketler:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankaHareketi"
+        toplamGelen:
+          type: number
+        toplamGiden:
+          type: number
+        netBakiye:
+          type: number
+
+    BankaHareketi:
+      type: object
+      required: [id, tarih, tip, tutar, paraBirimi]
+      properties:
+        id:
+          type: integer
+        tarih:
+          type: string
+          format: date
+        tip:
+          type: string
+          enum: [tahsilat, odeme]
+        tutar:
+          type: number
+        paraBirimi:
+          type: string
+        aciklama:
+          type: ["string", "null"]
+        cariAd:
+          type: ["string", "null"]
+        faturaNo:
+          type: ["string", "null"]
+
+    # ── Fatura ────────────────────────────────────────────────────────────
+    Fatura:
+      type: object
+      required: [id, sirketId, cariId, faturaNo, faturaTarihi, vadeTarihi, paraBirimi, durum, toplamTutar, kdvTutari, genelToplam, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        sirketId:
+          type: integer
+        sirketAd:
+          type: ["string", "null"]
+        cariId:
+          type: integer
+        cariAd:
+          type: ["string", "null"]
+        gemiId:
+          type: ["integer", "null"]
+        gemiAd:
+          type: ["string", "null"]
+        faturaNo:
+          type: string
+        faturaTarihi:
+          type: string
+          format: date
+        vadeTarihi:
+          type: string
+          format: date
+        paraBirimi:
+          type: string
+        durum:
+          type: string
+          enum: [acik, kismi_odendi, odendi, iptal]
+        toplamTutar:
+          type: number
+        kdvTutari:
+          type: number
+        genelToplam:
+          type: number
+        odenenTutar:
+          type: number
+        kalanTutar:
+          type: number
+        notlar:
+          type: ["string", "null"]
+        aciklama:
+          type: ["string", "null"]
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    FaturaDetay:
+      type: object
+      required: [id, sirketId, cariId, faturaNo, faturaTarihi, vadeTarihi, paraBirimi, durum, toplamTutar, kdvTutari, genelToplam, olusturmaTarihi, kalemler]
+      properties:
+        id:
+          type: integer
+        sirketId:
+          type: integer
+        sirketAd:
+          type: ["string", "null"]
+        cariId:
+          type: integer
+        cariAd:
+          type: ["string", "null"]
+        gemiId:
+          type: ["integer", "null"]
+        gemiAd:
+          type: ["string", "null"]
+        faturaNo:
+          type: string
+        faturaTarihi:
+          type: string
+          format: date
+        vadeTarihi:
+          type: string
+          format: date
+        paraBirimi:
+          type: string
+        durum:
+          type: string
+        toplamTutar:
+          type: number
+        kdvTutari:
+          type: number
+        genelToplam:
+          type: number
+        odenenTutar:
+          type: number
+        kalanTutar:
+          type: number
+        notlar:
+          type: ["string", "null"]
+        aciklama:
+          type: ["string", "null"]
+        kalemler:
+          type: array
+          items:
+            $ref: "#/components/schemas/FaturaKalemi"
+        odemeler:
+          type: array
+          items:
+            $ref: "#/components/schemas/Odeme"
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    FaturaKalemi:
+      type: object
+      required: [id, faturaId, aciklama, miktar, birimFiyat, kdvOrani, araToplam, kdvTutari, genelToplam]
+      properties:
+        id:
+          type: integer
+        faturaId:
+          type: integer
+        aciklama:
+          type: string
+        miktar:
+          type: number
+        birimFiyat:
+          type: number
+        kdvOrani:
+          type: number
+        araToplam:
+          type: number
+        kdvTutari:
+          type: number
+        genelToplam:
+          type: number
+
+    FaturaInput:
+      type: object
+      required: [sirketId, cariId, faturaTarihi, vadeTarihi, paraBirimi, kalemler]
+      properties:
+        sirketId:
+          type: integer
+        cariId:
+          type: integer
+        gemiId:
+          type: ["integer", "null"]
+        faturaSerisiId:
+          type: ["integer", "null"]
+        faturaTarihi:
+          type: string
+          format: date
+        vadeTarihi:
+          type: string
+          format: date
+        paraBirimi:
+          type: string
+        notlar:
+          type: string
+        aciklama:
+          type: string
+        kalemler:
+          type: array
+          items:
+            $ref: "#/components/schemas/FaturaKalemiInput"
+
+    FaturaKalemiInput:
+      type: object
+      required: [aciklama, miktar, birimFiyat, kdvOrani]
+      properties:
+        aciklama:
+          type: string
+        miktar:
+          type: number
+        birimFiyat:
+          type: number
+        kdvOrani:
+          type: number
+
+    FaturaUpdate:
+      type: object
+      properties:
+        vadeTarihi:
+          type: string
+          format: date
+        notlar:
+          type: string
+        aciklama:
+          type: string
+        durum:
+          type: string
+
+    # ── Ödeme ────────────────────────────────────────────────────────────
+    Odeme:
+      type: object
+      required: [id, sirketId, cariId, tip, tarih, tutar, paraBirimi, odemeYontemi, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        sirketId:
+          type: integer
+        sirketAd:
+          type: ["string", "null"]
+        cariId:
+          type: integer
+        cariAd:
+          type: ["string", "null"]
+        gemiId:
+          type: ["integer", "null"]
+        gemiAd:
+          type: ["string", "null"]
+        bankaHesabiId:
+          type: ["integer", "null"]
+        bankaHesabiAd:
+          type: ["string", "null"]
+        faturaId:
+          type: ["integer", "null"]
+        faturaNo:
+          type: ["string", "null"]
+        tip:
+          type: string
+          enum: [tahsilat, odeme]
+        tarih:
+          type: string
+          format: date
+        tutar:
+          type: number
+        paraBirimi:
+          type: string
+        odemeYontemi:
+          type: string
+          enum: [banka_havalesi, eft, nakit, kredi_karti, wise, paypal, diger]
+        aciklama:
+          type: ["string", "null"]
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    OdemeInput:
+      type: object
+      required: [sirketId, cariId, tip, tarih, tutar, paraBirimi, odemeYontemi]
+      properties:
+        sirketId:
+          type: integer
+        cariId:
+          type: integer
+        gemiId:
+          type: ["integer", "null"]
+        bankaHesabiId:
+          type: ["integer", "null"]
+        faturaId:
+          type: ["integer", "null"]
+        tip:
+          type: string
+          enum: [tahsilat, odeme]
+        tarih:
+          type: string
+          format: date
+        tutar:
+          type: number
+        paraBirimi:
+          type: string
+        odemeYontemi:
+          type: string
+          enum: [banka_havalesi, eft, nakit, kredi_karti, wise, paypal, diger]
+        aciklama:
+          type: string
+
+    OdemeUpdate:
+      type: object
+      properties:
+        tarih:
+          type: string
+          format: date
+        tutar:
+          type: number
+        aciklama:
+          type: string
+        odemeYontemi:
+          type: string
+
+    # ── Starlink Planı ────────────────────────────────────────────────────
+    StarlinkPlani:
+      type: object
+      required: [id, sirketId, cariId, gemiId, planAdi, baslangicTarihi, bitisTarihi, aylikUcret, paraBirimi, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        sirketId:
+          type: integer
+        sirketAd:
+          type: ["string", "null"]
+        cariId:
+          type: integer
+        cariAd:
+          type: ["string", "null"]
+        gemiId:
+          type: integer
+        gemiAd:
+          type: ["string", "null"]
+        planAdi:
+          type: string
+        hizMbps:
+          type: ["integer", "null"]
+        baslangicTarihi:
+          type: string
+          format: date
+        bitisTarihi:
+          type: string
+          format: date
+        aylikUcret:
+          type: number
+        paraBirimi:
+          type: string
+        otomatikYenileme:
+          type: boolean
+        aktif:
+          type: boolean
+        notlar:
+          type: ["string", "null"]
+        kalanGun:
+          type: ["integer", "null"]
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    StarlinkPlaniInput:
+      type: object
+      required: [sirketId, cariId, gemiId, planAdi, baslangicTarihi, bitisTarihi, aylikUcret, paraBirimi]
+      properties:
+        sirketId:
+          type: integer
+        cariId:
+          type: integer
+        gemiId:
+          type: integer
+        planAdi:
+          type: string
+        hizMbps:
+          type: integer
+        baslangicTarihi:
+          type: string
+          format: date
+        bitisTarihi:
+          type: string
+          format: date
+        aylikUcret:
+          type: number
+        paraBirimi:
+          type: string
+        otomatikYenileme:
+          type: boolean
+        aktif:
+          type: boolean
+        notlar:
+          type: string
+
+    StarlinkPlaniUpdate:
+      type: object
+      properties:
+        planAdi:
+          type: string
+        hizMbps:
+          type: integer
+        bitisTarihi:
+          type: string
+          format: date
+        aylikUcret:
+          type: number
+        otomatikYenileme:
+          type: boolean
+        aktif:
+          type: boolean
+        notlar:
+          type: string
+
+    # ── Ekipman ───────────────────────────────────────────────────────────
+    Ekipman:
+      type: object
+      required: [id, sirketId, gemiId, tip, seriNo, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        sirketId:
+          type: integer
+        gemiId:
+          type: integer
+        gemiAd:
+          type: ["string", "null"]
+        tip:
+          type: string
+        seriNo:
+          type: string
+        kurulumTarihi:
+          type: ["string", "null"]
+        garantiBitisTarihi:
+          type: ["string", "null"]
+        notlar:
+          type: ["string", "null"]
+        aktif:
+          type: boolean
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    EkipmanInput:
+      type: object
+      required: [sirketId, gemiId, tip, seriNo]
+      properties:
+        sirketId:
+          type: integer
+        gemiId:
+          type: integer
+        tip:
+          type: string
+        seriNo:
+          type: string
+        kurulumTarihi:
+          type: string
+          format: date
+        garantiBitisTarihi:
+          type: string
+          format: date
+        notlar:
+          type: string
+        aktif:
+          type: boolean
+
+    EkipmanUpdate:
+      type: object
+      properties:
+        tip:
+          type: string
+        seriNo:
+          type: string
+        kurulumTarihi:
+          type: string
+          format: date
+        garantiBitisTarihi:
+          type: string
+          format: date
+        notlar:
+          type: string
+        aktif:
+          type: boolean
+        gemiId:
+          type: integer
+
+    # ── KDV Oranı ─────────────────────────────────────────────────────────
+    KdvOrani:
+      type: object
+      required: [id, sirketId, ad, oran, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        sirketId:
+          type: integer
+        ad:
+          type: string
+        oran:
+          type: number
+        varsayilan:
+          type: boolean
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    KdvOraniInput:
+      type: object
+      required: [sirketId, ad, oran]
+      properties:
+        sirketId:
+          type: integer
+        ad:
+          type: string
+        oran:
+          type: number
+        varsayilan:
+          type: boolean
+
+    KdvOraniUpdate:
+      type: object
+      properties:
+        ad:
+          type: string
+        oran:
+          type: number
+        varsayilan:
+          type: boolean
+
+    # ── Fatura Serisi ─────────────────────────────────────────────────────
+    FaturaSeri:
+      type: object
+      required: [id, sirketId, ad, onek, sonrakiNo, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        sirketId:
+          type: integer
+        ad:
+          type: string
+        onek:
+          type: string
+        sonrakiNo:
+          type: integer
+        varsayilan:
+          type: boolean
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    FaturaSeriInput:
+      type: object
+      required: [sirketId, ad, onek]
+      properties:
+        sirketId:
+          type: integer
+        ad:
+          type: string
+        onek:
+          type: string
+        sonrakiNo:
+          type: integer
+          default: 1
+        varsayilan:
+          type: boolean
+
+    FaturaSeriUpdate:
+      type: object
+      properties:
+        ad:
+          type: string
+        onek:
+          type: string
+        sonrakiNo:
+          type: integer
+        varsayilan:
+          type: boolean
+
+    # ── Dashboard ──────────────────────────────────────────────────────────
+    DashboardOzet:
+      type: object
+      required: [toplamAlacak, toplamTahsilat, kalanBakiye, toplamFaturaSayisi, toplamOdemeSayisi, toplamCariSayisi, vadesGecmisFaturaSayisi, vadesYaklasiyor, paraBirimiOzetleri, bankaHesapBakiyeleri]
+      properties:
+        toplamAlacak:
+          type: number
+        toplamTahsilat:
+          type: number
+        kalanBakiye:
+          type: number
+        toplamFaturaSayisi:
+          type: integer
+        toplamOdemeSayisi:
+          type: integer
+        toplamCariSayisi:
+          type: integer
+        vadesGecmisFaturaSayisi:
+          type: integer
+        vadesYaklasiyor:
+          type: integer
+        paraBirimiOzetleri:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParaBirimiOzet"
+        bankaHesapBakiyeleri:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankaHesapBakiye"
+        aktifStarlinkPlanSayisi:
+          type: integer
+
+    ParaBirimiOzet:
+      type: object
+      required: [paraBirimi, toplamAlacak, toplamTahsilat, kalanBakiye]
+      properties:
+        paraBirimi:
+          type: string
+        toplamAlacak:
+          type: number
+        toplamTahsilat:
+          type: number
+        kalanBakiye:
+          type: number
+
+    BankaHesapBakiye:
+      type: object
+      required: [hesapId, bankaAdi, hesapAdi, paraBirimi, bakiye]
+      properties:
+        hesapId:
+          type: integer
+        bankaAdi:
+          type: string
+        hesapAdi:
+          type: string
+        paraBirimi:
+          type: string
+        bakiye:
+          type: number
+
+    SonIslemler:
+      type: object
+      required: [sonFaturalar, sonOdemeler]
+      properties:
+        sonFaturalar:
+          type: array
+          items:
+            $ref: "#/components/schemas/Fatura"
+        sonOdemeler:
+          type: array
+          items:
+            $ref: "#/components/schemas/Odeme"
+
+    AylikGelirNoktasi:
+      type: object
+      required: [yil, ay, ayAd, toplamFatura, toplamTahsilat]
+      properties:
+        yil:
+          type: integer
+        ay:
+          type: integer
+        ayAd:
+          type: string
+        toplamFatura:
+          type: number
+        toplamTahsilat:
+          type: number
+
+    # ── Raporlar ──────────────────────────────────────────────────────────
+    KdvOzeti:
+      type: object
+      required: [kdvHaricToplam, kdvTutariToplam, kdvDahilToplam, paraBirimiKirilim, sirketKirilim]
+      properties:
+        kdvHaricToplam:
+          type: number
+        kdvTutariToplam:
+          type: number
+        kdvDahilToplam:
+          type: number
+        paraBirimiKirilim:
+          type: array
+          items:
+            $ref: "#/components/schemas/KdvParaBirimiKirilim"
+        sirketKirilim:
+          type: array
+          items:
+            $ref: "#/components/schemas/KdvSirketKirilim"
+
+    KdvParaBirimiKirilim:
+      type: object
+      required: [paraBirimi, kdvHaric, kdvTutari, kdvDahil]
+      properties:
+        paraBirimi:
+          type: string
+        kdvHaric:
+          type: number
+        kdvTutari:
+          type: number
+        kdvDahil:
+          type: number
+
+    KdvSirketKirilim:
+      type: object
+      required: [sirketId, sirketAd, kdvHaric, kdvTutari, kdvDahil]
+      properties:
+        sirketId:
+          type: integer
+        sirketAd:
+          type: string
+        kdvHaric:
+          type: number
+        kdvTutari:
+          type: number
+        kdvDahil:
+          type: number
+
+    AlacakYaslandirma:
+      type: object
+      required: [dilimler]
+      properties:
+        dilimler:
+          type: array
+          items:
+            $ref: "#/components/schemas/YaslandirmaDilimi"
+
+    YaslandirmaDilimi:
+      type: object
+      required: [etiket, toplamTutar, faturaSayisi]
+      properties:
+        etiket:
+          type: string
+        toplamTutar:
+          type: number
+        faturaSayisi:
+          type: integer
+        faturalar:
+          type: array
+          items:
+            $ref: "#/components/schemas/Fatura"

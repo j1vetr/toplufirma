@@ -1,0 +1,230 @@
+import { useState } from "react";
+import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useListSirketler, getListSirketlerQueryKey,
+  useListCariler, getListCarilerQueryKey,
+  useListGemiler, getListGemilerQueryKey,
+  useListFaturaSerileri, getListFaturaSerileriQueryKey,
+  useListKdvOranlari, getListKdvOranlariQueryKey,
+  useCreateFatura, getListFaturalarQueryKey,
+} from "@workspace/api-client-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+
+interface Kalem {
+  aciklama: string;
+  miktar: number;
+  birimFiyat: number;
+  kdvOrani: number;
+}
+
+const fmt = (n: number) => new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n);
+
+export default function FaturaYeni() {
+  const [, setLocation] = useLocation();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  const [sirketId, setSirketId] = useState("");
+  const [cariId, setCariId] = useState("");
+  const [gemiId, setGemiId] = useState("");
+  const [serisiId, setSerisiId] = useState("");
+  const [faturaTarihi, setFaturaTarihi] = useState(new Date().toISOString().split("T")[0]);
+  const [vadeTarihi, setVadeTarihi] = useState("");
+  const [paraBirimi, setParaBirimi] = useState("USD");
+  const [notlar, setNotlar] = useState("");
+  const [kalemler, setKalemler] = useState<Kalem[]>([
+    { aciklama: "", miktar: 1, birimFiyat: 0, kdvOrani: 0 },
+  ]);
+
+  const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
+  const { data: cariler = [] } = useListCariler({ query: { queryKey: getListCarilerQueryKey() } });
+  const { data: gemiler = [] } = useListGemiler({ query: { queryKey: getListGemilerQueryKey() } });
+  const { data: seriler = [] } = useListFaturaSerileri({ query: { queryKey: getListFaturaSerileriQueryKey() } });
+  const { data: kdvOranlari = [] } = useListKdvOranlari({ query: { queryKey: getListKdvOranlariQueryKey() } });
+  const createFatura = useCreateFatura();
+
+  const filtrelenmisCariler = cariler.filter(c => !sirketId || c.sirketId === Number(sirketId));
+  const filtrelenmisGemiler = gemiler.filter(g => !cariId || g.cariId === Number(cariId));
+  const filtrelenmisSeriler = seriler.filter(s => !sirketId || s.sirketId === Number(sirketId));
+  const filtrelenmisKdv = kdvOranlari.filter(k => !sirketId || k.sirketId === Number(sirketId));
+
+  function kalemGuncelle(idx: number, alan: keyof Kalem, deger: string | number) {
+    setKalemler(prev => prev.map((k, i) => i === idx ? { ...k, [alan]: typeof deger === "string" && alan !== "aciklama" ? Number(deger) : deger } : k));
+  }
+
+  function kalemEkle() {
+    const varsayilanKdv = filtrelenmisKdv.find(k => k.varsayilan)?.oran ?? 0;
+    setKalemler(prev => [...prev, { aciklama: "", miktar: 1, birimFiyat: 0, kdvOrani: Number(varsayilanKdv) }]);
+  }
+
+  function kalemSil(idx: number) {
+    setKalemler(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  const toplamlar = kalemler.reduce((acc, k) => {
+    const ara = k.miktar * k.birimFiyat;
+    const kdv = ara * (k.kdvOrani / 100);
+    return { toplamTutar: acc.toplamTutar + ara, kdvTutari: acc.kdvTutari + kdv };
+  }, { toplamTutar: 0, kdvTutari: 0 });
+
+  function kaydet() {
+    if (!sirketId || !cariId || !faturaTarihi || !vadeTarihi || kalemler.some(k => !k.aciklama)) {
+      toast({ title: "Hata", description: "Zorunlu alanlari doldurun", variant: "destructive" });
+      return;
+    }
+    createFatura.mutate({
+      data: {
+        sirketId: Number(sirketId), cariId: Number(cariId),
+        gemiId: gemiId ? Number(gemiId) : undefined,
+        faturaSerisiId: serisiId ? Number(serisiId) : undefined,
+        faturaTarihi, vadeTarihi, paraBirimi, notlar,
+        kalemler: kalemler.map(k => ({ aciklama: k.aciklama, miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani })),
+      },
+    }, {
+      onSuccess: (fatura) => {
+        qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() });
+        toast({ title: "Fatura olusturuldu" });
+        setLocation(`/faturalar/${fatura.id}`);
+      },
+      onError: () => toast({ title: "Hata", description: "Fatura olusturulamadi", variant: "destructive" }),
+    });
+  }
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <div className="flex items-center gap-3">
+        <Link href="/faturalar"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-4 w-4" /></Button></Link>
+        <h2 className="text-xl font-display font-semibold">Yeni Fatura</h2>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Fatura Bilgileri</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Sirket *</Label>
+            <Select value={sirketId} onValueChange={v => { setSirketId(v); setCariId(""); setGemiId(""); setSerisiId(""); }}>
+              <SelectTrigger data-testid="select-fatura-sirket"><SelectValue placeholder="Sirket secin" /></SelectTrigger>
+              <SelectContent>{sirketler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Cari *</Label>
+            <Select value={cariId} onValueChange={v => { setCariId(v); setGemiId(""); }}>
+              <SelectTrigger data-testid="select-fatura-cari"><SelectValue placeholder="Cari secin" /></SelectTrigger>
+              <SelectContent>{filtrelenmisCariler.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.ad}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Gemi</Label>
+            <Select value={gemiId} onValueChange={setGemiId}>
+              <SelectTrigger data-testid="select-fatura-gemi"><SelectValue placeholder="Gemi secin (opsiyonel)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Secilmedi</SelectItem>
+                {filtrelenmisGemiler.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Fatura Serisi</Label>
+            <Select value={serisiId} onValueChange={setSerisiId}>
+              <SelectTrigger data-testid="select-fatura-seri"><SelectValue placeholder="Seri secin (opsiyonel)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Secilmedi</SelectItem>
+                {filtrelenmisSeriler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad} ({s.onek})</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Fatura Tarihi *</Label>
+            <Input type="date" value={faturaTarihi} onChange={e => setFaturaTarihi(e.target.value)} data-testid="input-fatura-tarihi" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Vade Tarihi *</Label>
+            <Input type="date" value={vadeTarihi} onChange={e => setVadeTarihi(e.target.value)} data-testid="input-fatura-vade" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Para Birimi</Label>
+            <Select value={paraBirimi} onValueChange={setParaBirimi}>
+              <SelectTrigger data-testid="select-fatura-pb"><SelectValue /></SelectTrigger>
+              <SelectContent>{["USD","EUR","TRY","GBP"].map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Notlar</Label>
+            <Input value={notlar} onChange={e => setNotlar(e.target.value)} data-testid="input-fatura-notlar" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Kalemler</CardTitle>
+          <Button variant="outline" size="sm" onClick={kalemEkle} className="rounded-full" data-testid="button-kalem-ekle">
+            <Plus className="mr-1 h-3.5 w-3.5" /> Kalem Ekle
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground px-1 font-medium">
+            <span className="col-span-4">Aciklama</span>
+            <span className="col-span-2">Miktar</span>
+            <span className="col-span-2">Birim Fiyat</span>
+            <span className="col-span-2">KDV %</span>
+            <span className="col-span-1 text-right">Toplam</span>
+            <span className="col-span-1" />
+          </div>
+          {kalemler.map((k, i) => {
+            const ara = k.miktar * k.birimFiyat;
+            const kdv = ara * (k.kdvOrani / 100);
+            return (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center" data-testid={`kalem-${i}`}>
+                <Input className="col-span-4 text-sm h-9" value={k.aciklama} onChange={e => kalemGuncelle(i, "aciklama", e.target.value)} placeholder="Aciklama" data-testid={`input-kalem-aciklama-${i}`} />
+                <Input className="col-span-2 text-sm h-9" type="number" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", e.target.value)} min="0.01" step="0.01" data-testid={`input-kalem-miktar-${i}`} />
+                <Input className="col-span-2 text-sm h-9" type="number" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", e.target.value)} min="0" step="0.01" data-testid={`input-kalem-fiyat-${i}`} />
+                <Select value={String(k.kdvOrani)} onValueChange={v => kalemGuncelle(i, "kdvOrani", Number(v))}>
+                  <SelectTrigger className="col-span-2 h-9 text-sm" data-testid={`select-kalem-kdv-${i}`}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">%0</SelectItem>
+                    {filtrelenmisKdv.map(kk => <SelectItem key={kk.id} value={String(kk.oran)}>%{kk.oran}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <span className="col-span-1 text-right text-sm font-medium">{fmt(ara + kdv)}</span>
+                <Button size="icon" variant="ghost" className="col-span-1 h-8 w-8 text-destructive" onClick={() => kalemSil(i)} disabled={kalemler.length === 1} data-testid={`button-kalem-sil-${i}`}><Trash2 className="h-3.5 w-3.5" /></Button>
+              </div>
+            );
+          })}
+          <div className="border-t pt-3 mt-3 text-right space-y-1 text-sm">
+            <div className="flex justify-end gap-8">
+              <span className="text-muted-foreground">Ara Toplam</span>
+              <span className="font-medium w-28 text-right">{fmt(toplamlar.toplamTutar)} {paraBirimi}</span>
+            </div>
+            <div className="flex justify-end gap-8">
+              <span className="text-muted-foreground">KDV</span>
+              <span className="font-medium w-28 text-right">{fmt(toplamlar.kdvTutari)} {paraBirimi}</span>
+            </div>
+            <div className="flex justify-end gap-8 text-base">
+              <span className="font-semibold">Genel Toplam</span>
+              <span className="font-bold w-28 text-right">{fmt(toplamlar.toplamTutar + toplamlar.kdvTutari)} {paraBirimi}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end gap-3">
+        <Link href="/faturalar"><Button variant="outline" className="rounded-full">Iptal</Button></Link>
+        <Button onClick={kaydet} disabled={createFatura.isPending} className="rounded-full" data-testid="button-fatura-kaydet">
+          {createFatura.isPending ? "Kaydediliyor..." : "Fatura Olustur"}
+        </Button>
+      </div>
+    </div>
+  );
+}
