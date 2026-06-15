@@ -1,2 +1,1 @@
-- [Auth architecture](auth-architecture.md) — JWT always enforced; auth router mounted BEFORE requireAuth in app.ts so /api/auth/* is public
-- [Hook naming convention](hook-naming.md) — Orval generates useListXxx (collection) not useGetXxx; check generated/api.ts before importing
+- [pdfmake v0.3 server-side](pdfmake-server.md) — use singleton createPdf().getStream(), not new PdfPrinter(); Roboto fonts from bundled path

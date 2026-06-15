@@ -1,9 +1,26 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, faturaKalemleri, sirketler, cariler, gemiler, odemeler, faturaSerileri } from "@workspace/db/schema";
+import { faturalar, faturaKalemleri, sirketler, cariler, gemiler, odemeler, faturaSerileri } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 import ExcelJS from "exceljs";
+import { createRequire } from "node:module";
+import path from "node:path";
+import type { TDocumentDefinitions, TableCell } from "pdfmake/interfaces";
+
+const _req = createRequire(import.meta.url);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _pdfmake = _req("pdfmake") as any;
+const _pdfmakeDir = path.dirname(_req.resolve("pdfmake/package.json"));
+_pdfmake.fonts = {
+  Roboto: {
+    normal:      path.join(_pdfmakeDir, "fonts/Roboto/Roboto-Regular.ttf"),
+    bold:        path.join(_pdfmakeDir, "fonts/Roboto/Roboto-Medium.ttf"),
+    italics:     path.join(_pdfmakeDir, "fonts/Roboto/Roboto-Italic.ttf"),
+    bolditalics: path.join(_pdfmakeDir, "fonts/Roboto/Roboto-MediumItalic.ttf"),
+  },
+};
+_pdfmake.setLocalAccessPolicy(() => true);
 
 const router = Router();
 
@@ -23,7 +40,7 @@ router.get("/faturalar", async (req, res) => {
       rows.map(r => ({ ...r, sirketId: r.f.sirketId })),
       req, sirketId
     );
-    if (yetkisiz) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
     rows = rows.filter(r => scoped.some(s => s.f.id === r.f.id));
 
     if (cariId) rows = rows.filter(r => r.f.cariId === Number(cariId));
@@ -42,9 +59,10 @@ router.get("/faturalar", async (req, res) => {
 router.post("/faturalar", requireYazma, async (req, res) => {
   try {
     const { sirketId, cariId, gemiId, faturaSerisiId, faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama, kalemler } = req.body;
-    if (!sirketId || !cariId || !faturaTarihi || !vadeTarihi || !kalemler?.length)
-      return res.status(400).json({ error: "Zorunlu alanlar eksik" });
-    if (!sirketErisimKontrol(Number(sirketId), req)) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (!sirketId || !cariId || !faturaTarihi || !vadeTarihi || !kalemler?.length) {
+      res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
+    }
+    if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     let faturaNo = "";
     if (faturaSerisiId) {
@@ -91,7 +109,8 @@ router.get("/faturalar/excel", async (req, res) => {
   try {
     const { sirketId } = req.query as Record<string, string>;
     if (sirketId && !sirketErisimKontrol(Number(sirketId), req)) {
-      return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+      res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+      return;
     }
 
     let rows = await db
@@ -105,7 +124,7 @@ router.get("/faturalar/excel", async (req, res) => {
     const { rows: scoped, yetkisiz } = sirketlerFiltrele(
       rows.map(r => ({ ...r, sirketId: r.f.sirketId })), req, sirketId
     );
-    if (yetkisiz) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
     rows = rows.filter(r => scoped.some(s => s.f.id === r.f.id));
 
     const wb = new ExcelJS.Workbook();
@@ -156,8 +175,8 @@ router.get("/faturalar/:id", async (req, res) => {
       .leftJoin(cariler, eq(faturalar.cariId, cariler.id))
       .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
       .where(eq(faturalar.id, id));
-    if (!row) return res.status(404).json({ error: "Fatura bulunamadı" });
-    if (!sirketErisimKontrol(row.f.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!row) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
+    if (!sirketErisimKontrol(row.f.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const kalemler = await db.select().from(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
     const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, id));
@@ -194,64 +213,130 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
       .leftJoin(cariler, eq(faturalar.cariId, cariler.id))
       .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
       .where(eq(faturalar.id, id));
-    if (!row) return res.status(404).json({ error: "Fatura bulunamadı" });
-    if (!sirketErisimKontrol(row.f.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!row) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
+    if (!sirketErisimKontrol(row.f.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const kalemler = await db.select().from(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
     const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, id));
     const odenen = ods.reduce((s, o) => s + Number(o.tutar), 0);
     const f = row.f;
 
-    const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><style>
-      body{font-family:Arial,sans-serif;margin:0;padding:40px;color:#1a1a2e;font-size:13px}
-      .header{display:flex;justify-content:space-between;margin-bottom:32px}
-      .logo{font-size:22px;font-weight:700;color:#0070d1}
-      .fatura-title{font-size:28px;font-weight:300;color:#0070d1;letter-spacing:2px}
-      .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
-      .info-box{background:#f4f5f8;padding:16px;border-radius:8px}
-      .info-box h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#666}
-      .info-box p{margin:3px 0;font-size:13px}
-      table{width:100%;border-collapse:collapse;margin:24px 0}
-      th{background:#0070d1;color:white;padding:10px 12px;text-align:left;font-size:12px;font-weight:500}
-      td{padding:9px 12px;border-bottom:1px solid #e8eaf0;font-size:12px}
-      tr:hover td{background:#f9fafc}
-      .totals{margin-left:auto;width:280px;margin-top:16px}
-      .totals tr td{border:none;padding:5px 12px}
-      .totals .total-row td{font-weight:700;font-size:14px;border-top:2px solid #0070d1;padding-top:10px;color:#0070d1}
-      .status{display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:500;margin-bottom:8px}
-      .status-odendi{background:#dcfce7;color:#16a34a}
-      .status-acik{background:#fee2e2;color:#dc2626}
-      .status-kismi{background:#fef3c7;color:#d97706}
-    </style></head><body>
-    <div class="header">
-      <div><div class="logo">${row.sirketAd ?? "Şirket"}</div><div style="font-size:11px;color:#888;margin-top:4px">Muhasebe Paneli</div></div>
-      <div style="text-align:right"><div class="fatura-title">FATURA</div><div style="font-size:16px;font-weight:600">${f.faturaNo}</div>
-      <div class="status status-${f.durum === "odendi" ? "odendi" : f.durum === "acik" ? "acik" : "kismi"}">${f.durum === "odendi" ? "Ödendi" : f.durum === "acik" ? "Ödenmedi" : "Kısmen Ödendi"}</div></div>
-    </div>
-    <div class="info-grid">
-      <div class="info-box"><h3>Müşteri Bilgileri</h3><p><strong>${row.cariAd ?? "-"}</strong></p>${row.gemiAd ? `<p>Gemi: ${row.gemiAd}</p>` : ""}</div>
-      <div class="info-box"><h3>Fatura Detayları</h3>
-        <p>Fatura Tarihi: <strong>${f.faturaTarihi}</strong></p>
-        <p>Vade Tarihi: <strong>${f.vadeTarihi}</strong></p>
-        <p>Para Birimi: <strong>${f.paraBirimi}</strong></p>
-      </div>
-    </div>
-    <table><thead><tr><th>Açıklama</th><th style="text-align:right">Miktar</th><th style="text-align:right">Birim Fiyat</th><th style="text-align:right">KDV %</th><th style="text-align:right">Toplam</th></tr></thead>
-    <tbody>${kalemler.map(k => `<tr><td>${k.aciklama}</td><td style="text-align:right">${Number(k.miktar).toFixed(2)}</td><td style="text-align:right">${Number(k.birimFiyat).toFixed(2)}</td><td style="text-align:right">${Number(k.kdvOrani).toFixed(0)}%</td><td style="text-align:right">${Number(k.genelToplam).toFixed(2)}</td></tr>`).join("")}</tbody>
-    </table>
-    <table class="totals"><tr><td>Ara Toplam:</td><td style="text-align:right">${Number(f.toplamTutar).toFixed(2)} ${f.paraBirimi}</td></tr>
-    <tr><td>KDV:</td><td style="text-align:right">${Number(f.kdvTutari).toFixed(2)} ${f.paraBirimi}</td></tr>
-    <tr><td>Ödenen:</td><td style="text-align:right">${odenen.toFixed(2)} ${f.paraBirimi}</td></tr>
-    <tr class="total-row"><td>Kalan:</td><td style="text-align:right">${Math.max(0, Number(f.genelToplam) - odenen).toFixed(2)} ${f.paraBirimi}</td></tr>
-    </table>
-    ${f.aciklama ? `<p style="margin-top:24px;padding:12px;background:#f4f5f8;border-radius:8px;font-size:12px;color:#555">${f.aciklama}</p>` : ""}
-    </body></html>`;
+    const durumEtiket = f.durum === "odendi" ? "ODENDI" : f.durum === "acik" ? "ODENMEDI" : "KISMI ODENDI";
+    const kalan = Math.max(0, Number(f.genelToplam) - odenen);
 
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Content-Disposition", `inline; filename="fatura-${f.faturaNo}.html"`);
-    res.send(html);
-  } catch {
-    res.status(500).json({ error: "Fatura PDF oluşturulamadı" });
+    const docDefinition: TDocumentDefinitions = {
+      defaultStyle: { font: "Roboto", fontSize: 10 },
+      pageMargins: [40, 60, 40, 60],
+      content: [
+        {
+          columns: [
+            { text: row.sirketAd ?? "Sirket", style: "sirketAd", width: "*" },
+            { text: ["FATURA\n", { text: f.faturaNo, fontSize: 14, bold: true }], style: "faturaBaslik", alignment: "right", width: "auto" },
+          ],
+          marginBottom: 20,
+        },
+        {
+          canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: "#0070d1" }],
+          marginBottom: 16,
+        },
+        {
+          columns: [
+            {
+              width: "*",
+              stack: [
+                { text: "MUSTERI BILGILERI", style: "bolumBaslik" },
+                { text: row.cariAd ?? "-", bold: true, marginTop: 4 },
+                ...(row.gemiAd ? [{ text: `Gemi: ${row.gemiAd}`, color: "#555", marginTop: 2 }] : []),
+              ],
+            },
+            {
+              width: "*",
+              stack: [
+                { text: "FATURA DETAYLARI", style: "bolumBaslik" },
+                { text: `Fatura Tarihi: ${f.faturaTarihi}`, marginTop: 4 },
+                { text: `Vade Tarihi: ${f.vadeTarihi}`, marginTop: 2 },
+                { text: `Para Birimi: ${f.paraBirimi}`, marginTop: 2 },
+                { text: `Durum: ${durumEtiket}`, marginTop: 4, bold: true, color: f.durum === "odendi" ? "#16a34a" : f.durum === "acik" ? "#dc2626" : "#d97706" },
+              ],
+              alignment: "right",
+            },
+          ],
+          marginBottom: 20,
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: ["*", 55, 70, 40, 70],
+            body: ([
+              [
+                { text: "Aciklama", style: "tabloBaslik" },
+                { text: "Miktar", style: "tabloBaslik", alignment: "right" },
+                { text: "Birim Fiyat", style: "tabloBaslik", alignment: "right" },
+                { text: "KDV %", style: "tabloBaslik", alignment: "right" },
+                { text: "Toplam", style: "tabloBaslik", alignment: "right" },
+              ],
+              ...kalemler.map(k => [
+                { text: k.aciklama },
+                { text: Number(k.miktar).toFixed(2), alignment: "right" },
+                { text: Number(k.birimFiyat).toFixed(2), alignment: "right" },
+                { text: `%${Number(k.kdvOrani).toFixed(0)}`, alignment: "right" },
+                { text: Number(k.genelToplam).toFixed(2), alignment: "right" },
+              ]),
+            ] as unknown as TableCell[][]),
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === 1 || i === node.table.body.length ? 1 : 0.5),
+            vLineWidth: () => 0,
+            hLineColor: (i: number) => (i === 0 || i === 1 ? "#0070d1" : "#e8eaf0"),
+            fillColor: (i: number) => (i === 0 ? "#0070d1" : i % 2 === 0 ? "#f9fafc" : null),
+          },
+          marginBottom: 16,
+        },
+        {
+          columns: [
+            { width: "*", text: "" },
+            {
+              width: 240,
+              table: {
+                widths: ["*", "auto"],
+                body: [
+                  [{ text: "Ara Toplam:", color: "#555" }, { text: `${Number(f.toplamTutar).toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
+                  [{ text: "KDV Tutari:", color: "#555" }, { text: `${Number(f.kdvTutari).toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
+                  [{ text: "Genel Toplam:", bold: true }, { text: `${Number(f.genelToplam).toFixed(2)} ${f.paraBirimi}`, alignment: "right", bold: true }],
+                  [{ text: "Odenen:", color: "#555" }, { text: `${odenen.toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
+                  [
+                    { text: "KALAN BORC:", bold: true, fontSize: 12, color: "#0070d1" },
+                    { text: `${kalan.toFixed(2)} ${f.paraBirimi}`, alignment: "right", bold: true, fontSize: 12, color: "#0070d1" },
+                  ],
+                ],
+              },
+              layout: {
+                hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === node.table.body.length - 1 ? 2 : i === node.table.body.length ? 1 : 0),
+                vLineWidth: () => 0,
+                hLineColor: () => "#0070d1",
+              },
+            },
+          ],
+        },
+        ...(f.aciklama ? [{ text: f.aciklama, marginTop: 24, color: "#555", italics: true }] : []),
+      ],
+      styles: {
+        sirketAd: { fontSize: 18, bold: true, color: "#0070d1" },
+        faturaBaslik: { fontSize: 22, color: "#0070d1" },
+        bolumBaslik: { fontSize: 8, bold: true, color: "#888", characterSpacing: 1 },
+        tabloBaslik: { bold: true, color: "#ffffff", fillColor: "#0070d1" },
+      },
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pdfStream: NodeJS.ReadableStream & { end(): void } = await _pdfmake.createPdf(docDefinition).getStream();
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="fatura-${f.faturaNo}.pdf"`);
+    pdfStream.pipe(res);
+    pdfStream.end();
+  } catch (err) {
+    console.error("[pdf] error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Fatura PDF oluşturulamadı" });
   }
 });
 
@@ -259,8 +344,8 @@ router.patch("/faturalar/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(faturalar).where(eq(faturalar.id, id));
-    if (!existing) return res.status(404).json({ error: "Fatura bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { vadeTarihi, notlar, aciklama, durum } = req.body;
     const [row] = await db.update(faturalar)
@@ -277,8 +362,8 @@ router.delete("/faturalar/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(faturalar).where(eq(faturalar.id, id));
-    if (!existing) return res.status(404).json({ error: "Fatura bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     await db.delete(faturalar).where(eq(faturalar.id, id));
     res.status(204).send();
   } catch {

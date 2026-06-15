@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { kullanicilar, kullaniciSirketler } from "@workspace/db/schema";
+import { kullanicilar, kullaniciSirketler } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -12,7 +12,8 @@ router.post("/auth/login", async (req, res) => {
   try {
     const { email, parola } = req.body as { email?: string; parola?: string };
     if (!email || !parola) {
-      return res.status(400).json({ error: "Email ve parola zorunludur" });
+      res.status(400).json({ error: "Email ve parola zorunludur" });
+      return;
     }
 
     const [kullanici] = await db
@@ -21,12 +22,14 @@ router.post("/auth/login", async (req, res) => {
       .where(eq(kullanicilar.email, email.toLowerCase().trim()));
 
     if (!kullanici || !kullanici.aktif) {
-      return res.status(401).json({ error: "Geçersiz email veya parola" });
+      res.status(401).json({ error: "Geçersiz email veya parola" });
+      return;
     }
 
     const eslesme = await bcrypt.compare(parola, kullanici.parola);
     if (!eslesme) {
-      return res.status(401).json({ error: "Geçersiz email veya parola" });
+      res.status(401).json({ error: "Geçersiz email veya parola" });
+      return;
     }
 
     const sirketRows = await db
@@ -59,7 +62,7 @@ router.get("/auth/me", requireAuth, async (req, res) => {
       .from(kullanicilar)
       .where(eq(kullanicilar.id, req.kullanici!.id));
 
-    if (!kullanici) return res.status(404).json({ error: "Kullanıcı bulunamadı" });
+    if (!kullanici) { res.status(404).json({ error: "Kullanıcı bulunamadı" }); return; }
 
     const sirketRows = await db
       .select()

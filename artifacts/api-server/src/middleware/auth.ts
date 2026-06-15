@@ -27,12 +27,13 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers["authorization"];
   const token = authHeader?.replace("Bearer ", "").trim();
 
   if (!token) {
-    return res.status(401).json({ error: "Kimlik doğrulama gerekli" });
+    res.status(401).json({ error: "Kimlik doğrulama gerekli" });
+    return;
   }
 
   try {
@@ -41,22 +42,30 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     req.izinliSirketler = payload.sirketler.map((s) => s.sirketId);
     next();
   } catch {
-    return res.status(401).json({ error: "Geçersiz veya süresi dolmuş token" });
+    res.status(401).json({ error: "Geçersiz veya süresi dolmuş token" });
   }
 }
 
-export function requireYonetici(req: Request, res: Response, next: NextFunction) {
-  if (!req.kullanici) return res.status(401).json({ error: "Kimlik doğrulama gerekli" });
+export function requireYonetici(req: Request, res: Response, next: NextFunction): void {
+  if (!req.kullanici) {
+    res.status(401).json({ error: "Kimlik doğrulama gerekli" });
+    return;
+  }
   if (req.kullanici.rol !== "yonetici") {
-    return res.status(403).json({ error: "Bu işlem için yönetici yetkisi gerekli" });
+    res.status(403).json({ error: "Bu işlem için yönetici yetkisi gerekli" });
+    return;
   }
   next();
 }
 
-export function requireYazma(req: Request, res: Response, next: NextFunction) {
-  if (!req.kullanici) return res.status(401).json({ error: "Kimlik doğrulama gerekli" });
+export function requireYazma(req: Request, res: Response, next: NextFunction): void {
+  if (!req.kullanici) {
+    res.status(401).json({ error: "Kimlik doğrulama gerekli" });
+    return;
+  }
   if (req.kullanici.rol === "salt_okunur") {
-    return res.status(403).json({ error: "Salt okunur kullanıcılar yazma işlemi yapamaz" });
+    res.status(403).json({ error: "Salt okunur kullanıcılar yazma işlemi yapamaz" });
+    return;
   }
   next();
 }

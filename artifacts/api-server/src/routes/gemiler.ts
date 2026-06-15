@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { gemiler, cariler, faturalar, starlinkPlanlari, ekipmanlar } from "@workspace/db/schema";
+import { gemiler, cariler, faturalar, starlinkPlanlari, ekipmanlar } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol } from "../middleware/auth";
 
@@ -20,7 +20,7 @@ router.get("/gemiler", async (req, res) => {
     let filtered = rows;
 
     if (sirketId) {
-      if (!sirketErisimKontrol(Number(sirketId), req)) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+      if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
       filtered = rows.filter(r => r.cariSirketId === Number(sirketId));
     } else if (req.kullanici?.rol !== "yonetici") {
       filtered = rows.filter(r => r.cariSirketId != null && izinli.includes(r.cariSirketId));
@@ -46,10 +46,10 @@ router.get("/gemiler", async (req, res) => {
 router.post("/gemiler", requireYazma, async (req, res) => {
   try {
     const { cariId, ad, imoNumarasi, bayrakDevleti, notlar, aktif } = req.body;
-    if (!cariId || !ad) return res.status(400).json({ error: "cariId ve ad zorunludur" });
+    if (!cariId || !ad) { res.status(400).json({ error: "cariId ve ad zorunludur" }); return; }
 
     const [cari] = await db.select().from(cariler).where(eq(cariler.id, Number(cariId)));
-    if (cari && !sirketErisimKontrol(cari.sirketId, req)) return res.status(403).json({ error: "Bu cariye erişim izniniz yok" });
+    if (cari && !sirketErisimKontrol(cari.sirketId, req)) { res.status(403).json({ error: "Bu cariye erişim izniniz yok" }); return; }
 
     const [row] = await db.insert(gemiler).values({
       cariId, ad, imoNumarasi, bayrakDevleti, notlar, aktif: aktif ?? true,
@@ -68,8 +68,8 @@ router.get("/gemiler/:id", async (req, res) => {
       .from(gemiler)
       .leftJoin(cariler, eq(gemiler.cariId, cariler.id))
       .where(eq(gemiler.id, id));
-    if (!row) return res.status(404).json({ error: "Gemi bulunamadı" });
-    if (row.cariSirketId && !sirketErisimKontrol(row.cariSirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!row) { res.status(404).json({ error: "Gemi bulunamadı" }); return; }
+    if (row.cariSirketId && !sirketErisimKontrol(row.cariSirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const plans = await db.select().from(starlinkPlanlari).where(eq(starlinkPlanlari.gemiId, id));
     const ekips = await db.select().from(ekipmanlar).where(eq(ekipmanlar.gemiId, id));
@@ -103,8 +103,8 @@ router.patch("/gemiler/:id", requireYazma, async (req, res) => {
       .select({ g: gemiler, cariSirketId: cariler.sirketId })
       .from(gemiler).leftJoin(cariler, eq(gemiler.cariId, cariler.id))
       .where(eq(gemiler.id, id));
-    if (!existing) return res.status(404).json({ error: "Gemi bulunamadı" });
-    if (existing.cariSirketId && !sirketErisimKontrol(existing.cariSirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Gemi bulunamadı" }); return; }
+    if (existing.cariSirketId && !sirketErisimKontrol(existing.cariSirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { ad, imoNumarasi, bayrakDevleti, notlar, aktif, cariId } = req.body;
     const [row] = await db.update(gemiler)
@@ -123,8 +123,8 @@ router.delete("/gemiler/:id", requireYazma, async (req, res) => {
       .select({ g: gemiler, cariSirketId: cariler.sirketId })
       .from(gemiler).leftJoin(cariler, eq(gemiler.cariId, cariler.id))
       .where(eq(gemiler.id, id));
-    if (!existing) return res.status(404).json({ error: "Gemi bulunamadı" });
-    if (existing.cariSirketId && !sirketErisimKontrol(existing.cariSirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Gemi bulunamadı" }); return; }
+    if (existing.cariSirketId && !sirketErisimKontrol(existing.cariSirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     await db.delete(gemiler).where(eq(gemiler.id, id));
     res.status(204).send();
   } catch {

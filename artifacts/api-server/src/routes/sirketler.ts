@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { sirketler } from "@workspace/db/schema";
+import { sirketler } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireYonetici, sirketErisimKontrol, requireYazma } from "../middleware/auth";
 
@@ -10,10 +10,12 @@ router.get("/sirketler", async (req, res) => {
   try {
     const rows = await db.select().from(sirketler).orderBy(sirketler.ad);
     if (req.kullanici?.rol === "yonetici") {
-      return res.json(rows.map(formatSirket));
+      res.json(rows.map(formatSirket));
+      return;
     }
     const izinli = req.izinliSirketler ?? [];
-    return res.json(rows.filter(r => izinli.includes(r.id)).map(formatSirket));
+    res.json(rows.filter(r => izinli.includes(r.id)).map(formatSirket));
+    return;
   } catch {
     res.status(500).json({ error: "Şirketler listelenemedi" });
   }
@@ -22,7 +24,7 @@ router.get("/sirketler", async (req, res) => {
 router.post("/sirketler", requireYonetici, requireYazma, async (req, res) => {
   try {
     const { ad, vergiNo, vergiDairesi, adres, telefon, eposta, seriOneki, aktif } = req.body;
-    if (!ad || !seriOneki) return res.status(400).json({ error: "ad ve seriOneki zorunludur" });
+    if (!ad || !seriOneki) { res.status(400).json({ error: "ad ve seriOneki zorunludur" }); return; }
     const [row] = await db.insert(sirketler).values({
       ad, vergiNo, vergiDairesi, adres, telefon, eposta,
       seriOneki, aktif: aktif ?? true,
@@ -36,9 +38,9 @@ router.post("/sirketler", requireYonetici, requireYazma, async (req, res) => {
 router.get("/sirketler/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!sirketErisimKontrol(id, req)) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (!sirketErisimKontrol(id, req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
     const [row] = await db.select().from(sirketler).where(eq(sirketler.id, id));
-    if (!row) return res.status(404).json({ error: "Şirket bulunamadı" });
+    if (!row) { res.status(404).json({ error: "Şirket bulunamadı" }); return; }
     res.json(formatSirket(row));
   } catch {
     res.status(500).json({ error: "Şirket getirilemedi" });
@@ -53,7 +55,7 @@ router.patch("/sirketler/:id", requireYonetici, requireYazma, async (req, res) =
       .set({ ad, vergiNo, vergiDairesi, adres, telefon, eposta, seriOneki, aktif })
       .where(eq(sirketler.id, id))
       .returning();
-    if (!row) return res.status(404).json({ error: "Şirket bulunamadı" });
+    if (!row) { res.status(404).json({ error: "Şirket bulunamadı" }); return; }
     res.json(formatSirket(row));
   } catch {
     res.status(500).json({ error: "Şirket güncellenemedi" });

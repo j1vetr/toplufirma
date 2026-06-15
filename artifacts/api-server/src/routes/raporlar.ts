@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, sirketler, cariler, gemiler } from "@workspace/db/schema";
+import { faturalar, sirketler, cariler, gemiler } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { sirketErisimKontrol } from "../middleware/auth";
 
@@ -24,7 +24,8 @@ router.get("/raporlar/kdv-ozeti", async (req, res) => {
     const { sirketId, yil, ay, format } = req.query as Record<string, string>;
 
     if (sirketId && !sirketErisimKontrol(Number(sirketId), req)) {
-      return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+      res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+      return;
     }
 
     let fats = await db.select().from(faturalar).where(eq(faturalar.durum, "odendi"));
@@ -83,7 +84,8 @@ router.get("/raporlar/kdv-ozeti", async (req, res) => {
       ];
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", `attachment; filename="kdv-ozeti-${yil ?? "tumumu"}.csv"`);
-      return res.send(toCsv(csvRows));
+      res.send(toCsv(csvRows));
+      return;
     }
 
     res.json({
@@ -102,7 +104,8 @@ router.get("/raporlar/alacak-yaslandirma", async (req, res) => {
     const today = new Date();
 
     if (sirketId && !sirketErisimKontrol(Number(sirketId), req)) {
-      return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+      res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+      return;
     }
 
     let fats = await db
@@ -154,7 +157,8 @@ router.get("/raporlar/alacak-yaslandirma", async (req, res) => {
       const allFats = result.flatMap(d => d.faturalar.map(f => ({ Dilim: d.etiket, ...f })));
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", 'attachment; filename="alacak-yaslandirma.csv"');
-      return res.send(toCsv(allFats));
+      res.send(toCsv(allFats));
+      return;
     }
 
     res.json({ dilimler: result });

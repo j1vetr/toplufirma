@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { starlinkPlanlari, sirketler, cariler, gemiler } from "@workspace/db/schema";
+import { starlinkPlanlari, sirketler, cariler, gemiler } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 
@@ -21,7 +21,7 @@ router.get("/starlink-planlari", async (req, res) => {
     const { rows: scoped, yetkisiz } = sirketlerFiltrele(
       rows.map(r => ({ ...r, sirketId: r.p.sirketId })), req, sirketId
     );
-    if (yetkisiz) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
     rows = rows.filter(r => scoped.some(s => s.p.id === r.p.id));
 
     if (gemiId) rows = rows.filter(r => r.p.gemiId === Number(gemiId));
@@ -37,8 +37,9 @@ router.post("/starlink-planlari", requireYazma, async (req, res) => {
   try {
     const { sirketId, cariId, gemiId, planAdi, hizMbps, baslangicTarihi, bitisTarihi, aylikUcret, paraBirimi, otomatikYenileme, aktif, notlar } = req.body;
     if (!sirketId || !cariId || !gemiId || !planAdi || !baslangicTarihi || !bitisTarihi || !aylikUcret)
-      return res.status(400).json({ error: "Zorunlu alanlar eksik" });
-    if (!sirketErisimKontrol(Number(sirketId), req)) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+      res.status(400).json({ error: "Zorunlu alanlar eksik" });
+      return;
+    if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     const [row] = await db.insert(starlinkPlanlari).values({
       sirketId, cariId, gemiId, planAdi, hizMbps,
@@ -62,8 +63,8 @@ router.get("/starlink-planlari/:id", async (req, res) => {
       .leftJoin(cariler, eq(starlinkPlanlari.cariId, cariler.id))
       .leftJoin(gemiler, eq(starlinkPlanlari.gemiId, gemiler.id))
       .where(eq(starlinkPlanlari.id, id));
-    if (!row) return res.status(404).json({ error: "Plan bulunamadı" });
-    if (!sirketErisimKontrol(row.p.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!row) { res.status(404).json({ error: "Plan bulunamadı" }); return; }
+    if (!sirketErisimKontrol(row.p.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     res.json(formatPlan(row.p, row.sirketAd, row.cariAd, row.gemiAd));
   } catch {
     res.status(500).json({ error: "Plan getirilemedi" });
@@ -74,8 +75,8 @@ router.patch("/starlink-planlari/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(starlinkPlanlari).where(eq(starlinkPlanlari.id, id));
-    if (!existing) return res.status(404).json({ error: "Plan bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Plan bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { planAdi, hizMbps, bitisTarihi, aylikUcret, otomatikYenileme, aktif, notlar } = req.body;
     const [row] = await db.update(starlinkPlanlari)
@@ -91,8 +92,8 @@ router.delete("/starlink-planlari/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(starlinkPlanlari).where(eq(starlinkPlanlari.id, id));
-    if (!existing) return res.status(404).json({ error: "Plan bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Plan bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     await db.delete(starlinkPlanlari).where(eq(starlinkPlanlari.id, id));
     res.status(204).send();
   } catch {

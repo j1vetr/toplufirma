@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { odemeler, sirketler, cariler, gemiler, bankaHesaplari, faturalar } from "@workspace/db/schema";
+import { odemeler, sirketler, cariler, gemiler, bankaHesaplari, faturalar } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 
@@ -21,7 +21,7 @@ router.get("/odemeler", async (req, res) => {
     const { rows: scoped, yetkisiz } = sirketlerFiltrele(
       rows.map(r => ({ ...r, sirketId: r.o.sirketId })), req, sirketId
     );
-    if (yetkisiz) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
     rows = rows.filter(r => scoped.some(s => s.o.id === r.o.id));
 
     if (cariId) rows = rows.filter(r => r.o.cariId === Number(cariId));
@@ -38,8 +38,9 @@ router.post("/odemeler", requireYazma, async (req, res) => {
   try {
     const { sirketId, cariId, gemiId, bankaHesabiId, faturaId, tip, tarih, tutar, paraBirimi, odemeYontemi, aciklama } = req.body;
     if (!sirketId || !cariId || !tip || !tarih || !tutar)
-      return res.status(400).json({ error: "Zorunlu alanlar eksik" });
-    if (!sirketErisimKontrol(Number(sirketId), req)) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+      res.status(400).json({ error: "Zorunlu alanlar eksik" });
+      return;
+    if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     const [row] = await db.insert(odemeler).values({
       sirketId, cariId, gemiId: gemiId ?? null, bankaHesabiId: bankaHesabiId ?? null,
@@ -64,8 +65,8 @@ router.get("/odemeler/:id", async (req, res) => {
       .leftJoin(cariler, eq(odemeler.cariId, cariler.id))
       .leftJoin(gemiler, eq(odemeler.gemiId, gemiler.id))
       .where(eq(odemeler.id, id));
-    if (!row) return res.status(404).json({ error: "Ödeme bulunamadı" });
-    if (!sirketErisimKontrol(row.o.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!row) { res.status(404).json({ error: "Ödeme bulunamadı" }); return; }
+    if (!sirketErisimKontrol(row.o.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     res.json(formatOdeme(row.o, row.sirketAd, row.cariAd, row.gemiAd, null, null));
   } catch {
     res.status(500).json({ error: "Ödeme getirilemedi" });
@@ -76,8 +77,8 @@ router.patch("/odemeler/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(odemeler).where(eq(odemeler.id, id));
-    if (!existing) return res.status(404).json({ error: "Ödeme bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Ödeme bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { tarih, tutar, aciklama, odemeYontemi } = req.body;
     const [row] = await db.update(odemeler)
@@ -94,8 +95,8 @@ router.delete("/odemeler/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(odemeler).where(eq(odemeler.id, id));
-    if (!existing) return res.status(404).json({ error: "Ödeme bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Ödeme bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     await db.delete(odemeler).where(eq(odemeler.id, id));
     if (existing.faturaId) await guncelleFaturaDurum(existing.faturaId);
     res.status(204).send();

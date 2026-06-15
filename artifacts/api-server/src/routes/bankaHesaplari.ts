@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { bankaHesaplari, sirketler, odemeler } from "@workspace/db/schema";
+import { bankaHesaplari, sirketler, odemeler } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 
@@ -18,7 +18,7 @@ router.get("/banka-hesaplari", async (req, res) => {
     const { rows: scoped, yetkisiz } = sirketlerFiltrele(
       rows.map(r => ({ ...r, sirketId: r.h.sirketId })), req, sirketId
     );
-    if (yetkisiz) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
     const filtered = rows.filter(r => scoped.some(s => s.h.id === r.h.id));
 
     const bakiyeler = await hesaplaHesapBakiyeleri();
@@ -31,8 +31,8 @@ router.get("/banka-hesaplari", async (req, res) => {
 router.post("/banka-hesaplari", requireYazma, async (req, res) => {
   try {
     const { sirketId, bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif } = req.body;
-    if (!sirketId || !bankaAdi || !hesapAdi) return res.status(400).json({ error: "sirketId, bankaAdi ve hesapAdi zorunludur" });
-    if (!sirketErisimKontrol(Number(sirketId), req)) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (!sirketId || !bankaAdi || !hesapAdi) { res.status(400).json({ error: "sirketId, bankaAdi ve hesapAdi zorunludur" }); return; }
+    if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
     const [row] = await db.insert(bankaHesaplari).values({
       sirketId, bankaAdi, hesapAdi, iban, paraBirimi: paraBirimi ?? "TRY",
       subeAdi, aciklama, aktif: aktif ?? true,
@@ -50,8 +50,8 @@ router.get("/banka-hesaplari/:id", async (req, res) => {
       .select({ h: bankaHesaplari, sirketAd: sirketler.ad })
       .from(bankaHesaplari).leftJoin(sirketler, eq(bankaHesaplari.sirketId, sirketler.id))
       .where(eq(bankaHesaplari.id, id));
-    if (!row) return res.status(404).json({ error: "Banka hesabı bulunamadı" });
-    if (!sirketErisimKontrol(row.h.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!row) { res.status(404).json({ error: "Banka hesabı bulunamadı" }); return; }
+    if (!sirketErisimKontrol(row.h.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     const bakiyeler = await hesaplaHesapBakiyeleri();
     res.json(formatHesap(row.h, row.sirketAd, bakiyeler[id] ?? 0));
   } catch {
@@ -63,8 +63,8 @@ router.patch("/banka-hesaplari/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(bankaHesaplari).where(eq(bankaHesaplari.id, id));
-    if (!existing) return res.status(404).json({ error: "Banka hesabı bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Banka hesabı bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif } = req.body;
     const [row] = await db.update(bankaHesaplari)
@@ -81,8 +81,8 @@ router.delete("/banka-hesaplari/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(bankaHesaplari).where(eq(bankaHesaplari.id, id));
-    if (!existing) return res.status(404).json({ error: "Banka hesabı bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Banka hesabı bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     await db.delete(bankaHesaplari).where(eq(bankaHesaplari.id, id));
     res.status(204).send();
   } catch {
@@ -94,8 +94,8 @@ router.get("/banka-hesaplari/:id/hareketler", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [hesap] = await db.select().from(bankaHesaplari).where(eq(bankaHesaplari.id, id));
-    if (!hesap) return res.status(404).json({ error: "Banka hesabı bulunamadı" });
-    if (!sirketErisimKontrol(hesap.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!hesap) { res.status(404).json({ error: "Banka hesabı bulunamadı" }); return; }
+    if (!sirketErisimKontrol(hesap.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const ods = await db.select().from(odemeler).where(eq(odemeler.bankaHesabiId, id)).orderBy(odemeler.tarih);
     let toplamGelen = 0, toplamGiden = 0;

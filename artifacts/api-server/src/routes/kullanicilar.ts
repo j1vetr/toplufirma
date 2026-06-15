@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { kullanicilar, kullaniciSirketler } from "@workspace/db/schema";
+import { kullanicilar, kullaniciSirketler } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { requireYonetici } from "../middleware/auth";
@@ -31,7 +31,8 @@ router.post("/kullanicilar", requireYonetici, async (req, res) => {
   try {
     const { ad, email, parola, rol, sirketler: sirketAtamalari } = req.body;
     if (!ad || !email || !parola) {
-      return res.status(400).json({ error: "Ad, email ve parola zorunludur" });
+      res.status(400).json({ error: "Ad, email ve parola zorunludur" });
+      return;
     }
 
     const hash = await bcrypt.hash(parola, 12);
@@ -54,7 +55,7 @@ router.post("/kullanicilar", requireYonetici, async (req, res) => {
     res.status(201).json(safe);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "";
-    if (msg.includes("unique")) return res.status(409).json({ error: "Bu email zaten kayıtlı" });
+    if (msg.includes("unique")) { res.status(409).json({ error: "Bu email zaten kayıtlı" }); return; }
     res.status(500).json({ error: "Kullanıcı oluşturulamadı" });
   }
 });
@@ -103,7 +104,8 @@ router.delete("/kullanicilar/:id", requireYonetici, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (req.kullanici?.id === id) {
-      return res.status(400).json({ error: "Kendi hesabınızı silemezsiniz" });
+      res.status(400).json({ error: "Kendi hesabınızı silemezsiniz" });
+      return;
     }
     await db.delete(kullanicilar).where(eq(kullanicilar.id, id));
     res.status(204).send();

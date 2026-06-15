@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { cariler, sirketler, gemiler, faturalar, odemeler } from "@workspace/db/schema";
+import { cariler, sirketler, gemiler, faturalar, odemeler } from "@workspace/db";
 import { eq, and, sql, or } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 
@@ -24,7 +24,7 @@ router.get("/cariler", async (req, res) => {
       rows.map(r => ({ ...r, sirketId: r.c.sirketId })),
       req, sirketId
     );
-    if (yetkisiz) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     let result = rows.filter(r => filtered.some(f => f.c.id === r.c.id));
     if (arama) {
@@ -46,8 +46,8 @@ router.get("/cariler", async (req, res) => {
 router.post("/cariler", requireYazma, async (req, res) => {
   try {
     const { sirketId, ad, tip, vergiNo, vergiDairesi, telefon, eposta, adres, yetkiliKisi, paraBirimi, notlar, aktif } = req.body;
-    if (!sirketId || !ad || !tip) return res.status(400).json({ error: "sirketId, ad ve tip zorunludur" });
-    if (!sirketErisimKontrol(Number(sirketId), req)) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (!sirketId || !ad || !tip) { res.status(400).json({ error: "sirketId, ad ve tip zorunludur" }); return; }
+    if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     const [row] = await db.insert(cariler).values({
       sirketId, ad, tip, vergiNo, vergiDairesi, telefon, eposta,
@@ -69,8 +69,8 @@ router.get("/cariler/:id", async (req, res) => {
       .from(cariler)
       .leftJoin(sirketler, eq(cariler.sirketId, sirketler.id))
       .where(eq(cariler.id, id));
-    if (!row) return res.status(404).json({ error: "Cari bulunamadı" });
-    if (!sirketErisimKontrol(row.c.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!row) { res.status(404).json({ error: "Cari bulunamadı" }); return; }
+    if (!sirketErisimKontrol(row.c.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const bakiyeler = await getBakiyeler();
     const bagliGemiler = await db.select().from(gemiler).where(eq(gemiler.cariId, id));
@@ -96,8 +96,8 @@ router.patch("/cariler/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(cariler).where(eq(cariler.id, id));
-    if (!existing) return res.status(404).json({ error: "Cari bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Cari bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { ad, tip, vergiNo, vergiDairesi, telefon, eposta, adres, yetkiliKisi, paraBirimi, notlar, aktif } = req.body;
     const [row] = await db.update(cariler)
@@ -115,8 +115,8 @@ router.delete("/cariler/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(cariler).where(eq(cariler.id, id));
-    if (!existing) return res.status(404).json({ error: "Cari bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "Cari bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     await db.delete(cariler).where(eq(cariler.id, id));
     res.status(204).send();
   } catch {
@@ -128,8 +128,8 @@ router.get("/cariler/:id/ekstre", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [cari] = await db.select().from(cariler).where(eq(cariler.id, id));
-    if (!cari) return res.status(404).json({ error: "Cari bulunamadı" });
-    if (!sirketErisimKontrol(cari.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!cari) { res.status(404).json({ error: "Cari bulunamadı" }); return; }
+    if (!sirketErisimKontrol(cari.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const fats = await db.select().from(faturalar).where(eq(faturalar.cariId, id)).orderBy(faturalar.faturaTarihi);
     const ods = await db.select().from(odemeler).where(eq(odemeler.cariId, id)).orderBy(odemeler.tarih);

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, odemeler, cariler, starlinkPlanlari, bankaHesaplari } from "@workspace/db/schema";
+import { faturalar, odemeler, cariler, starlinkPlanlari, bankaHesaplari } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import { sirketErisimKontrol } from "../middleware/auth";
 
@@ -38,8 +38,10 @@ router.get("/dashboard/ozet", async (req, res) => {
     const filtrelenmisPlanlari = filtreleSirket(planRows, req, sirketId);
     const filtrelenmisHesaplar = filtreleSirket(bankaRows, req, sirketId);
 
-    if (!filtrelenmisFaturalar || !filtrelenmisOdemeler || !filtrelenmisCariler || !filtrelenmisPlanlari || !filtrelenmisHesaplar)
-      return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (!filtrelenmisFaturalar || !filtrelenmisOdemeler || !filtrelenmisCariler || !filtrelenmisPlanlari || !filtrelenmisHesaplar) {
+      res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+      return;
+    }
 
     const today = new Date().toISOString().split("T")[0];
     const in30 = new Date(); in30.setDate(in30.getDate() + 30);
@@ -99,7 +101,7 @@ router.get("/dashboard/vadesi-yaklasan", async (req, res) => {
     rows = rows.filter(f => f.vadeTarihi >= today && f.vadeTarihi <= futureStr);
 
     const scoped = filtreleSirket(rows, req, sirketId);
-    if (!scoped) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (!scoped) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     res.json(scoped.map(f => ({
       id: f.id, sirketId: f.sirketId, sirketAd: null,
@@ -125,7 +127,7 @@ router.get("/dashboard/son-islemler", async (req, res) => {
 
     const scopedFats = filtreleSirket(allFats, req, sirketId);
     const scopedOds = filtreleSirket(allOds, req, sirketId);
-    if (!scopedFats || !scopedOds) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (!scopedFats || !scopedOds) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     const sonFaturalar = scopedFats.slice(-n).reverse().map(f => ({
       id: f.id, sirketId: f.sirketId, sirketAd: null,
@@ -162,7 +164,7 @@ router.get("/dashboard/aylik-gelir", async (req, res) => {
 
     const fats = filtreleSirket(allFats, req, sirketId);
     const ods = filtreleSirket(allOds, req, sirketId);
-    if (!fats || !ods) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (!fats || !ods) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     const result = Array.from({ length: 12 }, (_, i) => {
       const ay = i + 1;
@@ -189,7 +191,7 @@ router.get("/dashboard/yenileme-uyarilari", async (req, res) => {
     rows = rows.filter(p => p.bitisTarihi >= today && p.bitisTarihi <= futureStr);
 
     const scoped = filtreleSirket(rows, req, sirketId);
-    if (!scoped) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (!scoped) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     res.json(scoped.map(p => {
       const kalanGun = Math.ceil((new Date(p.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24));

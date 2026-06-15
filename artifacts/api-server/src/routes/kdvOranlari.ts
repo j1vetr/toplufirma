@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { kdvOranlari } from "@workspace/db/schema";
+import { kdvOranlari } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 
@@ -11,7 +11,7 @@ router.get("/kdv-oranlari", async (req, res) => {
     const { sirketId } = req.query as Record<string, string>;
     const rows = await db.select().from(kdvOranlari).orderBy(kdvOranlari.oran);
     const { rows: scoped, yetkisiz } = sirketlerFiltrele(rows, req, sirketId);
-    if (yetkisiz) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
     res.json(scoped.map(r => ({ ...r, oran: Number(r.oran) })));
   } catch {
     res.status(500).json({ error: "KDV oranları listelenemedi" });
@@ -21,8 +21,8 @@ router.get("/kdv-oranlari", async (req, res) => {
 router.post("/kdv-oranlari", requireYazma, async (req, res) => {
   try {
     const { sirketId, ad, oran, varsayilan } = req.body;
-    if (!sirketId || !ad || oran == null) return res.status(400).json({ error: "Zorunlu alanlar eksik" });
-    if (!sirketErisimKontrol(Number(sirketId), req)) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+    if (!sirketId || !ad || oran == null) { res.status(400).json({ error: "Zorunlu alanlar eksik" }); return; }
+    if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
     const [row] = await db.insert(kdvOranlari).values({
       sirketId, ad, oran: String(oran), varsayilan: varsayilan ?? false,
     }).returning();
@@ -36,8 +36,8 @@ router.patch("/kdv-oranlari/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(kdvOranlari).where(eq(kdvOranlari.id, id));
-    if (!existing) return res.status(404).json({ error: "KDV oranı bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "KDV oranı bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { ad, oran, varsayilan } = req.body;
     const [row] = await db.update(kdvOranlari)
@@ -53,8 +53,8 @@ router.delete("/kdv-oranlari/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(kdvOranlari).where(eq(kdvOranlari.id, id));
-    if (!existing) return res.status(404).json({ error: "KDV oranı bulunamadı" });
-    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    if (!existing) { res.status(404).json({ error: "KDV oranı bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     await db.delete(kdvOranlari).where(eq(kdvOranlari.id, id));
     res.status(204).send();
   } catch {

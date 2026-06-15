@@ -89,11 +89,9 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
         </AuthGuard>
       </Route>
       <Route path="/cariler/:id">
-        {(params) => (
-          <AuthGuard kullanici={kullanici} onLogout={onLogout}>
-            <CariDetay params={params} />
-          </AuthGuard>
-        )}
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <CariDetay />
+        </AuthGuard>
       </Route>
       <Route path="/gemiler">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
@@ -101,11 +99,9 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
         </AuthGuard>
       </Route>
       <Route path="/gemiler/:id">
-        {(params) => (
-          <AuthGuard kullanici={kullanici} onLogout={onLogout}>
-            <GemiDetay params={params} />
-          </AuthGuard>
-        )}
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <GemiDetay />
+        </AuthGuard>
       </Route>
       <Route path="/banka-hesaplari">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
@@ -113,11 +109,9 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
         </AuthGuard>
       </Route>
       <Route path="/banka-hesaplari/:id">
-        {(params) => (
-          <AuthGuard kullanici={kullanici} onLogout={onLogout}>
-            <BankaHesabiDetay params={params} />
-          </AuthGuard>
-        )}
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <BankaHesabiDetay />
+        </AuthGuard>
       </Route>
       <Route path="/faturalar/yeni">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
@@ -125,11 +119,9 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
         </AuthGuard>
       </Route>
       <Route path="/faturalar/:id">
-        {(params) => (
-          <AuthGuard kullanici={kullanici} onLogout={onLogout}>
-            <FaturaDetay params={params} />
-          </AuthGuard>
-        )}
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <FaturaDetay />
+        </AuthGuard>
       </Route>
       <Route path="/faturalar">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
