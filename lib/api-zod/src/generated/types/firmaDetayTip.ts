@@ -12,4 +12,5 @@ export type FirmaDetayTip = typeof FirmaDetayTip[keyof typeof FirmaDetayTip];
 export const FirmaDetayTip = {
   cati: 'cati',
   bagli: 'bagli',
+  grup: 'grup',
 } as const;

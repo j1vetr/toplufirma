@@ -1,2 +1,3 @@
 - [pdfmake v0.3 server-side](pdfmake-server.md) — use singleton createPdf().getStream(), not new PdfPrinter(); Roboto fonts from bundled path
 - [API authz patterns](api-authz-patterns.md) — validation brace bug pattern; FK ownership checks required on all write endpoints
+- [api-server no hot-reload](api-server-no-hot-reload.md) — build-once-at-startup; restart workflow after backend edits or you test a stale bundle

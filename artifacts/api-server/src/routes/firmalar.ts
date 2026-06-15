@@ -29,19 +29,21 @@ router.get("/firmalar", async (req, res) => {
     const { tip, ustFirmaId } = req.query as Record<string, string>;
 
     const rows = await db.select().from(firmalar).orderBy(firmalar.ad);
+    const adById = new Map(rows.map(r => [r.id, r.ad]));
 
     let filtered = rows;
     if (req.kullanici?.rol !== "yonetici") {
       const izinli = req.izinliSirketler ?? [];
       filtered = rows.filter(f => {
         if (f.tip === "cati") return izinli.includes(f.id);
+        if (f.tip === "grup") return true;
         return f.ustFirmaId != null && izinli.includes(f.ustFirmaId);
       });
     }
     if (tip) filtered = filtered.filter(f => f.tip === tip);
     if (ustFirmaId) filtered = filtered.filter(f => f.ustFirmaId === Number(ustFirmaId));
 
-    res.json(filtered.map(formatFirma));
+    res.json(filtered.map(f => formatFirma(f, f.grupFirmaId ? adById.get(f.grupFirmaId) ?? null : null)));
   } catch {
     res.status(500).json({ error: "Firmalar listelenemedi" });
   }
@@ -50,22 +52,30 @@ router.get("/firmalar", async (req, res) => {
 router.post("/firmalar", requireYazma, async (req, res) => {
   try {
     const {
-      tip, ustFirmaId, ad, vergiNo, vergiDairesi, adres, telefon, eposta,
+      tip, ustFirmaId, grupFirmaId, ad, vergiNo, vergiDairesi, adres, telefon, eposta,
       yetkiliKisi, paraBirimi, notlar, seriOneki, logoUrl, aktif,
     } = req.body;
     if (!tip || !ad) { res.status(400).json({ error: "tip ve ad zorunludur" }); return; }
 
     if (tip === "bagli") {
       if (!ustFirmaId) { res.status(400).json({ error: "Bağlı firma için ustFirmaId zorunludur" }); return; }
-      if (!sirketErisimKontrol(Number(ustFirmaId), req)) { res.status(403).json({ error: "Bu çatı firmaya erişim izniniz yok" }); return; }
+      if (!sirketErisimKontrol(Number(ustFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
       const [catiFirma] = await db.select().from(firmalar).where(eq(firmalar.id, Number(ustFirmaId)));
-      if (!catiFirma || catiFirma.tip !== "cati") { res.status(400).json({ error: "ustFirmaId geçerli bir çatı firma değil" }); return; }
+      if (!catiFirma || catiFirma.tip !== "cati") { res.status(400).json({ error: "ustFirmaId geçerli bir firma değil" }); return; }
+      if (grupFirmaId) {
+        const [grup] = await db.select().from(firmalar).where(eq(firmalar.id, Number(grupFirmaId)));
+        if (!grup || grup.tip !== "grup") { res.status(400).json({ error: "grupFirmaId geçerli bir çatı firma değil" }); return; }
+      }
+    } else if (tip === "grup") {
+      // Çatı (grup) firmalar tüm yazma yetkili kullanıcılar tarafından oluşturulabilir
     } else {
-      if (req.kullanici?.rol !== "yonetici") { res.status(403).json({ error: "Çatı firma oluşturmak için yönetici yetkisi gerekli" }); return; }
+      if (req.kullanici?.rol !== "yonetici") { res.status(403).json({ error: "Firma oluşturmak için yönetici yetkisi gerekli" }); return; }
     }
 
     const [row] = await db.insert(firmalar).values({
-      tip, ustFirmaId: ustFirmaId ?? null, ad, vergiNo, vergiDairesi, adres, telefon,
+      tip, ustFirmaId: tip === "bagli" ? (ustFirmaId ?? null) : null,
+      grupFirmaId: tip === "bagli" && grupFirmaId ? Number(grupFirmaId) : null,
+      ad, vergiNo, vergiDairesi, adres, telefon,
       eposta, yetkiliKisi, paraBirimi: paraBirimi ?? "USD", notlar,
       seriOneki, logo: logoUrl, aktif: aktif ?? true,
     }).returning();
@@ -83,16 +93,22 @@ router.get("/firmalar/:id", async (req, res) => {
     const [firma] = await db.select().from(firmalar).where(eq(firmalar.id, id));
     if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
 
-    const catiFirmaId = firma.tip === "cati" ? firma.id : firma.ustFirmaId;
+    const catiFirmaId = firma.tip === "cati" ? firma.id : firma.tip === "bagli" ? firma.ustFirmaId : null;
     if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+
+    let grupFirmaAd: string | null = null;
+    if (firma.grupFirmaId) {
+      const [g] = await db.select().from(firmalar).where(eq(firmalar.id, firma.grupFirmaId));
+      grupFirmaAd = g?.ad ?? null;
+    }
 
     let baglilar: ReturnType<typeof formatFirma>[] = [];
     if (firma.tip === "cati") {
       const b = await db.select().from(firmalar).where(and(eq(firmalar.ustFirmaId, id), eq(firmalar.aktif, true)));
-      baglilar = b.map(formatFirma);
+      baglilar = b.map(x => formatFirma(x));
     }
 
-    res.json({ ...formatFirma(firma), baglilar });
+    res.json({ ...formatFirma(firma, grupFirmaAd), baglilar });
   } catch {
     res.status(500).json({ error: "Firma getirilemedi" });
   }
@@ -104,14 +120,26 @@ router.patch("/firmalar/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(firmalar).where(eq(firmalar.id, id));
     if (!existing) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
 
-    const catiFirmaId = existing.tip === "cati" ? existing.id : existing.ustFirmaId;
+    const catiFirmaId = existing.tip === "cati" ? existing.id : existing.tip === "bagli" ? existing.ustFirmaId : null;
     if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
-    const { ad, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, logoUrl, aktif } = req.body;
+    const { ad, grupFirmaId, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, logoUrl, aktif } = req.body;
+    if (grupFirmaId !== undefined && grupFirmaId !== null && existing.tip === "bagli") {
+      const [grup] = await db.select().from(firmalar).where(eq(firmalar.id, Number(grupFirmaId)));
+      if (!grup || grup.tip !== "grup") { res.status(400).json({ error: "grupFirmaId geçerli bir çatı firma değil" }); return; }
+    }
     const [row] = await db.update(firmalar)
-      .set({ ad, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, logo: logoUrl, aktif })
+      .set({
+        ad, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, logo: logoUrl, aktif,
+        ...(existing.tip === "bagli" && grupFirmaId !== undefined ? { grupFirmaId: grupFirmaId === null ? null : Number(grupFirmaId) } : {}),
+      })
       .where(eq(firmalar.id, id)).returning();
-    res.json(formatFirma(row));
+    let grupFirmaAd: string | null = null;
+    if (row.grupFirmaId) {
+      const [g] = await db.select().from(firmalar).where(eq(firmalar.id, row.grupFirmaId));
+      grupFirmaAd = g?.ad ?? null;
+    }
+    res.json(formatFirma(row, grupFirmaAd));
   } catch {
     res.status(500).json({ error: "Firma güncellenemedi" });
   }
@@ -125,6 +153,11 @@ router.delete("/firmalar/:id", requireYonetici, async (req, res) => {
 
     const bagliSayisi = (await db.select().from(firmalar).where(eq(firmalar.ustFirmaId, id))).length;
     if (bagliSayisi > 0) { res.status(409).json({ error: "Bu firmaya bağlı alt firmalar var. Önce onları silin." }); return; }
+
+    if (existing.tip === "grup") {
+      const grupUyeSayisi = (await db.select().from(firmalar).where(eq(firmalar.grupFirmaId, id))).length;
+      if (grupUyeSayisi > 0) { res.status(409).json({ error: "Bu çatı firmaya bağlı firmalar var. Önce onların çatı firma bağlantısını kaldırın." }); return; }
+    }
 
     await db.delete(firmalar).where(eq(firmalar.id, id));
     res.status(204).send();
@@ -354,9 +387,10 @@ router.put("/firmalar/:id/eposta-ayarlari", requireYonetici, async (req, res) =>
   }
 });
 
-function formatFirma(f: typeof firmalar.$inferSelect) {
+function formatFirma(f: typeof firmalar.$inferSelect, grupFirmaAd: string | null = null) {
   return {
     id: f.id, tip: f.tip, ustFirmaId: f.ustFirmaId,
+    grupFirmaId: f.grupFirmaId, grupFirmaAd,
     ad: f.ad, vergiNo: f.vergiNo, vergiDairesi: f.vergiDairesi,
     adres: f.adres, telefon: f.telefon, eposta: f.eposta,
     yetkiliKisi: f.yetkiliKisi, paraBirimi: f.paraBirimi,

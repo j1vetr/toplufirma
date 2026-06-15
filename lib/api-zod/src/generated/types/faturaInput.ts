@@ -11,9 +11,12 @@ export interface FaturaInput {
   catiFirmaId: number;
   bagliFirmaId: number;
   /** @nullable */
+  grupFirmaId?: number | null;
+  /** @nullable */
   gemiId?: number | null;
   /** @nullable */
   faturaSerisiId?: number | null;
+  faturaAdi?: string;
   faturaTarihi: Date;
   vadeTarihi: Date;
   paraBirimi: string;

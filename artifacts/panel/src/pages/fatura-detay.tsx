@@ -156,7 +156,7 @@ export default function FaturaDetay() {
             <h2 className="text-xl font-display font-semibold">{fatura.faturaNo}</h2>
             <span className={`text-sm px-2.5 py-0.5 rounded-full font-medium ${DURUM_RENK[fatura.durum]}`}>{DURUM_ETIKET[fatura.durum]}</span>
           </div>
-          <p className="text-sm text-muted-foreground">{fatura.bagliFirmaAd} {fatura.gemiAd ? `- ${fatura.gemiAd}` : ""}</p>
+          <p className="text-sm text-muted-foreground">{fatura.bagliFirmaAd} {fatura.gemiAdImo ? `- ${fatura.gemiAdImo}` : ""}</p>
           <p className="text-xs text-muted-foreground">{fatura.catiFirmaAd}</p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
@@ -183,16 +183,29 @@ export default function FaturaDetay() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-        {[
-          ["Fatura Tarihi", fatura.faturaTarihi],
-          ["Vade Tarihi", fatura.vadeTarihi],
-          ["Para Birimi", fatura.paraBirimi],
-          ["Çatı Firma", fatura.catiFirmaAd],
-        ].map(([e, d]) => d ? (
-          <Card key={e}><CardContent className="p-3"><p className="text-muted-foreground text-xs">{e}</p><p className="font-medium mt-0.5">{d}</p></CardContent></Card>
-        ) : null)}
-      </div>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Müşteri Bilgileri</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+            {([
+              ["Müşteri Adı", fatura.bagliFirmaAd],
+              ["Müşteri Adresi", fatura.bagliFirmaAdres],
+              ["Fatura Adı", fatura.faturaAdi],
+              ["Fatura Tarihi", fatura.faturaTarihi],
+              ["Çatı / Grup Firma", fatura.grupFirmaAd],
+              ["Gemi", fatura.gemiAdImo],
+              ["Vade Tarihi", fatura.vadeTarihi],
+              ["Para Birimi", fatura.paraBirimi],
+              ["Kendi Firmamız", fatura.catiFirmaAd],
+            ] as [string, string | null | undefined][]).map(([e, d]) => d ? (
+              <div key={e}>
+                <p className="text-muted-foreground text-xs">{e}</p>
+                <p className="font-medium mt-0.5">{d}</p>
+              </div>
+            ) : null)}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">

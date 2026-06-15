@@ -8,6 +8,9 @@
 
 export interface FaturaUpdate {
   vadeTarihi?: Date;
+  faturaAdi?: string;
+  /** @nullable */
+  grupFirmaId?: number | null;
   notlar?: string;
   aciklama?: string;
   durum?: string;

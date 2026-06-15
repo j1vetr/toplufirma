@@ -8,6 +8,8 @@
 
 export interface FirmaUpdate {
   ad?: string;
+  /** @nullable */
+  grupFirmaId?: number | null;
   vergiNo?: string;
   vergiDairesi?: string;
   adres?: string;

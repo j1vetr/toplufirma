@@ -13,7 +13,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 // ── Enums ──────────────────────────────────────────────────────────────────
-export const firmaTipEnum = pgEnum("firma_tip", ["cati", "bagli"]);
+export const firmaTipEnum = pgEnum("firma_tip", ["cati", "bagli", "grup"]);
 
 export const faturaDurumEnum = pgEnum("fatura_durum", [
   "acik",
@@ -41,6 +41,7 @@ export const firmalar = pgTable("firmalar", {
   id: serial("id").primaryKey(),
   tip: firmaTipEnum("tip").notNull().default("cati"),
   ustFirmaId: integer("ust_firma_id").references((): AnyPgColumn => firmalar.id),
+  grupFirmaId: integer("grup_firma_id").references((): AnyPgColumn => firmalar.id),
   ad: text("ad").notNull(),
   vergiNo: text("vergi_no"),
   vergiDairesi: text("vergi_dairesi"),
@@ -121,9 +122,11 @@ export const faturalar = pgTable("faturalar", {
   id: serial("id").primaryKey(),
   catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
   bagliFirmaId: integer("bagli_firma_id").notNull().references(() => firmalar.id),
+  grupFirmaId: integer("grup_firma_id").references(() => firmalar.id),
   gemiId: integer("gemi_id").references(() => gemiler.id),
   faturaSerisiId: integer("fatura_serisi_id").references(() => faturaSerileri.id),
   faturaNo: text("fatura_no").notNull(),
+  faturaAdi: text("fatura_adi"),
   faturaTarihi: date("fatura_tarihi").notNull(),
   vadeTarihi: date("vade_tarihi").notNull(),
   paraBirimi: text("para_birimi").notNull().default("USD"),
@@ -217,6 +220,9 @@ export const kullaniciFirmalar = pgTable("kullanici_firmalar", {
 export const firmalarRelations = relations(firmalar, ({ one, many }) => ({
   ustFirma: one(firmalar, { fields: [firmalar.ustFirmaId], references: [firmalar.id], relationName: "ustBagli" }),
   bagliFirmalar: many(firmalar, { relationName: "ustBagli" }),
+  grupFirma: one(firmalar, { fields: [firmalar.grupFirmaId], references: [firmalar.id], relationName: "grupBagli" }),
+  grupBagliFirmalar: many(firmalar, { relationName: "grupBagli" }),
+  grupFirmaFaturalar: many(faturalar, { relationName: "grupFirmaFaturalar" }),
   epostaAyarlari: many(firmaEpostaAyarlari),
   gemiler: many(gemiler),
   bankaHesaplari: many(bankaHesaplari),
@@ -248,6 +254,7 @@ export const bankaHesaplariRelations = relations(bankaHesaplari, ({ one, many })
 export const faturalarRelations = relations(faturalar, ({ one, many }) => ({
   catiFirma: one(firmalar, { fields: [faturalar.catiFirmaId], references: [firmalar.id], relationName: "catiFirmaFaturalar" }),
   bagliFirma: one(firmalar, { fields: [faturalar.bagliFirmaId], references: [firmalar.id], relationName: "bagliFirmaFaturalar" }),
+  grupFirma: one(firmalar, { fields: [faturalar.grupFirmaId], references: [firmalar.id], relationName: "grupFirmaFaturalar" }),
   gemi: one(gemiler, { fields: [faturalar.gemiId], references: [gemiler.id] }),
   faturaSeri: one(faturaSerileri, { fields: [faturalar.faturaSerisiId], references: [faturaSerileri.id] }),
   kalemler: many(faturaKalemleri),

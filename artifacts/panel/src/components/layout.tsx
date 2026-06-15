@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import toovLogo from "@assets/TOOV_1781531572101.png";
 import { useSirket } from "@/contexts/sirket-context";
 import { useListFirmalar, getListFirmalarQueryKey, useGlobalArama, getGlobalAramaQueryKey } from "@workspace/api-client-react";
 import {
@@ -169,10 +170,8 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
     <div className="flex min-h-screen bg-background text-foreground">
       <div className="w-64 border-r bg-sidebar hidden md:flex flex-col">
         <div className="h-16 flex items-center px-6 border-b shrink-0">
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold mr-3 shadow-md">
-            M
-          </div>
-          <span className="font-display font-bold text-lg tracking-wide">Muhasebe</span>
+          <img src={toovLogo} alt="TOOV" className="w-8 h-8 object-contain mr-3" />
+          <span className="font-display font-bold text-lg tracking-wide">Çoklu Firma Yönetim Sistemi</span>
         </div>
 
         <div className="px-3 py-3 border-b shrink-0">

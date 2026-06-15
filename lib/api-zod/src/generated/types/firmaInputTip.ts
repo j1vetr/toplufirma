@@ -12,4 +12,5 @@ export type FirmaInputTip = typeof FirmaInputTip[keyof typeof FirmaInputTip];
 export const FirmaInputTip = {
   cati: 'cati',
   bagli: 'bagli',
+  grup: 'grup',
 } as const;

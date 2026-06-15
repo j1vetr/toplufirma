@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Satellite } from "lucide-react";
+import toovLogo from "@assets/TOOV_1781531572101.png";
 
 interface Props {
   onLogin: (token: string, kullanici: object) => void;
@@ -42,11 +42,11 @@ export default function Login({ onLogin }: Props) {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-            <Satellite className="h-8 w-8 text-primary" />
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src={toovLogo} alt="TOOV" className="h-16 w-auto object-contain" />
           </div>
-          <h1 className="text-2xl font-display font-semibold">Muhasebe Paneli</h1>
-          <p className="text-sm text-muted-foreground mt-1">Çoklu Firma Starlink Yönetimi</p>
+          <h1 className="text-2xl font-display font-semibold">Çoklu Firma Yönetim Sistemi</h1>
+          <p className="text-sm text-muted-foreground mt-1">Çoklu Firma Yönetimi</p>
         </div>
 
         <Card className="shadow-sm border-none">

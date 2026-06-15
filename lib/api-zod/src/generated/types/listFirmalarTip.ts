@@ -12,4 +12,5 @@ export type ListFirmalarTip = typeof ListFirmalarTip[keyof typeof ListFirmalarTi
 export const ListFirmalarTip = {
   cati: 'cati',
   bagli: 'bagli',
+  grup: 'grup',
 } as const;

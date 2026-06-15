@@ -35,6 +35,8 @@ export default function FaturaYeni() {
 
   const [catiFirmaId, setCatiFirmaId] = useState("");
   const [bagliFirmaId, setBagliFirmaId] = useState("");
+  const [grupFirmaId, setGrupFirmaId] = useState("");
+  const [faturaAdi, setFaturaAdi] = useState("");
   const [gemiId, setGemiId] = useState("");
   const [serisiId, setSerisiId] = useState("");
   const [faturaTarihi, setFaturaTarihi] = useState(new Date().toISOString().split("T")[0]);
@@ -52,6 +54,10 @@ export default function FaturaYeni() {
   const { data: bagliFirmalar = [] } = useListFirmalar(
     { tip: "bagli" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
+  );
+  const { data: grupFirmalar = [] } = useListFirmalar(
+    { tip: "grup" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "grup"] } },
   );
   const { data: gemiler = [] } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
   const { data: seriler = [] } = useListFaturaSerileri(undefined, { query: { queryKey: getListFaturaSerileriQueryKey() } });
@@ -90,6 +96,8 @@ export default function FaturaYeni() {
     createFatura.mutate({
       data: {
         catiFirmaId: Number(catiFirmaId), bagliFirmaId: Number(bagliFirmaId),
+        ...(grupFirmaId && grupFirmaId !== "none" ? { grupFirmaId: Number(grupFirmaId) } : {}),
+        ...(faturaAdi ? { faturaAdi } : {}),
         gemiId: gemiId && gemiId !== "none" ? Number(gemiId) : undefined,
         faturaSerisiId: serisiId && serisiId !== "none" ? Number(serisiId) : undefined,
         faturaTarihi, vadeTarihi, paraBirimi, notlar,
@@ -116,17 +124,40 @@ export default function FaturaYeni() {
         <CardHeader><CardTitle className="text-base">Fatura Bilgileri</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label>Çatı Firma *</Label>
-            <Select value={catiFirmaId} onValueChange={v => { setCatiFirmaId(v); setBagliFirmaId(""); setGemiId(""); setSerisiId(""); }}>
-              <SelectTrigger data-testid="select-fatura-sirket"><SelectValue placeholder="Çatı firma seçin" /></SelectTrigger>
+            <Label>Kendi Firmamız *</Label>
+            <Select value={catiFirmaId} onValueChange={v => { setCatiFirmaId(v); setBagliFirmaId(""); setGrupFirmaId(""); setGemiId(""); setSerisiId(""); }}>
+              <SelectTrigger data-testid="select-fatura-sirket"><SelectValue placeholder="Kendi firmamızı seçin" /></SelectTrigger>
               <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Bağlı Firma *</Label>
-            <Select value={bagliFirmaId} onValueChange={v => { setBagliFirmaId(v); setGemiId(""); }}>
-              <SelectTrigger data-testid="select-fatura-cari"><SelectValue placeholder="Bağlı firma seçin" /></SelectTrigger>
+            <Label>Müşteri (Bağlı Firma) *</Label>
+            <Select value={bagliFirmaId} onValueChange={v => {
+              setBagliFirmaId(v); setGemiId("");
+              const musteri = bagliFirmalar.find(f => f.id === Number(v));
+              const gid = (musteri as unknown as Record<string, unknown>)?.grupFirmaId;
+              setGrupFirmaId(gid != null ? String(gid) : "");
+            }}>
+              <SelectTrigger data-testid="select-fatura-cari"><SelectValue placeholder="Müşteri seçin" /></SelectTrigger>
               <SelectContent>{filtrelenmisCariler.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5 col-span-2">
+            <Label>Fatura Adı</Label>
+            <Input value={faturaAdi} onChange={e => setFaturaAdi(e.target.value)} placeholder="Örn: Şubat Yakıt İkmali" data-testid="input-fatura-adi" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Fatura Tarihi *</Label>
+            <Input type="date" value={faturaTarihi} onChange={e => setFaturaTarihi(e.target.value)} data-testid="input-fatura-tarihi" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Çatı / Grup Firma</Label>
+            <Select value={grupFirmaId || "none"} onValueChange={v => setGrupFirmaId(v === "none" ? "" : v)}>
+              <SelectTrigger data-testid="select-fatura-grup"><SelectValue placeholder="Çatı firma seçin (opsiyonel)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Seçilmedi</SelectItem>
+                {grupFirmalar.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
+              </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
@@ -135,9 +166,13 @@ export default function FaturaYeni() {
               <SelectTrigger data-testid="select-fatura-gemi"><SelectValue placeholder="Gemi seçin (opsiyonel)" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Seçilmedi</SelectItem>
-                {filtrelenmisGemiler.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
+                {filtrelenmisGemiler.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}{g.imoNumarasi ? ` (${g.imoNumarasi})` : ""}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Vade Tarihi *</Label>
+            <Input type="date" value={vadeTarihi} onChange={e => setVadeTarihi(e.target.value)} data-testid="input-fatura-vade" />
           </div>
           <div className="space-y-1.5">
             <Label>Fatura Serisi</Label>
@@ -148,14 +183,6 @@ export default function FaturaYeni() {
                 {filtrelenmisSeriler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad} ({s.onek})</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Fatura Tarihi *</Label>
-            <Input type="date" value={faturaTarihi} onChange={e => setFaturaTarihi(e.target.value)} data-testid="input-fatura-tarihi" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Vade Tarihi *</Label>
-            <Input type="date" value={vadeTarihi} onChange={e => setVadeTarihi(e.target.value)} data-testid="input-fatura-vade" />
           </div>
           <div className="space-y-1.5">
             <Label>Para Birimi</Label>

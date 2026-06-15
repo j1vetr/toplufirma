@@ -59,7 +59,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [cati, bagli]
+            enum: [cati, bagli, grup]
         - name: ustFirmaId
           in: query
           schema:
@@ -1329,9 +1329,13 @@ components:
           type: integer
         tip:
           type: string
-          enum: [cati, bagli]
+          enum: [cati, bagli, grup]
         ustFirmaId:
           type: ["integer", "null"]
+        grupFirmaId:
+          type: ["integer", "null"]
+        grupFirmaAd:
+          type: ["string", "null"]
         ad:
           type: string
         vergiNo:
@@ -1363,9 +1367,13 @@ components:
           type: integer
         tip:
           type: string
-          enum: [cati, bagli]
+          enum: [cati, bagli, grup]
         ustFirmaId:
           type: ["integer", "null"]
+        grupFirmaId:
+          type: ["integer", "null"]
+        grupFirmaAd:
+          type: ["string", "null"]
         ad:
           type: string
         vergiNo:
@@ -1416,9 +1424,11 @@ components:
       properties:
         tip:
           type: string
-          enum: [cati, bagli]
+          enum: [cati, bagli, grup]
         ustFirmaId:
           type: integer
+        grupFirmaId:
+          type: ["integer", "null"]
         ad:
           type: string
         vergiNo:
@@ -1443,6 +1453,8 @@ components:
       properties:
         ad:
           type: string
+        grupFirmaId:
+          type: ["integer", "null"]
         vergiNo:
           type: string
         vergiDairesi:
@@ -1802,12 +1814,18 @@ components:
           type: integer
         bagliFirmaAd:
           type: ["string", "null"]
+        grupFirmaId:
+          type: ["integer", "null"]
+        grupFirmaAd:
+          type: ["string", "null"]
         gemiId:
           type: ["integer", "null"]
         gemiAd:
           type: ["string", "null"]
         faturaNo:
           type: string
+        faturaAdi:
+          type: ["string", "null"]
         faturaTarihi:
           type: string
           format: date
@@ -1853,12 +1871,22 @@ components:
           type: integer
         bagliFirmaAd:
           type: ["string", "null"]
+        bagliFirmaAdres:
+          type: ["string", "null"]
+        grupFirmaId:
+          type: ["integer", "null"]
+        grupFirmaAd:
+          type: ["string", "null"]
         gemiId:
           type: ["integer", "null"]
         gemiAd:
           type: ["string", "null"]
+        gemiAdImo:
+          type: ["string", "null"]
         faturaNo:
           type: string
+        faturaAdi:
+          type: ["string", "null"]
         faturaTarihi:
           type: string
           format: date
@@ -1926,10 +1954,14 @@ components:
           type: integer
         bagliFirmaId:
           type: integer
+        grupFirmaId:
+          type: ["integer", "null"]
         gemiId:
           type: ["integer", "null"]
         faturaSerisiId:
           type: ["integer", "null"]
+        faturaAdi:
+          type: string
         faturaTarihi:
           type: string
           format: date
@@ -1966,6 +1998,10 @@ components:
         vadeTarihi:
           type: string
           format: date
+        faturaAdi:
+          type: string
+        grupFirmaId:
+          type: ["integer", "null"]
         notlar:
           type: string
         aciklama:

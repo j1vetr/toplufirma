@@ -16,10 +16,16 @@ export interface Fatura {
   /** @nullable */
   bagliFirmaAd?: string | null;
   /** @nullable */
+  grupFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaAd?: string | null;
+  /** @nullable */
   gemiId?: number | null;
   /** @nullable */
   gemiAd?: string | null;
   faturaNo: string;
+  /** @nullable */
+  faturaAdi?: string | null;
   faturaTarihi: Date;
   vadeTarihi: Date;
   paraBirimi: string;

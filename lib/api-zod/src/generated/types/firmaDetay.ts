@@ -16,6 +16,10 @@ export interface FirmaDetay {
   tip: FirmaDetayTip;
   /** @nullable */
   ustFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaAd?: string | null;
   ad: string;
   /** @nullable */
   vergiNo?: string | null;

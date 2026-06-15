@@ -10,6 +10,8 @@ import type { FirmaInputTip } from './firmaInputTip';
 export interface FirmaInput {
   tip: FirmaInputTip;
   ustFirmaId?: number;
+  /** @nullable */
+  grupFirmaId?: number | null;
   ad: string;
   vergiNo?: string;
   vergiDairesi?: string;

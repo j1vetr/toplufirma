@@ -15,6 +15,7 @@ export type FirmaTip = typeof FirmaTip[keyof typeof FirmaTip];
 export const FirmaTip = {
   cati: 'cati',
   bagli: 'bagli',
+  grup: 'grup',
 } as const;
 
 export interface Firma {
@@ -22,6 +23,10 @@ export interface Firma {
   tip: FirmaTip;
   /** @nullable */
   ustFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaAd?: string | null;
   ad: string;
   /** @nullable */
   vergiNo?: string | null;
@@ -47,6 +52,7 @@ export type FirmaDetayTip = typeof FirmaDetayTip[keyof typeof FirmaDetayTip];
 export const FirmaDetayTip = {
   cati: 'cati',
   bagli: 'bagli',
+  grup: 'grup',
 } as const;
 
 export type FaturaDurum = typeof FaturaDurum[keyof typeof FaturaDurum];
@@ -68,10 +74,16 @@ export interface Fatura {
   /** @nullable */
   bagliFirmaAd?: string | null;
   /** @nullable */
+  grupFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaAd?: string | null;
+  /** @nullable */
   gemiId?: number | null;
   /** @nullable */
   gemiAd?: string | null;
   faturaNo: string;
+  /** @nullable */
+  faturaAdi?: string | null;
   faturaTarihi: string;
   vadeTarihi: string;
   paraBirimi: string;
@@ -141,6 +153,10 @@ export interface FirmaDetay {
   tip: FirmaDetayTip;
   /** @nullable */
   ustFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaAd?: string | null;
   ad: string;
   /** @nullable */
   vergiNo?: string | null;
@@ -173,11 +189,14 @@ export type FirmaInputTip = typeof FirmaInputTip[keyof typeof FirmaInputTip];
 export const FirmaInputTip = {
   cati: 'cati',
   bagli: 'bagli',
+  grup: 'grup',
 } as const;
 
 export interface FirmaInput {
   tip: FirmaInputTip;
   ustFirmaId?: number;
+  /** @nullable */
+  grupFirmaId?: number | null;
   ad: string;
   vergiNo?: string;
   vergiDairesi?: string;
@@ -191,6 +210,8 @@ export interface FirmaInput {
 
 export interface FirmaUpdate {
   ad?: string;
+  /** @nullable */
+  grupFirmaId?: number | null;
   vergiNo?: string;
   vergiDairesi?: string;
   adres?: string;
@@ -466,10 +487,20 @@ export interface FaturaDetay {
   /** @nullable */
   bagliFirmaAd?: string | null;
   /** @nullable */
+  bagliFirmaAdres?: string | null;
+  /** @nullable */
+  grupFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaAd?: string | null;
+  /** @nullable */
   gemiId?: number | null;
   /** @nullable */
   gemiAd?: string | null;
+  /** @nullable */
+  gemiAdImo?: string | null;
   faturaNo: string;
+  /** @nullable */
+  faturaAdi?: string | null;
   faturaTarihi: string;
   vadeTarihi: string;
   paraBirimi: string;
@@ -499,9 +530,12 @@ export interface FaturaInput {
   catiFirmaId: number;
   bagliFirmaId: number;
   /** @nullable */
+  grupFirmaId?: number | null;
+  /** @nullable */
   gemiId?: number | null;
   /** @nullable */
   faturaSerisiId?: number | null;
+  faturaAdi?: string;
   faturaTarihi: string;
   vadeTarihi: string;
   paraBirimi: string;
@@ -512,6 +546,9 @@ export interface FaturaInput {
 
 export interface FaturaUpdate {
   vadeTarihi?: string;
+  faturaAdi?: string;
+  /** @nullable */
+  grupFirmaId?: number | null;
   notlar?: string;
   aciklama?: string;
   durum?: string;
@@ -792,6 +829,7 @@ export type ListFirmalarTip = typeof ListFirmalarTip[keyof typeof ListFirmalarTi
 export const ListFirmalarTip = {
   cati: 'cati',
   bagli: 'bagli',
+  grup: 'grup',
 } as const;
 
 export type GetFirmaEkstreParams = {
