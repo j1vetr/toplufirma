@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -117,8 +116,8 @@ export default function Ayarlar() {
   }
 
   return (
-    <Layout baslik="Ayarlar">
-      <div className="max-w-2xl mx-auto space-y-6 py-2">
+    <div className="space-y-6">
+      <div className="max-w-2xl space-y-6">
 
         <Card>
           <CardHeader>
@@ -226,7 +225,9 @@ export default function Ayarlar() {
                 ve tüm ilgili kayıtlar kalıcı olarak silinecektir.
               </span>
               <span className="block mt-3">
-                Onaylamak için aşağıya <code className="font-bold text-destructive bg-destructive/10 px-1 rounded">EVET_SIL</code> yazın:
+                Onaylamak için aşağıya{" "}
+                <code className="font-bold text-destructive bg-destructive/10 px-1 rounded">EVET_SIL</code>{" "}
+                yazın:
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -256,6 +257,6 @@ export default function Ayarlar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Layout>
+    </div>
   );
 }

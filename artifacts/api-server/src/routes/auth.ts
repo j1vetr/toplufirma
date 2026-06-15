@@ -47,7 +47,7 @@ router.post("/auth/login", async (req, res) => {
       sirketler,
     };
 
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "8h" });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
 
     res.json({ token, kullanici: payload });
   } catch {
