@@ -129,7 +129,7 @@ async function guncelleFaturaDurum(faturaId: number) {
     const [fatura] = await db.select().from(faturalar).where(eq(faturalar.id, faturaId));
     if (!fatura) return;
     const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, faturaId));
-    const odenen = ods.reduce((s, o) => s + Number(o.tutar), 0);
+    const odenen = ods.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
     const genel = Number(fatura.genelToplam);
     let durum: typeof faturalar.$inferSelect["durum"] = "acik";
     if (odenen >= genel) durum = "odendi";

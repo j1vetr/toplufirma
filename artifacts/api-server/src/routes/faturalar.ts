@@ -78,10 +78,11 @@ router.post("/faturalar", requireYazma, async (req, res) => {
     let faturaNo = "";
     if (faturaSerisiId) {
       const [seri] = await db.select().from(faturaSerileri).where(eq(faturaSerileri.id, faturaSerisiId));
-      if (seri) {
-        faturaNo = `${seri.onek}${String(seri.sonrakiNo).padStart(6, "0")}`;
-        await db.update(faturaSerileri).set({ sonrakiNo: seri.sonrakiNo + 1 }).where(eq(faturaSerileri.id, seri.id));
+      if (!seri || seri.sirketId !== Number(sirketId)) {
+        res.status(400).json({ error: "Belirtilen fatura serisi bu şirkete ait değil" }); return;
       }
+      faturaNo = `${seri.onek}${String(seri.sonrakiNo).padStart(6, "0")}`;
+      await db.update(faturaSerileri).set({ sonrakiNo: seri.sonrakiNo + 1 }).where(eq(faturaSerileri.id, seri.id));
     }
     if (!faturaNo) {
       const [sirket] = await db.select().from(sirketler).where(eq(sirketler.id, sirketId));
