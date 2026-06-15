@@ -31,8 +31,8 @@ export default function Tanimlar() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const { data: kdvOranlari = [] } = useListKdvOranlari({ query: { queryKey: getListKdvOranlariQueryKey() } });
-  const { data: faturaSerileri = [] } = useListFaturaSerileri({ query: { queryKey: getListFaturaSerileriQueryKey() } });
+  const { data: kdvOranlari = [] } = useListKdvOranlari(undefined, { query: { queryKey: getListKdvOranlariQueryKey() } });
+  const { data: faturaSerileri = [] } = useListFaturaSerileri(undefined, { query: { queryKey: getListFaturaSerileriQueryKey() } });
   const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
 
   const createKdv = useCreateKdvOrani();

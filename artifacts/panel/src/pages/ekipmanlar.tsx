@@ -43,8 +43,8 @@ export default function Ekipmanlar() {
   const [form, setForm] = useState<EkipmanForm>(BOSH);
   const [silId, setSilId] = useState<number | null>(null);
 
-  const { data: ekipmanlar = [], isLoading } = useListEkipmanlar({ query: { queryKey: getListEkipmanlarQueryKey() } });
-  const { data: gemiler = [] } = useListGemiler({ query: { queryKey: getListGemilerQueryKey() } });
+  const { data: ekipmanlar = [], isLoading } = useListEkipmanlar(undefined, { query: { queryKey: getListEkipmanlarQueryKey() } });
+  const { data: gemiler = [] } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
   const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
   const createEkipman = useCreateEkipman();
   const updateEkipman = useUpdateEkipman();

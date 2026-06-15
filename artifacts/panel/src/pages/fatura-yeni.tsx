@@ -47,10 +47,10 @@ export default function FaturaYeni() {
   ]);
 
   const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
-  const { data: cariler = [] } = useListCariler({ query: { queryKey: getListCarilerQueryKey() } });
-  const { data: gemiler = [] } = useListGemiler({ query: { queryKey: getListGemilerQueryKey() } });
-  const { data: seriler = [] } = useListFaturaSerileri({ query: { queryKey: getListFaturaSerileriQueryKey() } });
-  const { data: kdvOranlari = [] } = useListKdvOranlari({ query: { queryKey: getListKdvOranlariQueryKey() } });
+  const { data: cariler = [] } = useListCariler(undefined, { query: { queryKey: getListCarilerQueryKey() } });
+  const { data: gemiler = [] } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
+  const { data: seriler = [] } = useListFaturaSerileri(undefined, { query: { queryKey: getListFaturaSerileriQueryKey() } });
+  const { data: kdvOranlari = [] } = useListKdvOranlari(undefined, { query: { queryKey: getListKdvOranlariQueryKey() } });
   const createFatura = useCreateFatura();
 
   const filtrelenmisCariler = cariler.filter(c => !sirketId || c.sirketId === Number(sirketId));

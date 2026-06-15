@@ -51,10 +51,10 @@ export default function Odemeler() {
   const [bankaId, setBankaId] = useState("");
   const [aciklama, setAciklama] = useState("");
 
-  const { data: odemeler = [], isLoading } = useListOdemeler({ query: { queryKey: getListOdemelerQueryKey() } });
+  const { data: odemeler = [], isLoading } = useListOdemeler(undefined, { query: { queryKey: getListOdemelerQueryKey() } });
   const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
-  const { data: cariler = [] } = useListCariler({ query: { queryKey: getListCarilerQueryKey() } });
-  const { data: bankaHesaplari = [] } = useListBankaHesaplari({ query: { queryKey: getListBankaHesaplariQueryKey() } });
+  const { data: cariler = [] } = useListCariler(undefined, { query: { queryKey: getListCarilerQueryKey() } });
+  const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
   const createOdeme = useCreateOdeme();
   const deleteOdeme = useDeleteOdeme();
 
@@ -75,7 +75,7 @@ export default function Odemeler() {
     createOdeme.mutate({
       data: {
         sirketId: Number(sirketId), cariId: Number(cariId),
-        tip, tarih, tutar: Number(tutar), paraBirimi, odemeYontemi: yontem,
+        tip: tip as import("@workspace/api-client-react").OdemeInputTip, tarih, tutar: Number(tutar), paraBirimi, odemeYontemi: yontem as import("@workspace/api-client-react").OdemeInputOdemeYontemi,
         bankaHesabiId: bankaId ? Number(bankaId) : undefined,
         aciklama,
       },

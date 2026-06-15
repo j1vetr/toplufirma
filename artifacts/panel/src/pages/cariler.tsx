@@ -68,7 +68,7 @@ export default function Cariler() {
   const [form, setForm] = useState<CariForm>(BOSH);
   const [silId, setSilId] = useState<number | null>(null);
 
-  const { data: cariler = [], isLoading } = useListCariler({ query: { queryKey: getListCarilerQueryKey() } });
+  const { data: cariler = [], isLoading } = useListCariler(undefined, { query: { queryKey: getListCarilerQueryKey() } });
   const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
   const createCari = useCreateCari();
   const updateCari = useUpdateCari();
@@ -88,7 +88,7 @@ export default function Cariler() {
         sirketId: String(c.sirketId), ad: c.ad, tip: c.tip,
         vergiNo: c.vergiNo ?? "", vergiDairesi: c.vergiDairesi ?? "",
         telefon: c.telefon ?? "", eposta: c.eposta ?? "", adres: c.adres ?? "",
-        yetkiliKisi: c.yetkiliKisi ?? "", paraBirimi: c.paraBirimi, notlar: c.notlar ?? "",
+        yetkiliKisi: c.yetkiliKisi ?? "", paraBirimi: c.paraBirimi ?? "USD", notlar: c.notlar ?? "",
       });
       setDuzenleId(id);
     } else {
@@ -101,7 +101,7 @@ export default function Cariler() {
   function kapat() { setModalAcik(false); setDuzenleId(null); setForm(BOSH); }
 
   function kaydet() {
-    const data = { ...form, sirketId: Number(form.sirketId), aktif: true };
+    const data = { ...form, sirketId: Number(form.sirketId), aktif: true, tip: form.tip as import("@workspace/api-client-react").CariInputTip };
     if (duzenleId) {
       updateCari.mutate({ id: duzenleId, data }, {
         onSuccess: () => { qc.invalidateQueries({ queryKey: getListCarilerQueryKey() }); kapat(); toast({ title: "Cari guncellendi" }); },
@@ -162,7 +162,7 @@ export default function Cariler() {
                 <p className="text-sm text-muted-foreground mt-0.5">{c.sirketAd} {c.vergiNo ? `- VKN: ${c.vergiNo}` : ""}</p>
               </div>
               <div className="text-right shrink-0 hidden sm:block">
-                <p className="text-sm font-medium">{c.kalanBakiye > 0 ? "+" : ""}{new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(c.kalanBakiye)} {c.paraBirimi}</p>
+                <p className="text-sm font-medium">{(c.kalanBakiye ?? 0) > 0 ? "+" : ""}{new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(c.kalanBakiye ?? 0)} {c.paraBirimi}</p>
                 <p className="text-xs text-muted-foreground">Kalan bakiye</p>
               </div>
               <div className="flex gap-1 shrink-0">

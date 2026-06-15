@@ -53,7 +53,7 @@ export default function FaturaDetay() {
   const [odemeAciklama, setOdemeAciklama] = useState("");
 
   const { data: fatura, isLoading } = useGetFatura(id, { query: { enabled: !!id, queryKey: getGetFaturaQueryKey(id) } });
-  const { data: bankaHesaplari = [] } = useListBankaHesaplari({ query: { queryKey: getListBankaHesaplariQueryKey() } });
+  const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
   const createOdeme = useCreateOdeme();
   const updateFatura = useUpdateFatura();
 
@@ -63,7 +63,7 @@ export default function FaturaDetay() {
       data: {
         sirketId: fatura.sirketId, cariId: fatura.cariId, faturaId: id,
         tip: "tahsilat", tarih: odemeTarih, tutar: Number(odemeTutar),
-        paraBirimi: fatura.paraBirimi, odemeYontemi,
+        paraBirimi: fatura.paraBirimi, odemeYontemi: odemeYontemi as import("@workspace/api-client-react").OdemeInputOdemeYontemi,
         bankaHesabiId: odemeBankaId ? Number(odemeBankaId) : undefined,
         aciklama: odemeAciklama || `Fatura ${fatura.faturaNo} odemesi`,
       },
@@ -152,11 +152,11 @@ export default function FaturaDetay() {
             {(fatura.odenenTutar ?? 0) > 0 && <>
               <div className="flex justify-end gap-8 text-green-600">
                 <span>Odenen</span>
-                <span className="w-32 text-right">-{fmt(fatura.odenenTutar, fatura.paraBirimi)}</span>
+                <span className="w-32 text-right">-{fmt(fatura.odenenTutar ?? 0, fatura.paraBirimi)}</span>
               </div>
               <div className="flex justify-end gap-8 font-bold text-orange-600">
                 <span>Kalan</span>
-                <span className="w-32 text-right">{fmt(fatura.kalanTutar, fatura.paraBirimi)}</span>
+                <span className="w-32 text-right">{fmt(fatura.kalanTutar ?? 0, fatura.paraBirimi)}</span>
               </div>
             </>}
           </div>

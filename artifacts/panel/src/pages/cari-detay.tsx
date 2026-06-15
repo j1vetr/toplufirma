@@ -42,15 +42,15 @@ export default function CariDetay() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card><CardContent className="p-5 flex items-center gap-3">
           <div className="p-3 rounded-full bg-red-500/10"><TrendingUp className="h-5 w-5 text-red-500" /></div>
-          <div><p className="text-xs text-muted-foreground">Toplam Borc</p><p className="text-xl font-display font-bold">{fmt(cari.toplamBorc, cari.paraBirimi)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Toplam Borc</p><p className="text-xl font-display font-bold">{fmt(cari.toplamBorc ?? 0, cari.paraBirimi)}</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-5 flex items-center gap-3">
           <div className="p-3 rounded-full bg-green-500/10"><TrendingDown className="h-5 w-5 text-green-500" /></div>
-          <div><p className="text-xs text-muted-foreground">Toplam Alacak</p><p className="text-xl font-display font-bold">{fmt(cari.toplamAlacak, cari.paraBirimi)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Toplam Alacak</p><p className="text-xl font-display font-bold">{fmt(cari.toplamAlacak ?? 0, cari.paraBirimi)}</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-5 flex items-center gap-3">
           <div className="p-3 rounded-full bg-blue-500/10"><Minus className="h-5 w-5 text-blue-500" /></div>
-          <div><p className="text-xs text-muted-foreground">Kalan Bakiye</p><p className="text-xl font-display font-bold">{fmt(cari.kalanBakiye, cari.paraBirimi)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Kalan Bakiye</p><p className="text-xl font-display font-bold">{fmt(cari.kalanBakiye ?? 0, cari.paraBirimi)}</p></div>
         </CardContent></Card>
       </div>
 

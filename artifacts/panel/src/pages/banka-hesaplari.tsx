@@ -48,7 +48,7 @@ export default function BankaHesaplari() {
   const [form, setForm] = useState<HesapForm>(BOSH);
   const [silId, setSilId] = useState<number | null>(null);
 
-  const { data: hesaplar = [], isLoading } = useListBankaHesaplari({ query: { queryKey: getListBankaHesaplariQueryKey() } });
+  const { data: hesaplar = [], isLoading } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
   const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
   const createHesap = useCreateBankaHesabi();
   const updateHesap = useUpdateBankaHesabi();

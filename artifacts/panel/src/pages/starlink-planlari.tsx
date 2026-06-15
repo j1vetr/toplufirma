@@ -52,10 +52,10 @@ export default function StarlinkPlanlari() {
   const [form, setForm] = useState<PlanForm>(BOSH);
   const [silId, setSilId] = useState<number | null>(null);
 
-  const { data: planlar = [], isLoading } = useListStarlinkPlanlari({ query: { queryKey: getListStarlinkPlanlariQueryKey() } });
+  const { data: planlar = [], isLoading } = useListStarlinkPlanlari(undefined, { query: { queryKey: getListStarlinkPlanlariQueryKey() } });
   const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
-  const { data: cariler = [] } = useListCariler({ query: { queryKey: getListCarilerQueryKey() } });
-  const { data: gemiler = [] } = useListGemiler({ query: { queryKey: getListGemilerQueryKey() } });
+  const { data: cariler = [] } = useListCariler(undefined, { query: { queryKey: getListCarilerQueryKey() } });
+  const { data: gemiler = [] } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
   const createPlan = useCreateStarlinkPlani();
   const updatePlan = useUpdateStarlinkPlani();
   const deletePlan = useDeleteStarlinkPlani();
@@ -124,7 +124,7 @@ export default function StarlinkPlanlari() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtrelenmis.map(p => (
-          <Card key={p.id} className={`hover:shadow-md transition-shadow ${p.kalanGun <= 7 && p.aktif ? "border-amber-300" : ""}`} data-testid={`card-plan-${p.id}`}>
+          <Card key={p.id} className={`hover:shadow-md transition-shadow ${( p.kalanGun ?? 0) <= 7 && p.aktif ? "border-amber-300" : ""}`} data-testid={`card-plan-${p.id}`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -148,10 +148,10 @@ export default function StarlinkPlanlari() {
               </div>
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <Badge variant={p.aktif ? "default" : "secondary"}>{p.aktif ? "Aktif" : "Pasif"}</Badge>
-                {p.aktif && p.kalanGun <= 30 && (
-                  <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${p.kalanGun <= 7 ? "bg-red-500/10 text-red-600" : "bg-amber-500/10 text-amber-600"}`}>
-                    {p.kalanGun <= 7 && <AlertTriangle className="h-3 w-3" />}
-                    {p.kalanGun} gun kaldi
+                {p.aktif && ( p.kalanGun ?? 0) <= 30 && (
+                  <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${( p.kalanGun ?? 0) <= 7 ? "bg-red-500/10 text-red-600" : "bg-amber-500/10 text-amber-600"}`}>
+                    {( p.kalanGun ?? 0) <= 7 && <AlertTriangle className="h-3 w-3" />}
+                    {p.kalanGun ?? 0} gun kaldi
                   </div>
                 )}
               </div>

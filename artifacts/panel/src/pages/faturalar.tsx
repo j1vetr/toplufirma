@@ -41,7 +41,7 @@ export default function Faturalar() {
   const [durumFiltre, setDurumFiltre] = useState("tumu");
   const [silId, setSilId] = useState<number | null>(null);
 
-  const { data: faturalar = [], isLoading } = useListFaturalar({ query: { queryKey: getListFaturalarQueryKey() } });
+  const { data: faturalar = [], isLoading } = useListFaturalar(undefined, { query: { queryKey: getListFaturalarQueryKey() } });
   const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
   const deleteFatura = useDeleteFatura();
 
@@ -98,8 +98,8 @@ export default function Faturalar() {
                 </div>
                 <div className="text-right shrink-0 hidden sm:block">
                   <p className="font-semibold">{fmt(f.genelToplam, f.paraBirimi)}</p>
-                  {f.kalanTutar > 0 && f.durum !== "odendi" && (
-                    <p className="text-xs text-muted-foreground">Kalan: {fmt(f.kalanTutar, f.paraBirimi)}</p>
+                  {( f.kalanTutar ?? 0) > 0 && f.durum !== "odendi" && (
+                    <p className="text-xs text-muted-foreground">Kalan: {fmt(f.kalanTutar ?? 0, f.paraBirimi)}</p>
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">

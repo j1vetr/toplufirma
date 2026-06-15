@@ -44,8 +44,8 @@ export default function Gemiler() {
   const [form, setForm] = useState<GemiForm>(BOSH);
   const [silId, setSilId] = useState<number | null>(null);
 
-  const { data: gemiler = [], isLoading } = useListGemiler({ query: { queryKey: getListGemilerQueryKey() } });
-  const { data: cariler = [] } = useListCariler({ query: { queryKey: getListCarilerQueryKey() } });
+  const { data: gemiler = [], isLoading } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
+  const { data: cariler = [] } = useListCariler(undefined, { query: { queryKey: getListCarilerQueryKey() } });
   const createGemi = useCreateGemi();
   const updateGemi = useUpdateGemi();
   const deleteGemi = useDeleteGemi();
