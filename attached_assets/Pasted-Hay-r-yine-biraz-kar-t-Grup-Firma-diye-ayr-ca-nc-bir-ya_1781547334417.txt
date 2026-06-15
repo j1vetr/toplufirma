@@ -1,0 +1,78 @@
+Hayır, yine biraz karıştı. “Grup Firma” diye ayrıca üçüncü bir yapı istemiyorum. Grup Firma bölümünü kaldır.
+
+Benim istediğim müşteri firma yapısı sadece şu şekilde olacak:
+
+Çatı Firma
+└── Bağlı Firma / Cari Firma
+    └── Gemiler
+
+Yani mantık şu:
+
+1. Çatı Firma:
+Üst müşteri firma adıdır. Sadece ana başlık/kapsayıcı olarak kullanılır.
+Örneğin:
+- Kiana Shipping
+- DRN Shipping
+- Ade Global Group
+- ABC Maritime Group
+
+Çatı firma da bizim tarafımızdan sisteme eklenebilir olmalı. Yani kullanıcı “Çatı Firma Ekle” diyerek bir çatı firma kaydı oluşturabilmeli.
+
+Ama çatı firmaya fatura kesilmeyecek.
+Çatı firmanın cari bakiyesi olmayacak.
+Çatı firmaya ödeme/tahsilat işlenmeyecek.
+Çatı firma sadece altında bağlı firmaları toplamak ve ekranda düzenli göstermek için kullanılacak.
+
+2. Bağlı Firma / Cari Firma:
+Asıl fatura kesilecek müşteri firmadır.
+Faturalar, ödemeler, tahsilatlar, cari ekstre ve bakiye takibi bağlı firma üzerinde tutulacak.
+
+Örneğin:
+Çatı Firma: Kiana Shipping
+Bağlı Firma: Kiana Shipping Ltd.
+Bağlı Firma: Kiana Denizcilik A.Ş.
+Bağlı Firma: Dragos Shipping Limited
+
+Bu durumda fatura Kiana Shipping çatı firmasına değil, onun altındaki seçilen bağlı firmaya kesilecek.
+
+3. Bizim Firmamız / Firmanız:
+Bu tamamen ayrı bir yapıdır. Faturayı kesen taraf bizim kendi firmamızdır.
+
+Örneğin:
+Firmanız: Lacivert Teknoloji
+Firmanız: ADE GlobaSpace Ltd.
+
+Fatura akışı şöyle olmalı:
+
+Firmanız: Faturayı kesen bizim firma
+Çatı Firma: Bağlı firmanın üst grubu, sadece bilgi amaçlı
+Bağlı Firma: Fatura kesilen gerçek müşteri/cari firma
+
+Örnek fatura:
+Firmanız: ADE GlobaSpace Ltd.
+Çatı Firma: Kiana Shipping
+Fatura Kesilen Bağlı Firma: Kiana Shipping Ltd.
+
+Muhasebe hareketleri sadece Bağlı Firma üzerinde tutulacak.
+
+Lütfen yapıyı şu şekilde düzelt:
+
+- “Grup Firma” diye ayrı bölüm olmasın.
+- “Çatı Firma Ekle” olsun.
+- Her çatı firmanın altında bağlı firmalar listelensin.
+- “Bağlı Firma Ekle” derken hangi çatı firmaya bağlı olduğu seçilsin.
+- Çatı firma seçimi bilgi amaçlı olsun.
+- Fatura oluştururken önce Firmanız seçilsin.
+- Sonra Çatı Firma seçilebilsin.
+- Sonra o çatı firmaya bağlı Bağlı Firma seçilsin.
+- Fatura bağlı firmaya kesilsin.
+- Cari ekstre, ödeme, tahsilat ve bakiye bağlı firma üzerinde çalışsın.
+- Çatı firma sadece listeleme, filtreleme ve gruplama için kullanılsın.
+
+Etiketleri de şöyle düzelt:
+
+- “Kendi firmamız” yerine “Firmanız” yaz.
+- “AKTIF FIRMA” yerine “Aktif Firma” yaz.
+- Üst müşteri kartlarında badge “Çatı Firma” olsun.
+- Altındaki müşteri kartlarında badge “Bağlı Firma” olsun.
+- “Grup Firma” badge’i ve bölümü kaldır.

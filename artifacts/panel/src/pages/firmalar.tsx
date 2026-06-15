@@ -106,11 +106,10 @@ export default function Firmalar() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const [acikCatiFirmaId, setAcikCatiFirmaId] = useState<number | null>(null);
+  const [acikGrupFirmaId, setAcikGrupFirmaId] = useState<number | null>(null);
   const [firmaModal, setFirmaModal] = useState(false);
   const [duzenleId, setDuzenleId] = useState<number | null>(null);
-  const [modalTip, setModalTip] = useState<"cati" | "grup" | "bagli">("cati");
-  const [ustFirmaId, setUstFirmaId] = useState<number | null>(null);
+  const [modalTip, setModalTip] = useState<"cati" | "grup" | "bagli">("grup");
   const [form, setForm] = useState<FirmaForm>(BOSH_FORMA);
   const [silId, setSilId] = useState<number | null>(null);
 
@@ -134,7 +133,7 @@ export default function Firmalar() {
     { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
   );
   const { data: grupFirmalar = [] } = useListFirmalar(
-    { tip: "grup" },
+    { tip: "grup" as import("@workspace/api-client-react").ListFirmalarTip },
     { query: { queryKey: [...getListFirmalarQueryKey(), "grup"] } },
   );
 
@@ -168,9 +167,8 @@ export default function Firmalar() {
   const updateFirma = useUpdateFirma();
   const deleteFirma = useDeleteFirma();
 
-  function acFirmaModal(tip: "cati" | "grup" | "bagli", ust?: number, id?: number) {
+  function acFirmaModal(tip: "cati" | "grup" | "bagli", preGrupId?: number, id?: number) {
     setModalTip(tip);
-    setUstFirmaId(ust ?? null);
     if (id) {
       const tum = [...catiFirmalar, ...bagliFirmalar, ...grupFirmalar];
       const f = tum.find(x => x.id === id);
@@ -185,7 +183,7 @@ export default function Firmalar() {
       });
       setDuzenleId(id);
     } else {
-      setForm(BOSH_FORMA);
+      setForm({ ...BOSH_FORMA, grupFirmaId: preGrupId ? String(preGrupId) : "" });
       setDuzenleId(null);
     }
     setFirmaModal(true);
@@ -210,7 +208,6 @@ export default function Firmalar() {
     if (!form.ad) return;
     const data = {
       tip: modalTip as import("@workspace/api-client-react").FirmaInputTip,
-      ...(modalTip === "bagli" && ustFirmaId && { ustFirmaId }),
       ad: form.ad,
       ...(form.vergiNo && { vergiNo: form.vergiNo }),
       ...(form.vergiDairesi && { vergiDairesi: form.vergiDairesi }),
@@ -271,8 +268,8 @@ export default function Firmalar() {
     });
   }
 
-  const bagliFirmaFor = (catiFirmaId: number) =>
-    bagliFirmalar.filter(b => b.ustFirmaId === catiFirmaId);
+  const bagliFirmaFor = (grupId: number) =>
+    bagliFirmalar.filter(b => (b as unknown as Record<string, unknown>).grupFirmaId === grupId);
 
   if (isLoading) return (
     <div className="animate-pulse space-y-4">
@@ -283,42 +280,49 @@ export default function Firmalar() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
-        <Button onClick={() => acFirmaModal("grup")} variant="outline" className="rounded-full" data-testid="button-grup-firma-ekle">
-          <Plus className="mr-2 h-4 w-4" /> Grup Firma Ekle
+        <Button onClick={() => acFirmaModal("cati")} variant="outline" className="rounded-full" data-testid="button-cati-firma-ekle">
+          <Plus className="mr-2 h-4 w-4" /> Firmanız Ekle
         </Button>
-        <Button onClick={() => acFirmaModal("cati")} className="rounded-full" data-testid="button-cati-firma-ekle">
+        <Button onClick={() => acFirmaModal("grup")} className="rounded-full" data-testid="button-grup-firma-ekle">
           <Plus className="mr-2 h-4 w-4" /> Çatı Firma Ekle
         </Button>
       </div>
 
-      {grupFirmalar.length > 0 && (
+      {/* Firmanız (cati) — faturayı kesen, ayrı basit bölüm */}
+      {catiFirmalar.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-amber-600" /> Grup Firmalar
+              <Building2 className="h-4 w-4 text-primary" /> Firmanız
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0 border-t">
             <div className="divide-y">
-              {grupFirmalar.map(g => (
-                <div key={g.id} className="flex items-center gap-3 px-4 py-3" data-testid={`card-grup-${g.id}`}>
-                  <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 overflow-hidden">
-                    {g.logoUrl ? <img src={g.logoUrl} alt={g.ad} className="w-full h-full object-contain" /> : <Building2 className="h-4 w-4 text-amber-600" />}
+              {catiFirmalar.map(cati => (
+                <div key={cati.id} className="flex items-center gap-3 px-4 py-3" data-testid={`card-cati-${cati.id}`}>
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                    {cati.logoUrl ? <img src={cati.logoUrl} alt={cati.ad} className="w-full h-full object-contain" /> : <Building2 className="h-4 w-4 text-primary" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{g.ad}</p>
-                    <div className="flex gap-3 text-xs text-muted-foreground">
-                      {g.vergiNo && <span>VKN: {g.vergiNo}</span>}
-                      {g.eposta && <span>{g.eposta}</span>}
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm">{cati.ad}</p>
+                      <Badge variant="outline" className="text-xs">Firmanız</Badge>
+                      {!cati.aktif && <Badge variant="secondary" className="text-xs">Pasif</Badge>}
+                    </div>
+                    <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                      {cati.vergiNo && <span>VKN: {cati.vergiNo}</span>}
+                      {cati.eposta && <span>{cati.eposta}</span>}
+                      {cati.seriOneki && <span>Seri: {cati.seriOneki}</span>}
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-xs">Grup</Badge>
-                  {!g.aktif && <Badge variant="secondary" className="text-xs">Pasif</Badge>}
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => acFirmaModal("grup", undefined, g.id)}>
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title="SMTP Ayarları" onClick={() => acSmtpModal(cati)}>
+                      <Mail className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => acFirmaModal("cati", undefined, cati.id)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setSilId(g.id)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setSilId(cati.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -329,7 +333,8 @@ export default function Firmalar() {
         </Card>
       )}
 
-      {catiFirmalar.length === 0 && (
+      {/* Çatı Firma (grup) — expandable, altında Bağlı Firmalar */}
+      {grupFirmalar.length === 0 && catiFirmalar.length === 0 && (
         <div className="text-center text-muted-foreground py-20">
           <Building2 className="h-14 w-14 mx-auto mb-4 opacity-20" />
           <p className="text-lg font-medium">Henüz firma eklenmemiş.</p>
@@ -337,42 +342,39 @@ export default function Firmalar() {
         </div>
       )}
 
-      {catiFirmalar.map(cati => {
-        const bagliler = bagliFirmaFor(cati.id);
-        const acik = acikCatiFirmaId === cati.id;
+      {grupFirmalar.map(grup => {
+        const bagliler = bagliFirmaFor(grup.id);
+        const acik = acikGrupFirmaId === grup.id;
         return (
-          <Card key={cati.id} className="overflow-hidden" data-testid={`card-cati-${cati.id}`}>
+          <Card key={grup.id} className="overflow-hidden" data-testid={`card-grup-${grup.id}`}>
             <CardHeader className="p-0">
               <div className="flex items-center gap-3 p-4">
                 <button
-                  onClick={() => setAcikCatiFirmaId(acik ? null : cati.id)}
+                  onClick={() => setAcikGrupFirmaId(acik ? null : grup.id)}
                   className="flex items-center gap-3 flex-1 text-left"
                 >
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
-                    {cati.logoUrl ? <img src={cati.logoUrl} alt={cati.ad} className="w-full h-full object-contain" /> : <Building2 className="h-5 w-5 text-primary" />}
+                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 overflow-hidden">
+                    {grup.logoUrl ? <img src={grup.logoUrl} alt={grup.ad} className="w-full h-full object-contain" /> : <Building2 className="h-5 w-5 text-amber-600" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-base">{cati.ad}</h3>
+                      <h3 className="font-semibold text-base">{grup.ad}</h3>
                       <Badge variant="outline" className="text-xs">Çatı Firma</Badge>
-                      {!cati.aktif && <Badge variant="secondary">Pasif</Badge>}
+                      {!grup.aktif && <Badge variant="secondary">Pasif</Badge>}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                      {cati.vergiNo && <span>VKN: {cati.vergiNo}</span>}
-                      {cati.eposta && <span>{cati.eposta}</span>}
+                      {grup.vergiNo && <span>VKN: {grup.vergiNo}</span>}
+                      {grup.eposta && <span>{grup.eposta}</span>}
                       <span className="flex items-center gap-1"><Users className="h-3 w-3" />{bagliler.length} bağlı firma</span>
                     </div>
                   </div>
                   {acik ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                 </button>
                 <div className="flex gap-1 shrink-0">
-                  <Button size="icon" variant="ghost" className="h-8 w-8" title="SMTP Ayarları" onClick={() => acSmtpModal(cati)}>
-                    <Mail className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => acFirmaModal("cati", undefined, cati.id)}>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => acFirmaModal("grup", undefined, grup.id)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(cati.id)}>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(grup.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -383,7 +385,7 @@ export default function Firmalar() {
               <CardContent className="p-0 border-t bg-muted/30">
                 <div className="px-4 py-3 flex items-center justify-between">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Bağlı Firmalar</p>
-                  <Button size="sm" variant="outline" className="rounded-full h-7 text-xs" onClick={() => acFirmaModal("bagli", cati.id)}>
+                  <Button size="sm" variant="outline" className="rounded-full h-7 text-xs" onClick={() => acFirmaModal("bagli", grup.id)}>
                     <Plus className="mr-1 h-3 w-3" /> Bağlı Firma Ekle
                   </Button>
                 </div>
@@ -402,16 +404,15 @@ export default function Firmalar() {
                             {b.vergiNo && <span>VKN: {b.vergiNo}</span>}
                             {b.eposta && <span>{b.eposta}</span>}
                             {b.telefon && <span>{b.telefon}</span>}
-                            {(b as unknown as Record<string, unknown>).grupFirmaAd ? <span>Çatı: {String((b as unknown as Record<string, unknown>).grupFirmaAd)}</span> : null}
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-xs">Bağlı</Badge>
+                        <Badge variant="outline" className="text-xs text-blue-600 border-blue-200">Bağlı Firma</Badge>
                         {!b.aktif && <Badge variant="secondary" className="text-xs">Pasif</Badge>}
                         <div className="flex gap-1">
                           <Button size="icon" variant="ghost" className="h-7 w-7" title="Ekstre" onClick={() => { setEkstreFirmaId(b.id); setEkstreFirmaAd(b.ad); }}>
                             <FileBarChart className="h-3.5 w-3.5" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => acFirmaModal("bagli", cati.id, b.id)}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => acFirmaModal("bagli", grup.id, b.id)}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setSilId(b.id)}>
@@ -431,7 +432,7 @@ export default function Firmalar() {
       <Dialog open={firmaModal} onOpenChange={setFirmaModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{duzenleId ? "Firmayı Düzenle" : modalTip === "cati" ? "Yeni Çatı Firma" : modalTip === "grup" ? "Yeni Grup Firma" : "Yeni Bağlı Firma"}</DialogTitle>
+            <DialogTitle>{duzenleId ? "Firmayı Düzenle" : modalTip === "cati" ? "Yeni Firmanız" : modalTip === "grup" ? "Yeni Çatı Firma" : "Yeni Bağlı Firma"}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
@@ -466,7 +467,7 @@ export default function Firmalar() {
             )}
             {modalTip === "bagli" && (
               <div className="col-span-2 space-y-1.5">
-                <Label>Çatı / Grup Firma <span className="text-xs text-muted-foreground">(opsiyonel)</span></Label>
+                <Label>Çatı Firma <span className="text-xs text-muted-foreground">(opsiyonel)</span></Label>
                 <Select
                   value={form.grupFirmaId || "none"}
                   onValueChange={v => setForm(f => ({ ...f, grupFirmaId: v === "none" ? "" : v }))}
