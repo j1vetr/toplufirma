@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { kullanicilar, kullaniciSirketler } from "@workspace/db";
+import { kullanicilar, kullaniciFirmalar } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -32,12 +32,12 @@ router.post("/auth/login", async (req, res) => {
       return;
     }
 
-    const sirketRows = await db
+    const firmaRows = await db
       .select()
-      .from(kullaniciSirketler)
-      .where(eq(kullaniciSirketler.kullaniciId, kullanici.id));
+      .from(kullaniciFirmalar)
+      .where(eq(kullaniciFirmalar.kullaniciId, kullanici.id));
 
-    const sirketler = sirketRows.map((s) => ({ sirketId: s.sirketId, rol: s.rol }));
+    const sirketler = firmaRows.map((s) => ({ sirketId: s.catiFirmaId, rol: s.rol }));
 
     const payload = {
       id: kullanici.id,
@@ -50,7 +50,7 @@ router.post("/auth/login", async (req, res) => {
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "8h" });
 
     res.json({ token, kullanici: payload });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Giriş yapılamadı" });
   }
 });
@@ -64,13 +64,13 @@ router.get("/auth/me", requireAuth, async (req, res) => {
 
     if (!kullanici) { res.status(404).json({ error: "Kullanıcı bulunamadı" }); return; }
 
-    const sirketRows = await db
+    const firmaRows = await db
       .select()
-      .from(kullaniciSirketler)
-      .where(eq(kullaniciSirketler.kullaniciId, kullanici.id));
+      .from(kullaniciFirmalar)
+      .where(eq(kullaniciFirmalar.kullaniciId, kullanici.id));
 
-    res.json({ ...kullanici, sirketler: sirketRows.map((s) => ({ sirketId: s.sirketId, rol: s.rol })) });
-  } catch (err) {
+    res.json({ ...kullanici, sirketler: firmaRows.map((s) => ({ sirketId: s.catiFirmaId, rol: s.rol })) });
+  } catch {
     res.status(500).json({ error: "Kullanıcı bilgisi alınamadı" });
   }
 });

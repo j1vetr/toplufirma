@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export interface GemiUpdate {
@@ -12,5 +12,5 @@ export interface GemiUpdate {
   bayrakDevleti?: string;
   notlar?: string;
   aktif?: boolean;
-  cariId?: number;
+  firmaId?: number;
 }

@@ -3,18 +3,18 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import type { FaturaDurum } from './faturaDurum';
 
 export interface Fatura {
   id: number;
-  sirketId: number;
+  catiFirmaId: number;
   /** @nullable */
-  sirketAd?: string | null;
-  cariId: number;
+  catiFirmaAd?: string | null;
+  bagliFirmaId: number;
   /** @nullable */
-  cariAd?: string | null;
+  bagliFirmaAd?: string | null;
   /** @nullable */
   gemiId?: number | null;
   /** @nullable */

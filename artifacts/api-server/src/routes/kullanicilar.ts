@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { kullanicilar, kullaniciSirketler } from "@workspace/db";
+import { kullanicilar, kullaniciFirmalar } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { requireYonetici } from "../middleware/auth";
@@ -14,15 +14,15 @@ router.get("/kullanicilar", requireYonetici, async (req, res) => {
       .from(kullanicilar)
       .orderBy(kullanicilar.ad);
 
-    const sirketRows = await db.select().from(kullaniciSirketler);
-    const sirketMap: Record<number, Array<{ sirketId: number; rol: string }>> = {};
-    for (const s of sirketRows) {
-      if (!sirketMap[s.kullaniciId]) sirketMap[s.kullaniciId] = [];
-      sirketMap[s.kullaniciId].push({ sirketId: s.sirketId, rol: s.rol });
+    const firmaRows = await db.select().from(kullaniciFirmalar);
+    const firmaMap: Record<number, Array<{ sirketId: number; rol: string }>> = {};
+    for (const s of firmaRows) {
+      if (!firmaMap[s.kullaniciId]) firmaMap[s.kullaniciId] = [];
+      firmaMap[s.kullaniciId].push({ sirketId: s.catiFirmaId, rol: s.rol });
     }
 
-    res.json(rows.map((k) => ({ ...k, sirketler: sirketMap[k.id] ?? [] })));
-  } catch (err) {
+    res.json(rows.map((k) => ({ ...k, sirketler: firmaMap[k.id] ?? [] })));
+  } catch {
     res.status(500).json({ error: "Kullanıcılar listelenemedi" });
   }
 });
@@ -42,10 +42,10 @@ router.post("/kullanicilar", requireYonetici, async (req, res) => {
       .returning();
 
     if (sirketAtamalari?.length) {
-      await db.insert(kullaniciSirketler).values(
+      await db.insert(kullaniciFirmalar).values(
         sirketAtamalari.map((s: { sirketId: number; rol?: string }) => ({
           kullaniciId: yeni.id,
-          sirketId: s.sirketId,
+          catiFirmaId: s.sirketId,
           rol: s.rol ?? "muhasebeci",
         }))
       );
@@ -77,12 +77,12 @@ router.put("/kullanicilar/:id", requireYonetici, async (req, res) => {
     }
 
     if (sirketAtamalari !== undefined) {
-      await db.delete(kullaniciSirketler).where(eq(kullaniciSirketler.kullaniciId, id));
+      await db.delete(kullaniciFirmalar).where(eq(kullaniciFirmalar.kullaniciId, id));
       if (sirketAtamalari.length > 0) {
-        await db.insert(kullaniciSirketler).values(
+        await db.insert(kullaniciFirmalar).values(
           sirketAtamalari.map((s: { sirketId: number; rol?: string }) => ({
             kullaniciId: id,
-            sirketId: s.sirketId,
+            catiFirmaId: s.sirketId,
             rol: s.rol ?? "muhasebeci",
           }))
         );
@@ -95,7 +95,7 @@ router.put("/kullanicilar/:id", requireYonetici, async (req, res) => {
       .where(eq(kullanicilar.id, id));
 
     res.json(guncellenen);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Kullanıcı güncellenemedi" });
   }
 });
@@ -109,7 +109,7 @@ router.delete("/kullanicilar/:id", requireYonetici, async (req, res) => {
     }
     await db.delete(kullanicilar).where(eq(kullanicilar.id, id));
     res.status(204).send();
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Kullanıcı silinemedi" });
   }
 });

@@ -2,12 +2,10 @@ import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
   Building2, 
-  Users, 
   Ship, 
   Landmark, 
   FileText, 
   Wallet, 
-  Wifi, 
   HardDrive, 
   Settings, 
   PieChart,
@@ -18,7 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSirket } from "@/contexts/sirket-context";
-import { useListSirketler } from "@workspace/api-client-react";
+import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,13 +28,11 @@ import type { KullaniciInfo } from "@/App";
 
 const navigation = [
   { name: "Ana Sayfa", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Şirketler", href: "/sirketler", icon: Building2 },
-  { name: "Cariler", href: "/cariler", icon: Users },
+  { name: "Firmalar", href: "/firmalar", icon: Building2 },
   { name: "Gemiler", href: "/gemiler", icon: Ship },
   { name: "Banka Hesapları", href: "/banka-hesaplari", icon: Landmark },
   { name: "Faturalar", href: "/faturalar", icon: FileText },
   { name: "Ödemeler", href: "/odemeler", icon: Wallet },
-  { name: "Starlink Planları", href: "/starlink-planlari", icon: Wifi },
   { name: "Ekipmanlar", href: "/ekipmanlar", icon: HardDrive },
   { name: "Raporlar", href: "/raporlar", icon: PieChart },
   { name: "Tanımlar", href: "/tanimlar", icon: Settings },
@@ -51,7 +47,10 @@ interface LayoutProps {
 export function Layout({ children, kullanici, onLogout }: LayoutProps) {
   const [location] = useLocation();
   const { aktifSirketId, setAktifSirketId, aktifSirketAd } = useSirket();
-  const { data: sirketler = [] } = useListSirketler();
+  const { data: firmalar = [] } = useListFirmalar(
+    { tip: "cati" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
+  );
 
   const isYonetici = kullanici?.rol === "yonetici";
 
@@ -68,7 +67,6 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      {/* Sidebar */}
       <div className="w-64 border-r bg-sidebar hidden md:flex flex-col">
         <div className="h-16 flex items-center px-6 border-b shrink-0">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold mr-3 shadow-md">
@@ -77,9 +75,8 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
           <span className="font-display font-bold text-lg tracking-wide">Muhasebe</span>
         </div>
 
-        {/* Aktif Şirket Seçici */}
         <div className="px-3 py-3 border-b shrink-0">
-          <p className="text-xs text-muted-foreground px-2 mb-1.5 font-medium uppercase tracking-wider">Aktif Şirket</p>
+          <p className="text-xs text-muted-foreground px-2 mb-1.5 font-medium uppercase tracking-wider">Aktif Firma</p>
           <DropdownMenu>
             <DropdownMenuTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-sidebar-accent hover:bg-sidebar-accent/80 text-sm font-medium transition-colors" data-testid="sirket-secici">
               <span className="truncate">{aktifSirketAd}</span>
@@ -91,17 +88,17 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
                 className={cn("cursor-pointer", aktifSirketId === null && "font-semibold text-primary")}
                 data-testid="sirket-secici-tum"
               >
-                Tüm Şirketler
+                Tüm Firmalar
               </DropdownMenuItem>
-              {(sirketler as Array<{ id: number; ad: string }>).length > 0 && <DropdownMenuSeparator />}
-              {(sirketler as Array<{ id: number; ad: string }>).map(s => (
+              {firmalar.length > 0 && <DropdownMenuSeparator />}
+              {firmalar.map(f => (
                 <DropdownMenuItem
-                  key={s.id}
-                  onClick={() => setAktifSirketId(s.id)}
-                  className={cn("cursor-pointer", aktifSirketId === s.id && "font-semibold text-primary")}
-                  data-testid={`sirket-secici-${s.id}`}
+                  key={f.id}
+                  onClick={() => setAktifSirketId(f.id)}
+                  className={cn("cursor-pointer", aktifSirketId === f.id && "font-semibold text-primary")}
+                  data-testid={`sirket-secici-${f.id}`}
                 >
-                  {s.ad}
+                  {f.ad}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -129,7 +126,6 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
           </ul>
         </nav>
 
-        {/* Kullanıcı bilgisi + çıkış */}
         <div className="border-t px-3 py-3 shrink-0">
           <div className="flex items-center gap-3 px-2 py-1.5">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
@@ -153,7 +149,6 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-16 border-b bg-background flex items-center justify-between px-8 z-10 shrink-0">
           <div>
@@ -161,7 +156,6 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
             <p className="text-xs text-muted-foreground hidden md:block">{aktifSirketAd}</p>
           </div>
           <div className="flex items-center space-x-4">
-            {/* Mobil şirket seçici */}
             <div className="md:hidden">
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-1 text-sm border rounded-full px-3 py-1.5">
@@ -169,15 +163,14 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
                   <ChevronDown className="h-3.5 w-3.5" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setAktifSirketId(null)} className={cn(aktifSirketId === null && "font-semibold text-primary")}>Tüm Şirketler</DropdownMenuItem>
-                  {(sirketler as Array<{ id: number; ad: string }>).map(s => (
-                    <DropdownMenuItem key={s.id} onClick={() => setAktifSirketId(s.id)} className={cn(aktifSirketId === s.id && "font-semibold text-primary")}>{s.ad}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setAktifSirketId(null)} className={cn(aktifSirketId === null && "font-semibold text-primary")}>Tüm Firmalar</DropdownMenuItem>
+                  {firmalar.map(f => (
+                    <DropdownMenuItem key={f.id} onClick={() => setAktifSirketId(f.id)} className={cn(aktifSirketId === f.id && "font-semibold text-primary")}>{f.ad}</DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
 
-            {/* Kullanıcı avatar + çıkış (header) */}
             <DropdownMenu>
               <DropdownMenuTrigger className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary hover:bg-primary/20 transition-colors">
                 {initials}

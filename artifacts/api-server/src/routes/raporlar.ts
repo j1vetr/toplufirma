@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, sirketler, cariler, gemiler } from "@workspace/db";
+import { faturalar, firmalar, gemiler } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { sirketErisimKontrol } from "../middleware/auth";
 
@@ -21,28 +21,22 @@ function toCsv(rows: Record<string, unknown>[]): string {
 
 router.get("/raporlar/kdv-ozeti", async (req, res) => {
   try {
-    const { sirketId, yil, ay, format } = req.query as Record<string, string>;
+    const { catiFirmaId, yil, ay, format } = req.query as Record<string, string>;
 
-    if (sirketId && !sirketErisimKontrol(Number(sirketId), req)) {
-      res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
-      return;
+    if (catiFirmaId && !sirketErisimKontrol(Number(catiFirmaId), req)) {
+      res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return;
     }
 
     let fats = await db.select().from(faturalar).where(eq(faturalar.durum, "odendi"));
 
-    if (sirketId) {
-      fats = fats.filter(f => f.sirketId === Number(sirketId));
+    if (catiFirmaId) {
+      fats = fats.filter(f => f.catiFirmaId === Number(catiFirmaId));
     } else {
       const izinli = req.izinliSirketler ?? [];
-      if (req.kullanici?.rol !== "yonetici") {
-        fats = fats.filter(f => izinli.includes(f.sirketId));
-      }
+      if (req.kullanici?.rol !== "yonetici") fats = fats.filter(f => izinli.includes(f.catiFirmaId));
     }
     if (yil) fats = fats.filter(f => f.faturaTarihi.startsWith(String(yil)));
-    if (ay) {
-      const ayStr = String(ay).padStart(2, "0");
-      fats = fats.filter(f => f.faturaTarihi.includes(`-${ayStr}-`));
-    }
+    if (ay) { const ayStr = String(ay).padStart(2, "0"); fats = fats.filter(f => f.faturaTarihi.includes(`-${ayStr}-`)); }
 
     const kdvHaricToplam = fats.reduce((s, f) => s + Number(f.toplamTutar), 0);
     const kdvTutariToplam = fats.reduce((s, f) => s + Number(f.kdvTutari), 0);
@@ -56,73 +50,72 @@ router.get("/raporlar/kdv-ozeti", async (req, res) => {
       pbMap[f.paraBirimi].kdvDahil += Number(f.genelToplam);
     }
 
-    const sirketMap: Record<number, { sirketId: number; sirketAd: string; kdvHaric: number; kdvTutari: number; kdvDahil: number }> = {};
-    const sirketRows = await db.select().from(sirketler);
-    for (const s of sirketRows) {
-      sirketMap[s.id] = { sirketId: s.id, sirketAd: s.ad, kdvHaric: 0, kdvTutari: 0, kdvDahil: 0 };
-    }
+    const catiFirmaRows = await db.select().from(firmalar).where(eq(firmalar.tip, "cati"));
+    const firmaMap: Record<number, { catiFirmaId: number; catiFirmaAd: string; kdvHaric: number; kdvTutari: number; kdvDahil: number }> = {};
+    for (const s of catiFirmaRows) { firmaMap[s.id] = { catiFirmaId: s.id, catiFirmaAd: s.ad, kdvHaric: 0, kdvTutari: 0, kdvDahil: 0 }; }
     for (const f of fats) {
-      if (!sirketMap[f.sirketId]) sirketMap[f.sirketId] = { sirketId: f.sirketId, sirketAd: "", kdvHaric: 0, kdvTutari: 0, kdvDahil: 0 };
-      sirketMap[f.sirketId].kdvHaric += Number(f.toplamTutar);
-      sirketMap[f.sirketId].kdvTutari += Number(f.kdvTutari);
-      sirketMap[f.sirketId].kdvDahil += Number(f.genelToplam);
+      if (!firmaMap[f.catiFirmaId]) firmaMap[f.catiFirmaId] = { catiFirmaId: f.catiFirmaId, catiFirmaAd: "", kdvHaric: 0, kdvTutari: 0, kdvDahil: 0 };
+      firmaMap[f.catiFirmaId].kdvHaric += Number(f.toplamTutar);
+      firmaMap[f.catiFirmaId].kdvTutari += Number(f.kdvTutari);
+      firmaMap[f.catiFirmaId].kdvDahil += Number(f.genelToplam);
     }
-
-    const sirketKirilim = Object.values(sirketMap).filter(s => s.kdvDahil > 0);
+    const firmaKirilim = Object.values(firmaMap).filter(s => s.kdvDahil > 0);
 
     if (format === "csv") {
       const csvRows = [
         { Rapor: "KDV Özeti", Yil: yil ?? "Tümü", Ay: ay ?? "Tümü" },
         ...fats.map(f => ({
-          FaturaNo: f.faturaNo,
-          FaturaTarihi: f.faturaTarihi,
-          ParaBirimi: f.paraBirimi,
+          FaturaNo: f.faturaNo, FaturaTarihi: f.faturaTarihi, ParaBirimi: f.paraBirimi,
           KDVHaricTutar: Number(f.toplamTutar).toFixed(2),
           KDVTutari: Number(f.kdvTutari).toFixed(2),
           GenelToplam: Number(f.genelToplam).toFixed(2),
         })),
       ];
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
-      res.setHeader("Content-Disposition", `attachment; filename="kdv-ozeti-${yil ?? "tumumu"}.csv"`);
-      res.send(toCsv(csvRows));
-      return;
+      res.setHeader("Content-Disposition", `attachment; filename="kdv-ozeti-${yil ?? "tumu"}.csv"`);
+      res.send(toCsv(csvRows)); return;
     }
 
     res.json({
       kdvHaricToplam, kdvTutariToplam, kdvDahilToplam,
       paraBirimiKirilim: Object.entries(pbMap).map(([pb, v]) => ({ paraBirimi: pb, ...v })),
-      sirketKirilim,
+      firmaKirilim,
     });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "KDV özeti alınamadı" });
   }
 });
 
 router.get("/raporlar/alacak-yaslandirma", async (req, res) => {
   try {
-    const { sirketId, format } = req.query as Record<string, string>;
+    const { catiFirmaId, format } = req.query as Record<string, string>;
     const today = new Date();
 
-    if (sirketId && !sirketErisimKontrol(Number(sirketId), req)) {
-      res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
-      return;
+    if (catiFirmaId && !sirketErisimKontrol(Number(catiFirmaId), req)) {
+      res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return;
     }
 
-    let fats = await db
-      .select({ f: faturalar, cariAd: cariler.ad, gemiAd: gemiler.ad, sirketAd: sirketler.ad })
+    const allFats = await db
+      .select({
+        f: faturalar,
+        bagliFirmaAd: firmalar.ad,
+        gemiAd: gemiler.ad,
+      })
       .from(faturalar)
-      .leftJoin(cariler, eq(faturalar.cariId, cariler.id))
-      .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
-      .leftJoin(sirketler, eq(faturalar.sirketId, sirketler.id));
+      .leftJoin(firmalar, eq(faturalar.bagliFirmaId, firmalar.id))
+      .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id));
 
-    const acikFaturalar = fats.filter(r => r.f.durum === "acik" || r.f.durum === "kismi_odendi");
+    const catiFirmaRows = await db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(eq(firmalar.tip, "cati"));
+    const catiFirmaAdMap: Record<number, string> = {};
+    for (const f of catiFirmaRows) catiFirmaAdMap[f.id] = f.ad;
 
-    let filtrelenmis = acikFaturalar;
-    if (sirketId) {
-      filtrelenmis = filtrelenmis.filter(r => r.f.sirketId === Number(sirketId));
+    let acikFaturalar = allFats.filter(r => r.f.durum === "acik" || r.f.durum === "kismi_odendi");
+
+    if (catiFirmaId) {
+      acikFaturalar = acikFaturalar.filter(r => r.f.catiFirmaId === Number(catiFirmaId));
     } else if (req.kullanici?.rol !== "yonetici") {
       const izinli = req.izinliSirketler ?? [];
-      filtrelenmis = filtrelenmis.filter(r => izinli.includes(r.f.sirketId));
+      acikFaturalar = acikFaturalar.filter(r => izinli.includes(r.f.catiFirmaId));
     }
 
     const dilimler = [
@@ -133,7 +126,7 @@ router.get("/raporlar/alacak-yaslandirma", async (req, res) => {
     ];
 
     const result = dilimler.map(d => {
-      const dilimFaturalar = filtrelenmis.filter(r => {
+      const dilimFaturalar = acikFaturalar.filter(r => {
         const gun = Math.ceil((today.getTime() - new Date(r.f.vadeTarihi).getTime()) / (1000 * 60 * 60 * 24));
         return gun >= d.min && gun <= d.max;
       });
@@ -142,8 +135,9 @@ router.get("/raporlar/alacak-yaslandirma", async (req, res) => {
         toplamTutar: dilimFaturalar.reduce((s, r) => s + Number(r.f.genelToplam), 0),
         faturaSayisi: dilimFaturalar.length,
         faturalar: dilimFaturalar.map(r => ({
-          id: r.f.id, sirketId: r.f.sirketId, sirketAd: r.sirketAd,
-          cariId: r.f.cariId, cariAd: r.cariAd, gemiId: r.f.gemiId, gemiAd: r.gemiAd,
+          id: r.f.id, catiFirmaId: r.f.catiFirmaId, catiFirmaAd: catiFirmaAdMap[r.f.catiFirmaId] ?? null,
+          bagliFirmaId: r.f.bagliFirmaId, bagliFirmaAd: r.bagliFirmaAd,
+          gemiId: r.f.gemiId, gemiAd: r.gemiAd,
           faturaNo: r.f.faturaNo, faturaTarihi: r.f.faturaTarihi, vadeTarihi: r.f.vadeTarihi,
           paraBirimi: r.f.paraBirimi, durum: r.f.durum,
           toplamTutar: Number(r.f.toplamTutar), kdvTutari: Number(r.f.kdvTutari),
@@ -154,15 +148,14 @@ router.get("/raporlar/alacak-yaslandirma", async (req, res) => {
     });
 
     if (format === "csv") {
-      const allFats = result.flatMap(d => d.faturalar.map(f => ({ Dilim: d.etiket, ...f })));
+      const allRows = result.flatMap(d => d.faturalar.map(f => ({ Dilim: d.etiket, ...f })));
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", 'attachment; filename="alacak-yaslandirma.csv"');
-      res.send(toCsv(allFats));
-      return;
+      res.send(toCsv(allRows)); return;
     }
 
     res.json({ dilimler: result });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Alacak yaşlandırma raporu alınamadı" });
   }
 });

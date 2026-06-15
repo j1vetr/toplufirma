@@ -1,8 +1,8 @@
 import { db } from "./index";
 import {
-  sirketler, cariler, gemiler, bankaHesaplari, kdvOranlari,
-  faturaSerileri, faturalar, faturaKalemleri, odemeler, starlinkPlanlari,
-  ekipmanlar, kullanicilar, kullaniciSirketler,
+  firmalar, firmaEpostaAyarlari, gemiler, bankaHesaplari, kdvOranlari,
+  faturaSerileri, faturalar, faturaKalemleri, odemeler,
+  ekipmanlar, kullanicilar, kullaniciFirmalar,
 } from "./schema";
 import bcrypt from "bcryptjs";
 
@@ -12,181 +12,164 @@ async function seed() {
   await db.delete(odemeler);
   await db.delete(faturaKalemleri);
   await db.delete(faturalar);
-  await db.delete(starlinkPlanlari);
   await db.delete(ekipmanlar);
   await db.delete(faturaSerileri);
   await db.delete(kdvOranlari);
   await db.delete(bankaHesaplari);
   await db.delete(gemiler);
-  await db.delete(cariler);
-  await db.delete(kullaniciSirketler);
+  await db.delete(kullaniciFirmalar);
   await db.delete(kullanicilar);
-  await db.delete(sirketler);
+  await db.delete(firmaEpostaAyarlari);
+  await db.delete(firmalar);
 
-  // Sirketler
-  const [lacSirket] = await db.insert(sirketler).values({
-    ad: "Lacivert Teknoloji A.Ş.", vergiNo: "1234567890",
+  // ── Çatı Firmalar ────────────────────────────────────────────────────────
+  const [lacFirma] = await db.insert(firmalar).values({
+    tip: "cati", ad: "Lacivert Teknoloji A.Ş.", vergiNo: "1234567890",
     vergiDairesi: "Galata VD", adres: "Karaköy Cad. No:5, İstanbul",
     telefon: "+90 212 555 0101", eposta: "info@laciverts.com",
     seriOneki: "LAC", aktif: true,
   }).returning();
 
-  const [adeSirket] = await db.insert(sirketler).values({
-    ad: "Ade Globa Space Ltd. Şti.", vergiNo: "9876543210",
+  const [agsFirma] = await db.insert(firmalar).values({
+    tip: "cati", ad: "Ade Globa Space Ltd. Şti.", vergiNo: "9876543210",
     vergiDairesi: "İzmir VD", adres: "Konak Mah. Atatürk Blv. No:12, İzmir",
     telefon: "+90 232 555 0202", eposta: "info@adeglobaspace.com",
     seriOneki: "AGS", aktif: true,
   }).returning();
 
-  // KDV Oranlari
-  await db.insert(kdvOranlari).values([
-    { sirketId: lacSirket.id, ad: "KDV %0", oran: "0", varsayilan: false },
-    { sirketId: lacSirket.id, ad: "KDV %10", oran: "10", varsayilan: false },
-    { sirketId: lacSirket.id, ad: "KDV %20", oran: "20", varsayilan: true },
-    { sirketId: adeSirket.id, ad: "KDV %0", oran: "0", varsayilan: false },
-    { sirketId: adeSirket.id, ad: "KDV %20", oran: "20", varsayilan: true },
-  ]);
-
-  // Fatura Serileri
-  const [lacSeri] = await db.insert(faturaSerileri).values({
-    sirketId: lacSirket.id, ad: "LAC Ana Seri", onek: "LAC",
-    sonrakiNo: 8, varsayilan: true,
-  }).returning();
-
-  const [agsSeri] = await db.insert(faturaSerileri).values({
-    sirketId: adeSirket.id, ad: "AGS Ana Seri", onek: "AGS",
-    sonrakiNo: 5, varsayilan: true,
-  }).returning();
-
-  // Banka Hesaplari
-  const [lacBanka1] = await db.insert(bankaHesaplari).values({
-    sirketId: lacSirket.id, bankaAdi: "Garanti BBVA", hesapAdi: "LAC USD Hesabı",
-    iban: "TR12 0006 2000 1234 0006 2000 00", paraBirimi: "USD",
-    subeAdi: "Karaköy Şubesi", aktif: true,
-  }).returning();
-
-  await db.insert(bankaHesaplari).values({
-    sirketId: lacSirket.id, bankaAdi: "İş Bankası", hesapAdi: "LAC TRY Hesabı",
-    iban: "TR34 0006 4000 0011 1234 5600 01", paraBirimi: "TRY",
-    subeAdi: "Galata Şubesi", aktif: true,
-  });
-
-  const [agsBanka] = await db.insert(bankaHesaplari).values({
-    sirketId: adeSirket.id, bankaAdi: "Yapı Kredi", hesapAdi: "AGS EUR Hesabı",
-    iban: "TR56 0006 7010 0000 1234 5678 90", paraBirimi: "EUR",
-    subeAdi: "Konak Şubesi", aktif: true,
-  }).returning();
-
-  // Cariler
-  const [meridian] = await db.insert(cariler).values({
-    sirketId: lacSirket.id, ad: "Meridian Shipping Co.", tip: "gemi_sahibi",
+  // ── Bağlı Firmalar (LAC) ─────────────────────────────────────────────────
+  const [meridian] = await db.insert(firmalar).values({
+    tip: "bagli", ustFirmaId: lacFirma.id, ad: "Meridian Shipping Co.",
     vergiNo: "US-789012345", telefon: "+1 212 555 0301",
     eposta: "ops@meridianshipping.com", paraBirimi: "USD",
     yetkiliKisi: "James Wilson", aktif: true,
   }).returning();
 
-  const [pacificStar] = await db.insert(cariler).values({
-    sirketId: lacSirket.id, ad: "Pacific Star Lines", tip: "musteri",
+  const [pacificStar] = await db.insert(firmalar).values({
+    tip: "bagli", ustFirmaId: lacFirma.id, ad: "Pacific Star Lines",
     vergiNo: "HK-456789012", telefon: "+852 2555 0401",
     eposta: "billing@pacificstarlines.com", paraBirimi: "USD",
     yetkiliKisi: "Chen Wei", aktif: true,
   }).returning();
 
-  const [atlantisFleet] = await db.insert(cariler).values({
-    sirketId: lacSirket.id, ad: "Atlantis Fleet Management", tip: "musteri",
+  const [atlantisFleet] = await db.insert(firmalar).values({
+    tip: "bagli", ustFirmaId: lacFirma.id, ad: "Atlantis Fleet Management",
     vergiNo: "GR-123456789", telefon: "+30 210 555 0501",
     eposta: "info@atlantisfleet.gr", paraBirimi: "EUR",
     yetkiliKisi: "Nikolaos Papadopoulos", aktif: true,
   }).returning();
 
-  const [spaceX] = await db.insert(cariler).values({
-    sirketId: lacSirket.id, ad: "Starlink / SpaceX", tip: "tedarikci",
+  const [spaceX] = await db.insert(firmalar).values({
+    tip: "bagli", ustFirmaId: lacFirma.id, ad: "Starlink / SpaceX",
     vergiNo: "US-000000001", telefon: "+1 310 555 0001",
-    eposta: "maritime@starlink.com", paraBirimi: "USD", aktif: true,
+    eposta: "maritime@starlink.com", paraBirimi: "USD",
+    notlar: "Starlink terminal tedarikçisi", aktif: true,
   }).returning();
 
-  const [ageMusteri1] = await db.insert(cariler).values({
-    sirketId: adeSirket.id, ad: "Euromed Tankers S.A.", tip: "musteri",
+  // ── Bağlı Firmalar (AGS) ─────────────────────────────────────────────────
+  const [euromedTankers] = await db.insert(firmalar).values({
+    tip: "bagli", ustFirmaId: agsFirma.id, ad: "Euromed Tankers S.A.",
     vergiNo: "IT-987654321", telefon: "+39 06 555 0601",
     eposta: "fleet@euromedtankers.it", paraBirimi: "EUR",
     yetkiliKisi: "Marco Rossi", aktif: true,
   }).returning();
 
-  // Gemiler
+  // ── KDV Oranları ─────────────────────────────────────────────────────────
+  await db.insert(kdvOranlari).values([
+    { catiFirmaId: lacFirma.id, ad: "KDV %0", oran: "0", varsayilan: false },
+    { catiFirmaId: lacFirma.id, ad: "KDV %10", oran: "10", varsayilan: false },
+    { catiFirmaId: lacFirma.id, ad: "KDV %20", oran: "20", varsayilan: true },
+    { catiFirmaId: agsFirma.id, ad: "KDV %0", oran: "0", varsayilan: false },
+    { catiFirmaId: agsFirma.id, ad: "KDV %20", oran: "20", varsayilan: true },
+  ]);
+
+  // ── Fatura Serileri ───────────────────────────────────────────────────────
+  const [lacSeri] = await db.insert(faturaSerileri).values({
+    catiFirmaId: lacFirma.id, ad: "LAC Ana Seri", onek: "LAC",
+    sonrakiNo: 8, varsayilan: true,
+  }).returning();
+
+  const [agsSeri] = await db.insert(faturaSerileri).values({
+    catiFirmaId: agsFirma.id, ad: "AGS Ana Seri", onek: "AGS",
+    sonrakiNo: 5, varsayilan: true,
+  }).returning();
+
+  // ── Banka Hesapları ───────────────────────────────────────────────────────
+  const [lacBankaTry] = await db.insert(bankaHesaplari).values({
+    catiFirmaId: lacFirma.id, bankaAdi: "İş Bankası", hesapAdi: "LAC TRY Hesabı",
+    iban: "TR34 0006 4000 0011 1234 5600 01", paraBirimi: "TRY",
+    subeAdi: "Galata Şubesi", aktif: true,
+  }).returning();
+
+  const [lacBankaUsd] = await db.insert(bankaHesaplari).values({
+    catiFirmaId: lacFirma.id, bankaAdi: "Garanti BBVA", hesapAdi: "LAC USD Hesabı",
+    iban: "TR12 0006 2000 1234 0006 2000 00", paraBirimi: "USD",
+    subeAdi: "Karaköy Şubesi", aktif: true,
+  }).returning();
+
+  const [lacBankaEur] = await db.insert(bankaHesaplari).values({
+    catiFirmaId: lacFirma.id, bankaAdi: "Garanti BBVA", hesapAdi: "LAC EUR Hesabı",
+    iban: "TR56 0006 2000 1234 0006 2001 00", paraBirimi: "EUR",
+    subeAdi: "Karaköy Şubesi", aktif: true,
+  }).returning();
+
+  const [agsBanka] = await db.insert(bankaHesaplari).values({
+    catiFirmaId: agsFirma.id, bankaAdi: "Yapı Kredi", hesapAdi: "AGS EUR Hesabı",
+    iban: "TR56 0006 7010 0000 1234 5678 90", paraBirimi: "EUR",
+    subeAdi: "Konak Şubesi", aktif: true,
+  }).returning();
+
+  // ── Gemiler ───────────────────────────────────────────────────────────────
   const [gemiBlueStar] = await db.insert(gemiler).values({
-    cariId: meridian.id, ad: "MV Blue Star",
+    firmaId: meridian.id, ad: "MV Blue Star",
     imoNumarasi: "IMO9123456", bayrakDevleti: "Malta", aktif: true,
   }).returning();
 
   const [gemiSunrise] = await db.insert(gemiler).values({
-    cariId: pacificStar.id, ad: "MV Pacific Sunrise",
+    firmaId: pacificStar.id, ad: "MV Pacific Sunrise",
     imoNumarasi: "IMO9234567", bayrakDevleti: "Panama", aktif: true,
   }).returning();
 
   const [gemiAtlantis] = await db.insert(gemiler).values({
-    cariId: atlantisFleet.id, ad: "MV Atlantis One",
+    firmaId: atlantisFleet.id, ad: "MV Atlantis One",
     imoNumarasi: "IMO9345678", bayrakDevleti: "Greece", aktif: true,
   }).returning();
 
   const [gemiEuromed] = await db.insert(gemiler).values({
-    cariId: ageMusteri1.id, ad: "MT Euromed Spirit",
+    firmaId: euromedTankers.id, ad: "MT Euromed Spirit",
     imoNumarasi: "IMO9456789", bayrakDevleti: "Italy", aktif: true,
   }).returning();
 
-  // Starlink Planlari
-  await db.insert(starlinkPlanlari).values([
-    {
-      sirketId: lacSirket.id, cariId: meridian.id, gemiId: gemiBlueStar.id,
-      planAdi: "Maritime Priority", hizMbps: 220,
-      baslangicTarihi: "2026-01-01", bitisTarihi: "2026-07-10",
-      aylikUcret: "1200.00", paraBirimi: "USD", otomatikYenileme: true, aktif: true,
-    },
-    {
-      sirketId: lacSirket.id, cariId: pacificStar.id, gemiId: gemiSunrise.id,
-      planAdi: "Maritime Standard", hizMbps: 100,
-      baslangicTarihi: "2026-02-01", bitisTarihi: "2026-08-01",
-      aylikUcret: "750.00", paraBirimi: "USD", otomatikYenileme: true, aktif: true,
-    },
-    {
-      sirketId: lacSirket.id, cariId: atlantisFleet.id, gemiId: gemiAtlantis.id,
-      planAdi: "Maritime Elite", hizMbps: 350,
-      baslangicTarihi: "2025-10-01", bitisTarihi: "2026-09-30",
-      aylikUcret: "2100.00", paraBirimi: "EUR", otomatikYenileme: false, aktif: true,
-    },
-    {
-      sirketId: adeSirket.id, cariId: ageMusteri1.id, gemiId: gemiEuromed.id,
-      planAdi: "Maritime Pro", hizMbps: 150,
-      baslangicTarihi: "2026-03-01", bitisTarihi: "2026-06-28",
-      aylikUcret: "950.00", paraBirimi: "EUR", otomatikYenileme: true, aktif: true,
-    },
-  ]);
-
-  // Ekipmanlar
+  // ── Ekipmanlar ────────────────────────────────────────────────────────────
   await db.insert(ekipmanlar).values([
-    { sirketId: lacSirket.id, gemiId: gemiBlueStar.id, tip: "Starlink Terminal", seriNo: "SL-2024-001234", kurulumTarihi: "2024-03-15", garantiBitisTarihi: "2027-03-15", aktif: true },
-    { sirketId: lacSirket.id, gemiId: gemiBlueStar.id, tip: "Router", seriNo: "RT-2024-005678", kurulumTarihi: "2024-03-15", garantiBitisTarihi: "2026-03-15", aktif: true },
-    { sirketId: lacSirket.id, gemiId: gemiSunrise.id, tip: "Starlink Terminal", seriNo: "SL-2024-002345", kurulumTarihi: "2024-06-20", garantiBitisTarihi: "2027-06-20", aktif: true },
-    { sirketId: lacSirket.id, gemiId: gemiAtlantis.id, tip: "Starlink Terminal", seriNo: "SL-2023-009876", kurulumTarihi: "2023-10-01", garantiBitisTarihi: "2026-10-01", aktif: true },
-    { sirketId: adeSirket.id, gemiId: gemiEuromed.id, tip: "Starlink Terminal", seriNo: "SL-2024-003456", kurulumTarihi: "2024-09-01", garantiBitisTarihi: "2027-09-01", aktif: true },
+    { catiFirmaId: lacFirma.id, gemiId: gemiBlueStar.id, tip: "Starlink Terminal", seriNo: "SL-2024-001234", kurulumTarihi: "2024-03-15", garantiBitisTarihi: "2027-03-15", aktif: true },
+    { catiFirmaId: lacFirma.id, gemiId: gemiBlueStar.id, tip: "Router", seriNo: "RT-2024-005678", kurulumTarihi: "2024-03-15", garantiBitisTarihi: "2026-03-15", aktif: true },
+    { catiFirmaId: lacFirma.id, gemiId: gemiSunrise.id, tip: "Starlink Terminal", seriNo: "SL-2024-002345", kurulumTarihi: "2024-06-20", garantiBitisTarihi: "2027-06-20", aktif: true },
+    { catiFirmaId: lacFirma.id, gemiId: gemiAtlantis.id, tip: "Starlink Terminal", seriNo: "SL-2023-009876", kurulumTarihi: "2023-10-01", garantiBitisTarihi: "2026-10-01", aktif: true },
+    { catiFirmaId: agsFirma.id, gemiId: gemiEuromed.id, tip: "Starlink Terminal", seriNo: "SL-2024-003456", kurulumTarihi: "2024-09-01", garantiBitisTarihi: "2027-09-01", aktif: true },
   ]);
 
-  // Faturalar
-  const [fat1] = await db.insert(faturalar).values({ sirketId: lacSirket.id, cariId: meridian.id, gemiId: gemiBlueStar.id, faturaSerisiId: lacSeri.id, faturaNo: "LAC000001", faturaTarihi: "2026-01-15", vadeTarihi: "2026-02-15", paraBirimi: "USD", durum: "odendi", toplamTutar: "1200.00", kdvTutari: "0.00", genelToplam: "1200.00", aciklama: "Ocak 2026 Starlink Hizmet Bedeli - MV Blue Star" }).returning();
-  const [fat2] = await db.insert(faturalar).values({ sirketId: lacSirket.id, cariId: meridian.id, gemiId: gemiBlueStar.id, faturaSerisiId: lacSeri.id, faturaNo: "LAC000002", faturaTarihi: "2026-02-15", vadeTarihi: "2026-03-15", paraBirimi: "USD", durum: "odendi", toplamTutar: "1200.00", kdvTutari: "0.00", genelToplam: "1200.00", aciklama: "Şubat 2026 Starlink Hizmet Bedeli - MV Blue Star" }).returning();
-  const [fat3] = await db.insert(faturalar).values({ sirketId: lacSirket.id, cariId: meridian.id, gemiId: gemiBlueStar.id, faturaSerisiId: lacSeri.id, faturaNo: "LAC000003", faturaTarihi: "2026-03-15", vadeTarihi: "2026-04-15", paraBirimi: "USD", durum: "odendi", toplamTutar: "1200.00", kdvTutari: "0.00", genelToplam: "1200.00", aciklama: "Mart 2026 Starlink Hizmet Bedeli - MV Blue Star" }).returning();
-  const [fat4] = await db.insert(faturalar).values({ sirketId: lacSirket.id, cariId: pacificStar.id, gemiId: gemiSunrise.id, faturaSerisiId: lacSeri.id, faturaNo: "LAC000004", faturaTarihi: "2026-03-01", vadeTarihi: "2026-04-01", paraBirimi: "USD", durum: "odendi", toplamTutar: "750.00", kdvTutari: "0.00", genelToplam: "750.00", aciklama: "Mart 2026 Starlink Hizmet Bedeli - MV Pacific Sunrise" }).returning();
-  const [fat5] = await db.insert(faturalar).values({ sirketId: lacSirket.id, cariId: pacificStar.id, gemiId: gemiSunrise.id, faturaSerisiId: lacSeri.id, faturaNo: "LAC000005", faturaTarihi: "2026-04-01", vadeTarihi: "2026-05-01", paraBirimi: "USD", durum: "kismi_odendi", toplamTutar: "750.00", kdvTutari: "0.00", genelToplam: "750.00", aciklama: "Nisan 2026 Starlink Hizmet Bedeli - MV Pacific Sunrise" }).returning();
-  const [fat6] = await db.insert(faturalar).values({ sirketId: lacSirket.id, cariId: atlantisFleet.id, gemiId: gemiAtlantis.id, faturaSerisiId: lacSeri.id, faturaNo: "LAC000006", faturaTarihi: "2026-05-01", vadeTarihi: "2026-06-01", paraBirimi: "EUR", durum: "acik", toplamTutar: "2100.00", kdvTutari: "0.00", genelToplam: "2100.00", aciklama: "Mayıs 2026 Starlink Hizmet Bedeli - MV Atlantis One" }).returning();
-  const [fat7] = await db.insert(faturalar).values({ sirketId: lacSirket.id, cariId: atlantisFleet.id, gemiId: gemiAtlantis.id, faturaSerisiId: lacSeri.id, faturaNo: "LAC000007", faturaTarihi: "2026-06-01", vadeTarihi: "2026-07-01", paraBirimi: "EUR", durum: "acik", toplamTutar: "2100.00", kdvTutari: "0.00", genelToplam: "2100.00", aciklama: "Haziran 2026 Starlink Hizmet Bedeli - MV Atlantis One" }).returning();
-  const [fat8] = await db.insert(faturalar).values({ sirketId: adeSirket.id, cariId: ageMusteri1.id, gemiId: gemiEuromed.id, faturaSerisiId: agsSeri.id, faturaNo: "AGS000001", faturaTarihi: "2026-03-15", vadeTarihi: "2026-04-15", paraBirimi: "EUR", durum: "odendi", toplamTutar: "950.00", kdvTutari: "0.00", genelToplam: "950.00", aciklama: "Mart 2026 Maritime Pro Hizmet Bedeli - MT Euromed Spirit" }).returning();
-  const [fat9] = await db.insert(faturalar).values({ sirketId: adeSirket.id, cariId: ageMusteri1.id, gemiId: gemiEuromed.id, faturaSerisiId: agsSeri.id, faturaNo: "AGS000002", faturaTarihi: "2026-04-15", vadeTarihi: "2026-05-15", paraBirimi: "EUR", durum: "acik", toplamTutar: "950.00", kdvTutari: "0.00", genelToplam: "950.00", aciklama: "Nisan 2026 Maritime Pro Hizmet Bedeli - MT Euromed Spirit" }).returning();
+  // ── Faturalar ─────────────────────────────────────────────────────────────
+  type FaturaDurum = "acik" | "kismi_odendi" | "odendi" | "iptal";
+  const fv = (catiFirmaId: number, bagliFirmaId: number, gemiId: number, seriId: number, no: string, tarih: string, vade: string, pb: string, durum: FaturaDurum, tutar: string, kdv: string, aciklama: string) =>
+    ({ catiFirmaId, bagliFirmaId, gemiId, faturaSerisiId: seriId, faturaNo: no, faturaTarihi: tarih, vadeTarihi: vade, paraBirimi: pb, durum, toplamTutar: tutar, kdvTutari: kdv, genelToplam: tutar, aciklama });
 
-  // Fatura Kalemleri
-  for (const [fat, ucret, pb] of [
-    [fat1, "1200.00", "USD"], [fat2, "1200.00", "USD"], [fat3, "1200.00", "USD"],
-    [fat4, "750.00", "USD"], [fat5, "750.00", "USD"],
-    [fat6, "2100.00", "EUR"], [fat7, "2100.00", "EUR"],
-    [fat8, "950.00", "EUR"], [fat9, "950.00", "EUR"],
+  const [fat1] = await db.insert(faturalar).values(fv(lacFirma.id, meridian.id, gemiBlueStar.id, lacSeri.id, "LAC000001", "2026-01-15", "2026-02-15", "USD", "odendi", "1200.00", "0.00", "Ocak 2026 Starlink Hizmet Bedeli - MV Blue Star")).returning();
+  const [fat2] = await db.insert(faturalar).values(fv(lacFirma.id, meridian.id, gemiBlueStar.id, lacSeri.id, "LAC000002", "2026-02-15", "2026-03-15", "USD", "odendi", "1200.00", "0.00", "Şubat 2026 Starlink Hizmet Bedeli - MV Blue Star")).returning();
+  const [fat3] = await db.insert(faturalar).values(fv(lacFirma.id, meridian.id, gemiBlueStar.id, lacSeri.id, "LAC000003", "2026-03-15", "2026-04-15", "USD", "odendi", "1200.00", "0.00", "Mart 2026 Starlink Hizmet Bedeli - MV Blue Star")).returning();
+  const [fat4] = await db.insert(faturalar).values(fv(lacFirma.id, pacificStar.id, gemiSunrise.id, lacSeri.id, "LAC000004", "2026-03-01", "2026-04-01", "USD", "odendi", "750.00", "0.00", "Mart 2026 Starlink Hizmet Bedeli - MV Pacific Sunrise")).returning();
+  const [fat5] = await db.insert(faturalar).values(fv(lacFirma.id, pacificStar.id, gemiSunrise.id, lacSeri.id, "LAC000005", "2026-04-01", "2026-05-01", "USD", "kismi_odendi", "750.00", "0.00", "Nisan 2026 Starlink Hizmet Bedeli - MV Pacific Sunrise")).returning();
+  const [fat6] = await db.insert(faturalar).values(fv(lacFirma.id, atlantisFleet.id, gemiAtlantis.id, lacSeri.id, "LAC000006", "2026-05-01", "2026-06-01", "EUR", "acik", "2100.00", "0.00", "Mayıs 2026 Starlink Hizmet Bedeli - MV Atlantis One")).returning();
+  const [fat7] = await db.insert(faturalar).values(fv(lacFirma.id, atlantisFleet.id, gemiAtlantis.id, lacSeri.id, "LAC000007", "2026-06-01", "2026-07-01", "EUR", "acik", "2100.00", "0.00", "Haziran 2026 Starlink Hizmet Bedeli - MV Atlantis One")).returning();
+  const [fat8] = await db.insert(faturalar).values(fv(agsFirma.id, euromedTankers.id, gemiEuromed.id, agsSeri.id, "AGS000001", "2026-03-15", "2026-04-15", "EUR", "odendi", "950.00", "0.00", "Mart 2026 Maritime Pro Hizmet Bedeli - MT Euromed Spirit")).returning();
+  const [fat9] = await db.insert(faturalar).values(fv(agsFirma.id, euromedTankers.id, gemiEuromed.id, agsSeri.id, "AGS000002", "2026-04-15", "2026-05-15", "EUR", "acik", "950.00", "0.00", "Nisan 2026 Maritime Pro Hizmet Bedeli - MT Euromed Spirit")).returning();
+
+  // ── Fatura Kalemleri ──────────────────────────────────────────────────────
+  for (const [fat, ucret] of [
+    [fat1, "1200.00"], [fat2, "1200.00"], [fat3, "1200.00"],
+    [fat4, "750.00"], [fat5, "750.00"],
+    [fat6, "2100.00"], [fat7, "2100.00"],
+    [fat8, "950.00"], [fat9, "950.00"],
   ] as const) {
     await db.insert(faturaKalemleri).values({
       faturaId: fat.id, aciklama: "Starlink Maritime Hizmet Bedeli (1 Ay)",
@@ -195,18 +178,18 @@ async function seed() {
     });
   }
 
-  // Odemeler
+  // ── Ödemeler ──────────────────────────────────────────────────────────────
   await db.insert(odemeler).values([
-    { sirketId: lacSirket.id, cariId: meridian.id, gemiId: gemiBlueStar.id, faturaId: fat1.id, bankaHesabiId: lacBanka1.id, tip: "tahsilat", tarih: "2026-02-10", tutar: "1200.00", paraBirimi: "USD", odemeYontemi: "banka_havalesi", aciklama: "LAC000001 ödemesi" },
-    { sirketId: lacSirket.id, cariId: meridian.id, gemiId: gemiBlueStar.id, faturaId: fat2.id, bankaHesabiId: lacBanka1.id, tip: "tahsilat", tarih: "2026-03-08", tutar: "1200.00", paraBirimi: "USD", odemeYontemi: "wise", aciklama: "LAC000002 ödemesi" },
-    { sirketId: lacSirket.id, cariId: meridian.id, gemiId: gemiBlueStar.id, faturaId: fat3.id, bankaHesabiId: lacBanka1.id, tip: "tahsilat", tarih: "2026-04-12", tutar: "1200.00", paraBirimi: "USD", odemeYontemi: "banka_havalesi", aciklama: "LAC000003 ödemesi" },
-    { sirketId: lacSirket.id, cariId: pacificStar.id, gemiId: gemiSunrise.id, faturaId: fat4.id, bankaHesabiId: lacBanka1.id, tip: "tahsilat", tarih: "2026-03-28", tutar: "750.00", paraBirimi: "USD", odemeYontemi: "eft", aciklama: "LAC000004 ödemesi" },
-    { sirketId: lacSirket.id, cariId: pacificStar.id, gemiId: gemiSunrise.id, faturaId: fat5.id, bankaHesabiId: lacBanka1.id, tip: "tahsilat", tarih: "2026-05-05", tutar: "400.00", paraBirimi: "USD", odemeYontemi: "banka_havalesi", aciklama: "LAC000005 kısmi ödeme" },
-    { sirketId: adeSirket.id, cariId: ageMusteri1.id, gemiId: gemiEuromed.id, faturaId: fat8.id, bankaHesabiId: agsBanka.id, tip: "tahsilat", tarih: "2026-04-10", tutar: "950.00", paraBirimi: "EUR", odemeYontemi: "banka_havalesi", aciklama: "AGS000001 ödemesi" },
-    { sirketId: lacSirket.id, cariId: spaceX.id, tip: "odeme", tarih: "2026-06-01", tutar: "3800.00", paraBirimi: "USD", bankaHesabiId: lacBanka1.id, odemeYontemi: "kredi_karti", aciklama: "Haziran Starlink hizmet bedeli - 4 terminal" },
+    { catiFirmaId: lacFirma.id, bagliFirmaId: meridian.id, gemiId: gemiBlueStar.id, faturaId: fat1.id, bankaHesabiId: lacBankaUsd.id, tip: "tahsilat", tarih: "2026-02-10", tutar: "1200.00", paraBirimi: "USD", odemeYontemi: "banka_havalesi", aciklama: "LAC000001 ödemesi" },
+    { catiFirmaId: lacFirma.id, bagliFirmaId: meridian.id, gemiId: gemiBlueStar.id, faturaId: fat2.id, bankaHesabiId: lacBankaUsd.id, tip: "tahsilat", tarih: "2026-03-08", tutar: "1200.00", paraBirimi: "USD", odemeYontemi: "wise", aciklama: "LAC000002 ödemesi" },
+    { catiFirmaId: lacFirma.id, bagliFirmaId: meridian.id, gemiId: gemiBlueStar.id, faturaId: fat3.id, bankaHesabiId: lacBankaUsd.id, tip: "tahsilat", tarih: "2026-04-12", tutar: "1200.00", paraBirimi: "USD", odemeYontemi: "banka_havalesi", aciklama: "LAC000003 ödemesi" },
+    { catiFirmaId: lacFirma.id, bagliFirmaId: pacificStar.id, gemiId: gemiSunrise.id, faturaId: fat4.id, bankaHesabiId: lacBankaUsd.id, tip: "tahsilat", tarih: "2026-03-28", tutar: "750.00", paraBirimi: "USD", odemeYontemi: "eft", aciklama: "LAC000004 ödemesi" },
+    { catiFirmaId: lacFirma.id, bagliFirmaId: pacificStar.id, gemiId: gemiSunrise.id, faturaId: fat5.id, bankaHesabiId: lacBankaUsd.id, tip: "tahsilat", tarih: "2026-05-05", tutar: "400.00", paraBirimi: "USD", odemeYontemi: "banka_havalesi", aciklama: "LAC000005 kısmi ödeme" },
+    { catiFirmaId: agsFirma.id, bagliFirmaId: euromedTankers.id, gemiId: gemiEuromed.id, faturaId: fat8.id, bankaHesabiId: agsBanka.id, tip: "tahsilat", tarih: "2026-04-10", tutar: "950.00", paraBirimi: "EUR", odemeYontemi: "banka_havalesi", aciklama: "AGS000001 ödemesi" },
+    { catiFirmaId: lacFirma.id, bagliFirmaId: spaceX.id, tip: "odeme", tarih: "2026-06-01", tutar: "3800.00", paraBirimi: "USD", bankaHesabiId: lacBankaUsd.id, odemeYontemi: "kredi_karti", aciklama: "Haziran Starlink hizmet bedeli - 4 terminal" },
   ]);
 
-  // Kullanicilar
+  // ── Kullanıcılar ──────────────────────────────────────────────────────────
   const adminHash = await bcrypt.hash("Admin123!", 12);
   const muhHash = await bcrypt.hash("Muhasebe1!", 12);
   const okHash = await bcrypt.hash("Okuyucu1!", 12);
@@ -226,13 +209,12 @@ async function seed() {
     parola: okHash, rol: "salt_okunur", aktif: true,
   }).returning();
 
-  // Admin tum sirketlere erisebilir
-  await db.insert(kullaniciSirketler).values([
-    { kullaniciId: admin.id, sirketId: lacSirket.id, rol: "yonetici" },
-    { kullaniciId: admin.id, sirketId: adeSirket.id, rol: "yonetici" },
-    { kullaniciId: muhasebeciLac.id, sirketId: lacSirket.id, rol: "muhasebeci" },
-    { kullaniciId: okuyucu.id, sirketId: lacSirket.id, rol: "salt_okunur" },
-    { kullaniciId: okuyucu.id, sirketId: adeSirket.id, rol: "salt_okunur" },
+  await db.insert(kullaniciFirmalar).values([
+    { kullaniciId: admin.id, catiFirmaId: lacFirma.id, rol: "yonetici" },
+    { kullaniciId: admin.id, catiFirmaId: agsFirma.id, rol: "yonetici" },
+    { kullaniciId: muhasebeciLac.id, catiFirmaId: lacFirma.id, rol: "muhasebeci" },
+    { kullaniciId: okuyucu.id, catiFirmaId: lacFirma.id, rol: "salt_okunur" },
+    { kullaniciId: okuyucu.id, catiFirmaId: agsFirma.id, rol: "salt_okunur" },
   ]);
 
   console.log("\n✅ Seed tamamlandi!");

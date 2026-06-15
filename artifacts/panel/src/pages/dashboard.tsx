@@ -4,7 +4,7 @@ import {
   useGetDashboardOzet, getGetDashboardOzetQueryKey,
   useGetSonIslemler, getGetSonIslemlerQueryKey,
   useGetAylikGelir, getGetAylikGelirQueryKey,
-  useGetYenilemeyeYaklasanPlanlar, getGetYenilemeyeYaklasanPlanlarQueryKey,
+  useGetVadesiYaklasanFaturalar, getGetVadesiYaklasanFaturalarQueryKey,
 } from "@workspace/api-client-react";
 import { FileText, Wallet, AlertCircle, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import {
@@ -27,23 +27,23 @@ const DURUM_ETK: Record<string, string> = {
 
 export default function Dashboard() {
   const { aktifSirketId } = useSirket();
-  const sirketParam = aktifSirketId ? { sirketId: aktifSirketId } : undefined;
+  const firmaParam = aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined;
 
   const { data: ozet, isLoading } = useGetDashboardOzet(
-    sirketParam,
-    { query: { queryKey: [...getGetDashboardOzetQueryKey(sirketParam), aktifSirketId] } },
+    firmaParam,
+    { query: { queryKey: [...getGetDashboardOzetQueryKey(firmaParam), aktifSirketId] } },
   );
   const { data: aylikVeriler = [] } = useGetAylikGelir(
-    sirketParam,
-    { query: { queryKey: [...getGetAylikGelirQueryKey(sirketParam), aktifSirketId] } },
+    firmaParam,
+    { query: { queryKey: [...getGetAylikGelirQueryKey(firmaParam), aktifSirketId] } },
   );
   const { data: sonIslemler } = useGetSonIslemler(
-    sirketParam,
-    { query: { queryKey: [...getGetSonIslemlerQueryKey(sirketParam), aktifSirketId] } },
+    firmaParam,
+    { query: { queryKey: [...getGetSonIslemlerQueryKey(firmaParam), aktifSirketId] } },
   );
-  const { data: uyarilar = [] } = useGetYenilemeyeYaklasanPlanlar(
-    sirketParam,
-    { query: { queryKey: [...getGetYenilemeyeYaklasanPlanlarQueryKey(sirketParam), aktifSirketId] } },
+  const { data: vadesiYaklasan = [] } = useGetVadesiYaklasanFaturalar(
+    { ...firmaParam, gun: 14 },
+    { query: { queryKey: [...getGetVadesiYaklasanFaturalarQueryKey({ ...firmaParam, gun: 14 }), aktifSirketId] } },
   );
 
   if (isLoading) {
@@ -86,13 +86,15 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {uyarilar.length > 0 && (
+      {vadesiYaklasan.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {uyarilar.map((u) => (
-            <div key={u.id} className={`flex items-center gap-2 text-sm px-3 py-2 rounded-full border ${(u.kalanGun ?? 0) <= 7 ? "bg-red-500/10 border-red-200 text-red-600" : "bg-amber-500/10 border-amber-200 text-amber-700"}`}>
-              <AlertTriangle className="h-4 w-4" />
-              <span><strong>{u.gemiAd ?? u.planAdi}</strong> — {u.kalanGun ?? 0} gün kaldı</span>
-            </div>
+          {vadesiYaklasan.map((f) => (
+            <Link key={f.id} href={`/faturalar/${f.id}`}>
+              <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-full border cursor-pointer hover:opacity-80 ${(f.kalanGun ?? 0) <= 3 ? "bg-red-500/10 border-red-200 text-red-600" : "bg-amber-500/10 border-amber-200 text-amber-700"}`}>
+                <AlertTriangle className="h-4 w-4" />
+                <span><strong>{f.faturaNo}</strong> — {f.kalanGun ?? 0} gün kaldı</span>
+              </div>
+            </Link>
           ))}
         </div>
       )}

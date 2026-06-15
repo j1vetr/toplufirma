@@ -70,23 +70,23 @@ export function requireYazma(req: Request, res: Response, next: NextFunction): v
   next();
 }
 
-export function sirketErisimKontrol(sirketId: number, req: Request): boolean {
+export function sirketErisimKontrol(catiFirmaId: number, req: Request): boolean {
   if (!req.kullanici) return false;
   if (req.kullanici.rol === "yonetici") return true;
-  return (req.izinliSirketler ?? []).includes(sirketId);
+  return (req.izinliSirketler ?? []).includes(catiFirmaId);
 }
 
-export function sirketlerFiltrele<T extends { sirketId: number }>(
+export function sirketlerFiltrele<T extends { catiFirmaId: number }>(
   rows: T[],
   req: Request,
-  sirketIdParam?: string | number
+  catiFirmaIdParam?: string | number
 ): { rows: T[]; yetkisiz: boolean } {
-  if (sirketIdParam) {
-    const id = Number(sirketIdParam);
+  if (catiFirmaIdParam) {
+    const id = Number(catiFirmaIdParam);
     if (!sirketErisimKontrol(id, req)) return { rows: [], yetkisiz: true };
-    return { rows: rows.filter(r => r.sirketId === id), yetkisiz: false };
+    return { rows: rows.filter(r => r.catiFirmaId === id), yetkisiz: false };
   }
   if (req.kullanici?.rol === "yonetici") return { rows, yetkisiz: false };
   const izinli = req.izinliSirketler ?? [];
-  return { rows: rows.filter(r => izinli.includes(r.sirketId)), yetkisiz: false };
+  return { rows: rows.filter(r => izinli.includes(r.catiFirmaId)), yetkisiz: false };
 }

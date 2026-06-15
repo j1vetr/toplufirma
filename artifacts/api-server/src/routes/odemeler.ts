@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { odemeler, sirketler, cariler, gemiler, bankaHesaplari, faturalar } from "@workspace/db";
+import { odemeler, firmalar, gemiler, bankaHesaplari, faturalar } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 
@@ -8,27 +8,26 @@ const router = Router();
 
 router.get("/odemeler", async (req, res) => {
   try {
-    const { sirketId, cariId, faturaId, tip } = req.query as Record<string, string>;
+    const { catiFirmaId, bagliFirmaId, faturaId, tip } = req.query as Record<string, string>;
 
     let rows = await db
-      .select({ o: odemeler, sirketAd: sirketler.ad, cariAd: cariler.ad, gemiAd: gemiler.ad })
+      .select({ o: odemeler, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
       .from(odemeler)
-      .leftJoin(sirketler, eq(odemeler.sirketId, sirketler.id))
-      .leftJoin(cariler, eq(odemeler.cariId, cariler.id))
+      .leftJoin(firmalar, eq(odemeler.catiFirmaId, firmalar.id))
       .leftJoin(gemiler, eq(odemeler.gemiId, gemiler.id))
       .orderBy(odemeler.tarih);
 
     const { rows: scoped, yetkisiz } = sirketlerFiltrele(
-      rows.map(r => ({ ...r, sirketId: r.o.sirketId })), req, sirketId
+      rows.map(r => ({ ...r, catiFirmaId: r.o.catiFirmaId })), req, catiFirmaId
     );
-    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
+    if (yetkisiz) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     rows = rows.filter(r => scoped.some(s => s.o.id === r.o.id));
 
-    if (cariId) rows = rows.filter(r => r.o.cariId === Number(cariId));
+    if (bagliFirmaId) rows = rows.filter(r => r.o.bagliFirmaId === Number(bagliFirmaId));
     if (faturaId) rows = rows.filter(r => r.o.faturaId === Number(faturaId));
     if (tip) rows = rows.filter(r => r.o.tip === tip);
 
-    res.json(rows.map(r => formatOdeme(r.o, r.sirketAd, r.cariAd, r.gemiAd, null, null)));
+    res.json(rows.map(r => formatOdeme(r.o, r.catiFirmaAd, r.gemiAd, null, null)));
   } catch {
     res.status(500).json({ error: "Ödemeler listelenemedi" });
   }
@@ -36,39 +35,34 @@ router.get("/odemeler", async (req, res) => {
 
 router.post("/odemeler", requireYazma, async (req, res) => {
   try {
-    const { sirketId, cariId, gemiId, bankaHesabiId, faturaId, tip, tarih, tutar, paraBirimi, odemeYontemi, aciklama } = req.body;
-    if (!sirketId || !cariId || !tip || !tarih || !tutar) {
+    const { catiFirmaId, bagliFirmaId, gemiId, bankaHesabiId, faturaId, tip, tarih, tutar, paraBirimi, odemeYontemi, aciklama } = req.body;
+    if (!catiFirmaId || !tip || !tarih || !tutar) {
       res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
     }
-    if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
+    if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
-    if (cariId) {
-      const [cari] = await db.select({ sid: cariler.sirketId }).from(cariler).where(eq(cariler.id, Number(cariId)));
-      if (!cari || cari.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen cari bu şirkete ait değil" }); return; }
+    if (bagliFirmaId) {
+      const [bf] = await db.select({ uid: firmalar.ustFirmaId }).from(firmalar).where(eq(firmalar.id, Number(bagliFirmaId)));
+      if (!bf || bf.uid !== Number(catiFirmaId)) { res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return; }
     }
     if (faturaId) {
-      const [fat] = await db.select({ sid: faturalar.sirketId }).from(faturalar).where(eq(faturalar.id, Number(faturaId)));
-      if (!fat || fat.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen fatura bu şirkete ait değil" }); return; }
+      const [fat] = await db.select({ cid: faturalar.catiFirmaId }).from(faturalar).where(eq(faturalar.id, Number(faturaId)));
+      if (!fat || fat.cid !== Number(catiFirmaId)) { res.status(400).json({ error: "Belirtilen fatura bu firmaya ait değil" }); return; }
     }
     if (bankaHesabiId) {
-      const [bh] = await db.select({ sid: bankaHesaplari.sirketId }).from(bankaHesaplari).where(eq(bankaHesaplari.id, Number(bankaHesabiId)));
-      if (!bh || bh.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen banka hesabı bu şirkete ait değil" }); return; }
-    }
-    if (gemiId) {
-      const [gemiCari] = await db.select({ sid: cariler.sirketId }).from(gemiler)
-        .innerJoin(cariler, eq(gemiler.cariId, cariler.id))
-        .where(eq(gemiler.id, Number(gemiId)));
-      if (!gemiCari || gemiCari.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen gemi bu şirkete ait değil" }); return; }
+      const [bh] = await db.select({ cid: bankaHesaplari.catiFirmaId }).from(bankaHesaplari).where(eq(bankaHesaplari.id, Number(bankaHesabiId)));
+      if (!bh || bh.cid !== Number(catiFirmaId)) { res.status(400).json({ error: "Belirtilen banka hesabı bu firmaya ait değil" }); return; }
     }
 
     const [row] = await db.insert(odemeler).values({
-      sirketId, cariId, gemiId: gemiId ?? null, bankaHesabiId: bankaHesabiId ?? null,
+      catiFirmaId, bagliFirmaId: bagliFirmaId ?? null, gemiId: gemiId ?? null,
+      bankaHesabiId: bankaHesabiId ?? null,
       faturaId: faturaId ?? null, tip, tarih, tutar: String(tutar),
       paraBirimi: paraBirimi ?? "USD", odemeYontemi: odemeYontemi ?? "banka_havalesi", aciklama,
     }).returning();
 
     if (faturaId) await guncelleFaturaDurum(faturaId);
-    res.status(201).json(formatOdeme(row, null, null, null, null, null));
+    res.status(201).json(formatOdeme(row, null, null, null, null));
   } catch {
     res.status(500).json({ error: "Ödeme oluşturulamadı" });
   }
@@ -78,15 +72,14 @@ router.get("/odemeler/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [row] = await db
-      .select({ o: odemeler, sirketAd: sirketler.ad, cariAd: cariler.ad, gemiAd: gemiler.ad })
+      .select({ o: odemeler, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
       .from(odemeler)
-      .leftJoin(sirketler, eq(odemeler.sirketId, sirketler.id))
-      .leftJoin(cariler, eq(odemeler.cariId, cariler.id))
+      .leftJoin(firmalar, eq(odemeler.catiFirmaId, firmalar.id))
       .leftJoin(gemiler, eq(odemeler.gemiId, gemiler.id))
       .where(eq(odemeler.id, id));
     if (!row) { res.status(404).json({ error: "Ödeme bulunamadı" }); return; }
-    if (!sirketErisimKontrol(row.o.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
-    res.json(formatOdeme(row.o, row.sirketAd, row.cariAd, row.gemiAd, null, null));
+    if (!sirketErisimKontrol(row.o.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    res.json(formatOdeme(row.o, row.catiFirmaAd, row.gemiAd, null, null));
   } catch {
     res.status(500).json({ error: "Ödeme getirilemedi" });
   }
@@ -97,14 +90,14 @@ router.patch("/odemeler/:id", requireYazma, async (req, res) => {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(odemeler).where(eq(odemeler.id, id));
     if (!existing) { res.status(404).json({ error: "Ödeme bulunamadı" }); return; }
-    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { tarih, tutar, aciklama, odemeYontemi } = req.body;
     const [row] = await db.update(odemeler)
       .set({ tarih, tutar: tutar ? String(tutar) : undefined, aciklama, odemeYontemi })
       .where(eq(odemeler.id, id)).returning();
     if (row.faturaId) await guncelleFaturaDurum(row.faturaId);
-    res.json(formatOdeme(row, null, null, null, null, null));
+    res.json(formatOdeme(row, null, null, null, null));
   } catch {
     res.status(500).json({ error: "Ödeme güncellenemedi" });
   }
@@ -115,7 +108,7 @@ router.delete("/odemeler/:id", requireYazma, async (req, res) => {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(odemeler).where(eq(odemeler.id, id));
     if (!existing) { res.status(404).json({ error: "Ödeme bulunamadı" }); return; }
-    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     await db.delete(odemeler).where(eq(odemeler.id, id));
     if (existing.faturaId) await guncelleFaturaDurum(existing.faturaId);
     res.status(204).send();
@@ -140,13 +133,14 @@ async function guncelleFaturaDurum(faturaId: number) {
 
 function formatOdeme(
   o: typeof odemeler.$inferSelect,
-  sirketAd: string | null | undefined, cariAd: string | null | undefined,
-  gemiAd: string | null | undefined, bankaHesabiAd: string | null | undefined,
+  catiFirmaAd: string | null | undefined,
+  gemiAd: string | null | undefined,
+  bankaHesabiAd: string | null | undefined,
   faturaNo: string | null | undefined
 ) {
   return {
-    id: o.id, sirketId: o.sirketId, sirketAd: sirketAd ?? null,
-    cariId: o.cariId, cariAd: cariAd ?? null, gemiId: o.gemiId, gemiAd: gemiAd ?? null,
+    id: o.id, catiFirmaId: o.catiFirmaId, catiFirmaAd: catiFirmaAd ?? null,
+    bagliFirmaId: o.bagliFirmaId, gemiId: o.gemiId, gemiAd: gemiAd ?? null,
     bankaHesabiId: o.bankaHesabiId, bankaHesabiAd: bankaHesabiAd ?? null,
     faturaId: o.faturaId, faturaNo: faturaNo ?? null, tip: o.tip, tarih: o.tarih,
     tutar: Number(o.tutar), paraBirimi: o.paraBirimi, odemeYontemi: o.odemeYontemi,

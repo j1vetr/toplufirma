@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useListEkipmanlar, getListEkipmanlarQueryKey,
   useListGemiler, getListGemilerQueryKey,
-  useListSirketler, getListSirketlerQueryKey,
+  useListFirmalar, getListFirmalarQueryKey,
   useCreateEkipman, useUpdateEkipman, useDeleteEkipman,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -26,13 +26,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, HardDrive, AlertTriangle } from "lucide-react";
 
 interface EkipmanForm {
-  sirketId: string; gemiId: string; tip: string; seriNo: string;
+  catiFirmaId: string; gemiId: string; tip: string; seriNo: string;
   kurulumTarihi: string; garantiBitisTarihi: string; notlar: string;
 }
 
-const BOSH: EkipmanForm = { sirketId: "", gemiId: "", tip: "", seriNo: "", kurulumTarihi: "", garantiBitisTarihi: "", notlar: "" };
+const BOSH: EkipmanForm = { catiFirmaId: "", gemiId: "", tip: "", seriNo: "", kurulumTarihi: "", garantiBitisTarihi: "", notlar: "" };
 
-const EKIPMAN_TIPLERI = ["Starlink Terminal", "Router", "Kablo Seti", "Montaj Kiti", "Guc Kaynagi", "Diger"];
+const EKIPMAN_TIPLERI = ["Starlink Terminal", "Router", "Kablo Seti", "Montaj Kiti", "Güç Kaynağı", "Diğer"];
 
 export default function Ekipmanlar() {
   const qc = useQueryClient();
@@ -45,12 +45,15 @@ export default function Ekipmanlar() {
 
   const { data: ekipmanlar = [], isLoading } = useListEkipmanlar(undefined, { query: { queryKey: getListEkipmanlarQueryKey() } });
   const { data: gemiler = [] } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
-  const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
+  const { data: catiFirmalar = [] } = useListFirmalar(
+    { tip: "cati" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
+  );
   const createEkipman = useCreateEkipman();
   const updateEkipman = useUpdateEkipman();
   const deleteEkipman = useDeleteEkipman();
 
-  const filtrelenmis = ekipmanlar.filter(e => !gemiFiltre || e.gemiId === Number(gemiFiltre));
+  const filtrelenmis = ekipmanlar.filter(e => !gemiFiltre || gemiFiltre === "all" || e.gemiId === Number(gemiFiltre));
 
   const bugun = new Date().toISOString().split("T")[0];
   const in30 = new Date();
@@ -62,12 +65,12 @@ export default function Ekipmanlar() {
       const e = ekipmanlar.find(e => e.id === id);
       if (!e) return;
       setForm({
-        sirketId: String(e.sirketId), gemiId: String(e.gemiId), tip: e.tip, seriNo: e.seriNo,
+        catiFirmaId: String(e.catiFirmaId), gemiId: String(e.gemiId), tip: e.tip, seriNo: e.seriNo,
         kurulumTarihi: e.kurulumTarihi ?? "", garantiBitisTarihi: e.garantiBitisTarihi ?? "", notlar: e.notlar ?? "",
       });
       setDuzenleId(id);
     } else {
-      setForm({ ...BOSH, sirketId: sirketler[0] ? String(sirketler[0].id) : "" });
+      setForm({ ...BOSH, catiFirmaId: catiFirmalar[0] ? String(catiFirmalar[0].id) : "" });
       setDuzenleId(null);
     }
     setModalAcik(true);
@@ -76,10 +79,10 @@ export default function Ekipmanlar() {
   function kapat() { setModalAcik(false); setDuzenleId(null); setForm(BOSH); }
 
   function kaydet() {
-    const data = { sirketId: Number(form.sirketId), gemiId: Number(form.gemiId), tip: form.tip, seriNo: form.seriNo, kurulumTarihi: form.kurulumTarihi || undefined, garantiBitisTarihi: form.garantiBitisTarihi || undefined, notlar: form.notlar, aktif: true };
+    const data = { catiFirmaId: Number(form.catiFirmaId), gemiId: Number(form.gemiId), tip: form.tip, seriNo: form.seriNo, kurulumTarihi: form.kurulumTarihi || undefined, garantiBitisTarihi: form.garantiBitisTarihi || undefined, notlar: form.notlar || undefined, aktif: true };
     if (duzenleId) {
       updateEkipman.mutate({ id: duzenleId, data }, {
-        onSuccess: () => { qc.invalidateQueries({ queryKey: getListEkipmanlarQueryKey() }); kapat(); toast({ title: "Ekipman guncellendi" }); },
+        onSuccess: () => { qc.invalidateQueries({ queryKey: getListEkipmanlarQueryKey() }); kapat(); toast({ title: "Ekipman güncellendi" }); },
         onError: () => toast({ title: "Hata", variant: "destructive" }),
       });
     } else {
@@ -96,9 +99,9 @@ export default function Ekipmanlar() {
     <div className="space-y-6">
       <div className="flex gap-3">
         <Select value={gemiFiltre} onValueChange={setGemiFiltre}>
-          <SelectTrigger className="w-52" data-testid="select-ekipman-gemi-filtre"><SelectValue placeholder="Tum Gemiler" /></SelectTrigger>
+          <SelectTrigger className="w-52" data-testid="select-ekipman-gemi-filtre"><SelectValue placeholder="Tüm Gemiler" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tum Gemiler</SelectItem>
+            <SelectItem value="all">Tüm Gemiler</SelectItem>
             {gemiler.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -119,7 +122,7 @@ export default function Ekipmanlar() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold">{e.tip}</p>
-                    {garantiUyari && <div className="flex items-center gap-1 text-xs text-amber-600"><AlertTriangle className="h-3 w-3" />Garanti bitmek uzere</div>}
+                    {garantiUyari && <div className="flex items-center gap-1 text-xs text-amber-600"><AlertTriangle className="h-3 w-3" />Garanti bitmek üzere</div>}
                   </div>
                   <p className="text-sm text-muted-foreground">Seri No: {e.seriNo} - {e.gemiAd}</p>
                   <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
@@ -139,20 +142,20 @@ export default function Ekipmanlar() {
         {filtrelenmis.length === 0 && (
           <div className="text-center text-muted-foreground py-16">
             <HardDrive className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p>Ekipman bulunamadi.</p>
+            <p>Ekipman bulunamadı.</p>
           </div>
         )}
       </div>
 
       <Dialog open={modalAcik} onOpenChange={setModalAcik}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{duzenleId ? "Ekipmani Duzenle" : "Ekipman Ekle"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{duzenleId ? "Ekipmanı Düzenle" : "Ekipman Ekle"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="space-y-1.5">
-              <Label>Sirket *</Label>
-              <Select value={form.sirketId} onValueChange={v => setForm(f => ({...f, sirketId: v}))}>
-                <SelectTrigger data-testid="select-ekipman-sirket"><SelectValue placeholder="Sirket" /></SelectTrigger>
-                <SelectContent>{sirketler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad}</SelectItem>)}</SelectContent>
+              <Label>Çatı Firma *</Label>
+              <Select value={form.catiFirmaId} onValueChange={v => setForm(f => ({...f, catiFirmaId: v}))}>
+                <SelectTrigger data-testid="select-ekipman-sirket"><SelectValue placeholder="Firma" /></SelectTrigger>
+                <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
@@ -178,12 +181,12 @@ export default function Ekipmanlar() {
               <Input type="date" value={form.kurulumTarihi} onChange={e => setForm(f => ({...f, kurulumTarihi: e.target.value}))} data-testid="input-ekipman-kurulum" />
             </div>
             <div className="space-y-1.5">
-              <Label>Garanti Bitis</Label>
+              <Label>Garanti Bitiş</Label>
               <Input type="date" value={form.garantiBitisTarihi} onChange={e => setForm(f => ({...f, garantiBitisTarihi: e.target.value}))} data-testid="input-ekipman-garanti" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={kapat} className="rounded-full">Iptal</Button>
+            <Button variant="outline" onClick={kapat} className="rounded-full">İptal</Button>
             <Button onClick={kaydet} disabled={!form.gemiId || !form.tip || !form.seriNo} className="rounded-full" data-testid="button-ekipman-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
@@ -191,9 +194,9 @@ export default function Ekipmanlar() {
 
       <AlertDialog open={!!silId} onOpenChange={o => !o && setSilId(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Ekipmani sil</AlertDialogTitle><AlertDialogDescription>Bu islem geri alinamaz.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Ekipmanı sil</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Iptal</AlertDialogCancel>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (!silId) return; deleteEkipman.mutate({ id: silId }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListEkipmanlarQueryKey() }); setSilId(null); } }); }}>Sil</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListOdemeler, getListOdemelerQueryKey,
-  useListSirketler, getListSirketlerQueryKey,
-  useListCariler, getListCarilerQueryKey,
+  useListFirmalar, getListFirmalarQueryKey,
   useListBankaHesaplari, getListBankaHesaplariQueryKey,
   useCreateOdeme, useDeleteOdeme,
 } from "@workspace/api-client-react";
@@ -27,7 +26,7 @@ import { Plus, Trash2, Wallet, TrendingUp, TrendingDown, Search } from "lucide-r
 
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
-  kredi_karti: "Kredi Karti", wise: "Wise", paypal: "PayPal", diger: "Diger",
+  kredi_karti: "Kredi Kartı", wise: "Wise", paypal: "PayPal", diger: "Diğer",
 };
 
 const fmt = (n: number, pb = "USD") =>
@@ -41,8 +40,8 @@ export default function Odemeler() {
   const [modalAcik, setModalAcik] = useState(false);
   const [silId, setSilId] = useState<number | null>(null);
 
-  const [sirketId, setSirketId] = useState("");
-  const [cariId, setCariId] = useState("");
+  const [catiFirmaId, setCatiFirmaId] = useState("");
+  const [bagliFirmaId, setBagliFirmaId] = useState("");
   const [tip, setTip] = useState("tahsilat");
   const [tarih, setTarih] = useState(new Date().toISOString().split("T")[0]);
   const [tutar, setTutar] = useState("");
@@ -52,14 +51,22 @@ export default function Odemeler() {
   const [aciklama, setAciklama] = useState("");
 
   const { data: odemeler = [], isLoading } = useListOdemeler(undefined, { query: { queryKey: getListOdemelerQueryKey() } });
-  const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
-  const { data: cariler = [] } = useListCariler(undefined, { query: { queryKey: getListCarilerQueryKey() } });
+  const { data: catiFirmalar = [] } = useListFirmalar(
+    { tip: "cati" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
+  );
+  const { data: bagliFirmalar = [] } = useListFirmalar(
+    { tip: "bagli" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
+  );
   const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
   const createOdeme = useCreateOdeme();
   const deleteOdeme = useDeleteOdeme();
 
+  const filtrelenmisBagliFirmalar = bagliFirmalar.filter(f => !catiFirmaId || f.ustFirmaId === Number(catiFirmaId));
+
   const filtrelenmis = odemeler.filter(o => {
-    const aramaUyum = !arama || o.cariAd?.toLowerCase().includes(arama.toLowerCase()) || o.aciklama?.toLowerCase().includes(arama.toLowerCase());
+    const aramaUyum = !arama || o.bagliFirmaAd?.toLowerCase().includes(arama.toLowerCase()) || o.aciklama?.toLowerCase().includes(arama.toLowerCase());
     const tipUyum = tipFiltre === "tumu" || o.tip === tipFiltre;
     return aramaUyum && tipUyum;
   });
@@ -68,22 +75,23 @@ export default function Odemeler() {
   const toplamOdeme = filtrelenmis.filter(o => o.tip === "odeme").reduce((s, o) => s + o.tutar, 0);
 
   function kaydet() {
-    if (!sirketId || !cariId || !tarih || !tutar) {
-      toast({ title: "Hata", description: "Zorunlu alanlari doldurun", variant: "destructive" });
+    if (!catiFirmaId || !bagliFirmaId || !tarih || !tutar) {
+      toast({ title: "Hata", description: "Zorunlu alanları doldurun", variant: "destructive" });
       return;
     }
     createOdeme.mutate({
       data: {
-        sirketId: Number(sirketId), cariId: Number(cariId),
-        tip: tip as import("@workspace/api-client-react").OdemeInputTip, tarih, tutar: Number(tutar), paraBirimi, odemeYontemi: yontem as import("@workspace/api-client-react").OdemeInputOdemeYontemi,
-        bankaHesabiId: bankaId ? Number(bankaId) : undefined,
+        catiFirmaId: Number(catiFirmaId), bagliFirmaId: Number(bagliFirmaId),
+        tip: tip as import("@workspace/api-client-react").OdemeInputTip, tarih, tutar: Number(tutar), paraBirimi,
+        odemeYontemi: yontem as import("@workspace/api-client-react").OdemeInputOdemeYontemi,
+        bankaHesabiId: bankaId && bankaId !== "none" ? Number(bankaId) : undefined,
         aciklama,
       },
     }, {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListOdemelerQueryKey() });
         setModalAcik(false); setTutar(""); setAciklama(""); setBankaId("");
-        toast({ title: "Odeme kaydedildi" });
+        toast({ title: "Ödeme kaydedildi" });
       },
       onError: () => toast({ title: "Hata", variant: "destructive" }),
     });
@@ -100,25 +108,25 @@ export default function Odemeler() {
         </CardContent></Card>
         <Card><CardContent className="p-5 flex items-center gap-3">
           <div className="p-3 rounded-full bg-red-500/10"><TrendingDown className="h-5 w-5 text-red-500" /></div>
-          <div><p className="text-xs text-muted-foreground">Toplam Odeme</p><p className="text-xl font-display font-bold text-red-500">-{fmt(toplamOdeme)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Toplam Ödeme</p><p className="text-xl font-display font-bold text-red-500">-{fmt(toplamOdeme)}</p></div>
         </CardContent></Card>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Cari veya aciklama ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-odeme-ara" />
+          <Input className="pl-9" placeholder="Firma veya açıklama ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-odeme-ara" />
         </div>
         <Select value={tipFiltre} onValueChange={setTipFiltre}>
           <SelectTrigger className="w-40" data-testid="select-odeme-tip-filtre"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="tumu">Tumu</SelectItem>
+            <SelectItem value="tumu">Tümü</SelectItem>
             <SelectItem value="tahsilat">Tahsilat</SelectItem>
-            <SelectItem value="odeme">Odeme</SelectItem>
+            <SelectItem value="odeme">Ödeme</SelectItem>
           </SelectContent>
         </Select>
         <Button onClick={() => setModalAcik(true)} className="rounded-full" data-testid="button-odeme-yeni">
-          <Plus className="mr-2 h-4 w-4" /> Yeni Islem
+          <Plus className="mr-2 h-4 w-4" /> Yeni İşlem
         </Button>
       </div>
 
@@ -130,7 +138,7 @@ export default function Odemeler() {
                 {o.tip === "tahsilat" ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold">{o.cariAd}</p>
+                <p className="font-semibold">{o.bagliFirmaAd}</p>
                 <p className="text-sm text-muted-foreground">{o.aciklama} - {YONTEM_ETIKET[o.odemeYontemi] ?? o.odemeYontemi}</p>
                 <p className="text-xs text-muted-foreground">{o.tarih}</p>
               </div>
@@ -144,37 +152,37 @@ export default function Odemeler() {
         {filtrelenmis.length === 0 && (
           <div className="text-center text-muted-foreground py-16">
             <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p>Islem bulunamadi.</p>
+            <p>İşlem bulunamadı.</p>
           </div>
         )}
       </div>
 
       <Dialog open={modalAcik} onOpenChange={setModalAcik}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Yeni Odeme / Tahsilat</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Yeni Ödeme / Tahsilat</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
-              <Label>Islem Tipi *</Label>
+              <Label>İşlem Tipi *</Label>
               <Select value={tip} onValueChange={setTip}>
                 <SelectTrigger data-testid="select-yeni-odeme-tip"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="tahsilat">Tahsilat</SelectItem>
-                  <SelectItem value="odeme">Odeme</SelectItem>
+                  <SelectItem value="odeme">Ödeme</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Sirket *</Label>
-              <Select value={sirketId} onValueChange={v => { setSirketId(v); setCariId(""); }}>
-                <SelectTrigger data-testid="select-yeni-odeme-sirket"><SelectValue placeholder="Sirket" /></SelectTrigger>
-                <SelectContent>{sirketler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad}</SelectItem>)}</SelectContent>
+              <Label>Çatı Firma *</Label>
+              <Select value={catiFirmaId} onValueChange={v => { setCatiFirmaId(v); setBagliFirmaId(""); }}>
+                <SelectTrigger data-testid="select-yeni-odeme-sirket"><SelectValue placeholder="Çatı Firma" /></SelectTrigger>
+                <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Cari *</Label>
-              <Select value={cariId} onValueChange={setCariId}>
-                <SelectTrigger data-testid="select-yeni-odeme-cari"><SelectValue placeholder="Cari" /></SelectTrigger>
-                <SelectContent>{cariler.filter(c => !sirketId || c.sirketId === Number(sirketId)).map(c => <SelectItem key={c.id} value={String(c.id)}>{c.ad}</SelectItem>)}</SelectContent>
+              <Label>Bağlı Firma *</Label>
+              <Select value={bagliFirmaId} onValueChange={setBagliFirmaId}>
+                <SelectTrigger data-testid="select-yeni-odeme-cari"><SelectValue placeholder="Bağlı Firma" /></SelectTrigger>
+                <SelectContent>{filtrelenmisBagliFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
@@ -193,29 +201,29 @@ export default function Odemeler() {
               <Input type="date" value={tarih} onChange={e => setTarih(e.target.value)} data-testid="input-yeni-odeme-tarih" />
             </div>
             <div className="space-y-1.5">
-              <Label>Odeme Yontemi</Label>
+              <Label>Ödeme Yöntemi</Label>
               <Select value={yontem} onValueChange={setYontem}>
                 <SelectTrigger data-testid="select-yeni-odeme-yontem"><SelectValue /></SelectTrigger>
                 <SelectContent>{Object.entries(YONTEM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label>Banka Hesabi</Label>
+              <Label>Banka Hesabı</Label>
               <Select value={bankaId} onValueChange={setBankaId}>
-                <SelectTrigger data-testid="select-yeni-odeme-banka"><SelectValue placeholder="Secin (opsiyonel)" /></SelectTrigger>
+                <SelectTrigger data-testid="select-yeni-odeme-banka"><SelectValue placeholder="Seçin (opsiyonel)" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Secilmedi</SelectItem>
+                  <SelectItem value="none">Seçilmedi</SelectItem>
                   {bankaHesaplari.map(h => <SelectItem key={h.id} value={String(h.id)}>{h.bankaAdi} - {h.hesapAdi}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label>Aciklama</Label>
+              <Label>Açıklama</Label>
               <Input value={aciklama} onChange={e => setAciklama(e.target.value)} data-testid="input-yeni-odeme-aciklama" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModalAcik(false)} className="rounded-full">Iptal</Button>
+            <Button variant="outline" onClick={() => setModalAcik(false)} className="rounded-full">İptal</Button>
             <Button onClick={kaydet} disabled={createOdeme.isPending} className="rounded-full" data-testid="button-yeni-odeme-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
@@ -223,9 +231,9 @@ export default function Odemeler() {
 
       <AlertDialog open={!!silId} onOpenChange={o => !o && setSilId(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Islemi sil</AlertDialogTitle><AlertDialogDescription>Bu islem geri alinamaz.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>İşlemi sil</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Iptal</AlertDialogCancel>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (!silId) return; deleteOdeme.mutate({ id: silId }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListOdemelerQueryKey() }); setSilId(null); } }); }}>Sil</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

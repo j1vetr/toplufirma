@@ -3,16 +3,20 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
+import type { FirmaInputTip } from './firmaInputTip';
 
-export interface SirketInput {
+export interface FirmaInput {
+  tip: FirmaInputTip;
+  ustFirmaId?: number;
   ad: string;
   vergiNo?: string;
   vergiDairesi?: string;
   adres?: string;
   telefon?: string;
   eposta?: string;
-  seriOneki: string;
+  seriOneki?: string;
+  logoUrl?: string;
   aktif?: boolean;
 }

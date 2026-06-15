@@ -1,11 +1,9 @@
 import { Router, type IRouter } from "express";
-import sirketlerRouter from "./sirketler";
-import carilerRouter from "./cariler";
+import firmaRouter from "./firmalar";
 import gemilerRouter from "./gemiler";
 import bankaHesaplariRouter from "./bankaHesaplari";
 import faturalarRouter from "./faturalar";
 import odemelerRouter from "./odemeler";
-import starlinkPlanlariRouter from "./starlinkPlanlari";
 import ekipmanlarRouter from "./ekipmanlar";
 import kdvOranlariRouter from "./kdvOranlari";
 import faturaSerileriRouter from "./faturaSerileri";
@@ -15,13 +13,11 @@ import kullanicilarRouter from "./kullanicilar";
 
 const router: IRouter = Router();
 
-router.use(sirketlerRouter);
-router.use(carilerRouter);
+router.use(firmaRouter);
 router.use(gemilerRouter);
 router.use(bankaHesaplariRouter);
 router.use(faturalarRouter);
 router.use(odemelerRouter);
-router.use(starlinkPlanlariRouter);
 router.use(ekipmanlarRouter);
 router.use(kdvOranlariRouter);
 router.use(faturaSerileriRouter);

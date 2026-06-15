@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   useGetKdvOzeti, getGetKdvOzetiQueryKey,
   useGetAlacakYaslandirma, getGetAlacakYaslandirmaQueryKey,
-  useListSirketler, getListSirketlerQueryKey,
+  useListFirmalar, getListFirmalarQueryKey,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,27 +45,30 @@ function csvIndir(veriler: Record<string, unknown>[], dosyaAdi: string) {
 
 export default function Raporlar() {
   const { aktifSirketId } = useSirket();
-  const [sirketId, setSirketId] = useState(aktifSirketId ? String(aktifSirketId) : "");
+  const [catiFirmaId, setCatiFirmaId] = useState(aktifSirketId ? String(aktifSirketId) : "");
   const [yil, setYil] = useState(String(new Date().getFullYear()));
   const [ay, setAy] = useState("");
 
-  const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
+  const { data: catiFirmalar = [] } = useListFirmalar(
+    { tip: "cati" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
+  );
 
-  const sirketIdNum = sirketId && sirketId !== "all" ? Number(sirketId) : undefined;
+  const catiFirmaIdNum = catiFirmaId && catiFirmaId !== "all" ? Number(catiFirmaId) : undefined;
   const kdvParams = {
-    ...(sirketIdNum && { sirketId: sirketIdNum }),
+    ...(catiFirmaIdNum && { catiFirmaId: catiFirmaIdNum }),
     ...(yil && { yil: Number(yil) }),
     ...(ay && ay !== "all" && { ay: Number(ay) }),
   };
   const yasParams = {
-    ...(sirketIdNum && { sirketId: sirketIdNum }),
+    ...(catiFirmaIdNum && { catiFirmaId: catiFirmaIdNum }),
   };
 
   const { data: kdvOzeti, isLoading: kdvYukleniyor } = useGetKdvOzeti(kdvParams, {
-    query: { queryKey: [...getGetKdvOzetiQueryKey(), sirketId, yil, ay] },
+    query: { queryKey: [...getGetKdvOzetiQueryKey(), catiFirmaId, yil, ay] },
   });
   const { data: yaslandirma, isLoading: yasYukleniyor } = useGetAlacakYaslandirma(yasParams, {
-    query: { queryKey: [...getGetAlacakYaslandirmaQueryKey(), sirketId] },
+    query: { queryKey: [...getGetAlacakYaslandirmaQueryKey(), catiFirmaId] },
   });
 
   const grafigVerisi = yaslandirma?.dilimler?.map(d => ({
@@ -78,12 +81,12 @@ export default function Raporlar() {
     <div className="space-y-6">
       <div className="flex gap-3 flex-wrap items-end">
         <div className="space-y-1">
-          <Label className="text-xs">Şirket</Label>
-          <Select value={sirketId || "all"} onValueChange={v => setSirketId(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-52" data-testid="select-rapor-sirket"><SelectValue placeholder="Tüm Şirketler" /></SelectTrigger>
+          <Label className="text-xs">Çatı Firma</Label>
+          <Select value={catiFirmaId || "all"} onValueChange={v => setCatiFirmaId(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-52" data-testid="select-rapor-sirket"><SelectValue placeholder="Tüm Firmalar" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tüm Şirketler</SelectItem>
-              {sirketler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad}</SelectItem>)}
+              <SelectItem value="all">Tüm Firmalar</SelectItem>
+              {catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -159,17 +162,17 @@ export default function Raporlar() {
                 </Card>
               )}
 
-              {kdvOzeti.sirketKirilim && kdvOzeti.sirketKirilim.length > 0 && (
+              {kdvOzeti.firmaKirilim && kdvOzeti.firmaKirilim.length > 0 && (
                 <Card>
-                  <CardHeader><CardTitle className="text-base">Şirket Kırılımı</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-base">Firma Kırılımı</CardTitle></CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {kdvOzeti.sirketKirilim.map(s => (
-                        <div key={s.sirketId} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
-                          <span className="font-medium">{s.sirketAd}</span>
+                      {kdvOzeti.firmaKirilim.map(f => (
+                        <div key={f.catiFirmaId} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
+                          <span className="font-medium">{f.catiFirmaAd}</span>
                           <div className="text-right">
-                            <p>KDV: {fmt(s.kdvTutari)}</p>
-                            <p className="font-bold">Toplam: {fmt(s.kdvDahil)}</p>
+                            <p>KDV: {fmt(f.kdvTutari)}</p>
+                            <p className="font-bold">Toplam: {fmt(f.kdvDahil)}</p>
                           </div>
                         </div>
                       ))}

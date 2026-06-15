@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListGemiler, getListGemilerQueryKey,
-  useListCariler, getListCarilerQueryKey,
+  useListFirmalar, getListFirmalarQueryKey,
   useCreateGemi, useUpdateGemi, useDeleteGemi,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -23,17 +23,17 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Ship, Wifi, ChevronRight, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Ship, ChevronRight, Search } from "lucide-react";
 
 interface GemiForm {
-  cariId: string;
+  firmaId: string;
   ad: string;
   imoNumarasi: string;
   bayrakDevleti: string;
   notlar: string;
 }
 
-const BOSH: GemiForm = { cariId: "", ad: "", imoNumarasi: "", bayrakDevleti: "", notlar: "" };
+const BOSH: GemiForm = { firmaId: "", ad: "", imoNumarasi: "", bayrakDevleti: "", notlar: "" };
 
 export default function Gemiler() {
   const qc = useQueryClient();
@@ -45,7 +45,10 @@ export default function Gemiler() {
   const [silId, setSilId] = useState<number | null>(null);
 
   const { data: gemiler = [], isLoading } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
-  const { data: cariler = [] } = useListCariler(undefined, { query: { queryKey: getListCarilerQueryKey() } });
+  const { data: bagliFirmalar = [] } = useListFirmalar(
+    { tip: "bagli" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
+  );
   const createGemi = useCreateGemi();
   const updateGemi = useUpdateGemi();
   const deleteGemi = useDeleteGemi();
@@ -58,10 +61,10 @@ export default function Gemiler() {
     if (id) {
       const g = gemiler.find(g => g.id === id);
       if (!g) return;
-      setForm({ cariId: String(g.cariId), ad: g.ad, imoNumarasi: g.imoNumarasi ?? "", bayrakDevleti: g.bayrakDevleti ?? "", notlar: g.notlar ?? "" });
+      setForm({ firmaId: String(g.firmaId), ad: g.ad, imoNumarasi: g.imoNumarasi ?? "", bayrakDevleti: g.bayrakDevleti ?? "", notlar: g.notlar ?? "" });
       setDuzenleId(id);
     } else {
-      setForm({ ...BOSH, cariId: cariler[0] ? String(cariler[0].id) : "" });
+      setForm({ ...BOSH, firmaId: bagliFirmalar[0] ? String(bagliFirmalar[0].id) : "" });
       setDuzenleId(null);
     }
     setModalAcik(true);
@@ -70,15 +73,15 @@ export default function Gemiler() {
   function kapat() { setModalAcik(false); setDuzenleId(null); setForm(BOSH); }
 
   function kaydet() {
-    const data = { ...form, cariId: Number(form.cariId), aktif: true };
+    const data = { firmaId: Number(form.firmaId), ad: form.ad, imoNumarasi: form.imoNumarasi || undefined, bayrakDevleti: form.bayrakDevleti || undefined, notlar: form.notlar || undefined, aktif: true };
     if (duzenleId) {
       updateGemi.mutate({ id: duzenleId, data }, {
-        onSuccess: () => { qc.invalidateQueries({ queryKey: getListGemilerQueryKey() }); kapat(); toast({ title: "Gemi guncellendi" }); },
+        onSuccess: () => { qc.invalidateQueries({ queryKey: getListGemilerQueryKey() }); kapat(); toast({ title: "Gemi güncellendi" }); },
         onError: () => toast({ title: "Hata", variant: "destructive" }),
       });
     } else {
       createGemi.mutate({ data }, {
-        onSuccess: () => { qc.invalidateQueries({ queryKey: getListGemilerQueryKey() }); kapat(); toast({ title: "Gemi olusturuldu" }); },
+        onSuccess: () => { qc.invalidateQueries({ queryKey: getListGemilerQueryKey() }); kapat(); toast({ title: "Gemi oluşturuldu" }); },
         onError: () => toast({ title: "Hata", variant: "destructive" }),
       });
     }
@@ -118,11 +121,10 @@ export default function Gemiler() {
                 </div>
               </div>
               <div className="mt-3 text-sm text-muted-foreground space-y-1">
-                <p>{g.cariAd}</p>
+                <p>{g.firmaAd}</p>
                 {g.bayrakDevleti && <p>Bayrak: {g.bayrakDevleti}</p>}
               </div>
               <div className="mt-3 flex items-center gap-2">
-                {g.aktifPlan && <div className="flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full"><Wifi className="h-3 w-3" />{g.aktifPlan}</div>}
                 <Badge variant={g.aktif ? "default" : "secondary"}>{g.aktif ? "Aktif" : "Pasif"}</Badge>
                 <Link href={`/gemiler/${g.id}`} className="ml-auto"><Button size="icon" variant="ghost" className="h-7 w-7"><ChevronRight className="h-4 w-4" /></Button></Link>
               </div>
@@ -132,28 +134,28 @@ export default function Gemiler() {
         {filtrelenmis.length === 0 && (
           <div className="col-span-3 text-center text-muted-foreground py-16">
             <Ship className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p>Gemi bulunamadi.</p>
+            <p>Gemi bulunamadı.</p>
           </div>
         )}
       </div>
 
       <Dialog open={modalAcik} onOpenChange={setModalAcik}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{duzenleId ? "Gemiyi Duzenle" : "Yeni Gemi"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{duzenleId ? "Gemiyi Düzenle" : "Yeni Gemi"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
-              <Label>Cari *</Label>
-              <Select value={form.cariId} onValueChange={v => setForm(f => ({...f, cariId: v}))}>
-                <SelectTrigger data-testid="select-gemi-cari"><SelectValue placeholder="Cari secin" /></SelectTrigger>
-                <SelectContent>{cariler.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.ad}</SelectItem>)}</SelectContent>
+              <Label>Bağlı Firma *</Label>
+              <Select value={form.firmaId} onValueChange={v => setForm(f => ({...f, firmaId: v}))}>
+                <SelectTrigger data-testid="select-gemi-cari"><SelectValue placeholder="Firma seçin" /></SelectTrigger>
+                <SelectContent>{bagliFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label>Gemi Adi *</Label>
+              <Label>Gemi Adı *</Label>
               <Input value={form.ad} onChange={e => setForm(f => ({...f, ad: e.target.value}))} data-testid="input-gemi-ad" />
             </div>
             <div className="space-y-1.5">
-              <Label>IMO Numarasi</Label>
+              <Label>IMO Numarası</Label>
               <Input value={form.imoNumarasi} onChange={e => setForm(f => ({...f, imoNumarasi: e.target.value}))} data-testid="input-gemi-imo" />
             </div>
             <div className="space-y-1.5">
@@ -166,17 +168,17 @@ export default function Gemiler() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={kapat} className="rounded-full">Iptal</Button>
-            <Button onClick={kaydet} disabled={!form.cariId || !form.ad} className="rounded-full" data-testid="button-gemi-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={kapat} className="rounded-full">İptal</Button>
+            <Button onClick={kaydet} disabled={!form.firmaId || !form.ad} className="rounded-full" data-testid="button-gemi-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={!!silId} onOpenChange={o => !o && setSilId(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Gemiyi sil</AlertDialogTitle><AlertDialogDescription>Bu islem geri alinamaz.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Gemiyi sil</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Iptal</AlertDialogCancel>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (!silId) return; deleteGemi.mutate({ id: silId }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListGemilerQueryKey() }); setSilId(null); } }); }}>Sil</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

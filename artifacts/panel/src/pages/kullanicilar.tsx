@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useListSirketler } from "@workspace/api-client-react";
+import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 import type { KullaniciInfo } from "@/App";
 
 interface Kullanici {
@@ -45,8 +45,10 @@ export default function Kullanicilar({ kullanici }: Props) {
   const [secili, setSecili] = useState<Kullanici | null>(null);
   const [form, setForm] = useState({ ad: "", email: "", parola: "", rol: "muhasebeci", sirketler: [] as number[] });
 
-  const { data: sirketlerData } = useListSirketler();
-  const sirketler = sirketlerData ?? [];
+  const { data: sirketler = [] } = useListFirmalar(
+    { tip: "cati" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
+  );
 
   async function listele() {
     setYukleniyor(true);

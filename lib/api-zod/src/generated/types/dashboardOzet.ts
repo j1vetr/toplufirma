@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import type { BankaHesapBakiye } from './bankaHesapBakiye';
 import type { ParaBirimiOzet } from './paraBirimiOzet';
@@ -14,10 +14,9 @@ export interface DashboardOzet {
   kalanBakiye: number;
   toplamFaturaSayisi: number;
   toplamOdemeSayisi: number;
-  toplamCariSayisi: number;
+  toplamFirmaSayisi: number;
   vadesGecmisFaturaSayisi: number;
   vadesYaklasiyor: number;
   paraBirimiOzetleri: ParaBirimiOzet[];
   bankaHesapBakiyeleri: BankaHesapBakiye[];
-  aktifStarlinkPlanSayisi?: number;
 }

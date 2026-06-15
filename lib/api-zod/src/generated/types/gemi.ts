@@ -3,16 +3,16 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export interface Gemi {
   id: number;
-  cariId: number;
+  firmaId: number;
   /** @nullable */
-  cariAd?: string | null;
+  firmaAd?: string | null;
   /** @nullable */
-  sirketId?: number | null;
+  catiFirmaId?: number | null;
   ad: string;
   /** @nullable */
   imoNumarasi?: string | null;

@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import type { BankaHareketiTip } from './bankaHareketiTip';
 
@@ -16,7 +16,7 @@ export interface BankaHareketi {
   /** @nullable */
   aciklama?: string | null;
   /** @nullable */
-  cariAd?: string | null;
+  firmaAd?: string | null;
   /** @nullable */
   faturaNo?: string | null;
 }

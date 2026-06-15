@@ -3,35 +3,30 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
-import type { CariTip } from './cariTip';
+import type { FirmaTip } from './firmaTip';
 
-export interface Cari {
+export interface Firma {
   id: number;
-  sirketId: number;
+  tip: FirmaTip;
   /** @nullable */
-  sirketAd?: string | null;
+  ustFirmaId?: number | null;
   ad: string;
-  tip: CariTip;
   /** @nullable */
   vergiNo?: string | null;
   /** @nullable */
   vergiDairesi?: string | null;
   /** @nullable */
+  adres?: string | null;
+  /** @nullable */
   telefon?: string | null;
   /** @nullable */
   eposta?: string | null;
   /** @nullable */
-  adres?: string | null;
+  seriOneki?: string | null;
   /** @nullable */
-  yetkiliKisi?: string | null;
-  paraBirimi?: string;
-  /** @nullable */
-  notlar?: string | null;
+  logoUrl?: string | null;
   aktif?: boolean;
-  toplamBorc?: number;
-  toplamAlacak?: number;
-  kalanBakiye?: number;
   olusturmaTarihi: Date;
 }

@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  useListSirketler, getListSirketlerQueryKey,
-  useListCariler, getListCarilerQueryKey,
+  useListFirmalar, getListFirmalarQueryKey,
   useListGemiler, getListGemilerQueryKey,
   useListFaturaSerileri, getListFaturaSerileriQueryKey,
   useListKdvOranlari, getListKdvOranlariQueryKey,
@@ -34,8 +33,8 @@ export default function FaturaYeni() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const [sirketId, setSirketId] = useState("");
-  const [cariId, setCariId] = useState("");
+  const [catiFirmaId, setCatiFirmaId] = useState("");
+  const [bagliFirmaId, setBagliFirmaId] = useState("");
   const [gemiId, setGemiId] = useState("");
   const [serisiId, setSerisiId] = useState("");
   const [faturaTarihi, setFaturaTarihi] = useState(new Date().toISOString().split("T")[0]);
@@ -46,17 +45,23 @@ export default function FaturaYeni() {
     { aciklama: "", miktar: 1, birimFiyat: 0, kdvOrani: 0 },
   ]);
 
-  const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
-  const { data: cariler = [] } = useListCariler(undefined, { query: { queryKey: getListCarilerQueryKey() } });
+  const { data: catiFirmalar = [] } = useListFirmalar(
+    { tip: "cati" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
+  );
+  const { data: bagliFirmalar = [] } = useListFirmalar(
+    { tip: "bagli" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
+  );
   const { data: gemiler = [] } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
   const { data: seriler = [] } = useListFaturaSerileri(undefined, { query: { queryKey: getListFaturaSerileriQueryKey() } });
   const { data: kdvOranlari = [] } = useListKdvOranlari(undefined, { query: { queryKey: getListKdvOranlariQueryKey() } });
   const createFatura = useCreateFatura();
 
-  const filtrelenmisCariler = cariler.filter(c => !sirketId || c.sirketId === Number(sirketId));
-  const filtrelenmisGemiler = gemiler.filter(g => !cariId || g.cariId === Number(cariId));
-  const filtrelenmisSeriler = seriler.filter(s => !sirketId || s.sirketId === Number(sirketId));
-  const filtrelenmisKdv = kdvOranlari.filter(k => !sirketId || k.sirketId === Number(sirketId));
+  const filtrelenmisCariler = bagliFirmalar.filter(f => !catiFirmaId || f.ustFirmaId === Number(catiFirmaId));
+  const filtrelenmisGemiler = gemiler.filter(g => !bagliFirmaId || g.firmaId === Number(bagliFirmaId));
+  const filtrelenmisSeriler = seriler.filter(s => !catiFirmaId || s.catiFirmaId === Number(catiFirmaId));
+  const filtrelenmisKdv = kdvOranlari.filter(k => !catiFirmaId || k.catiFirmaId === Number(catiFirmaId));
 
   function kalemGuncelle(idx: number, alan: keyof Kalem, deger: string | number) {
     setKalemler(prev => prev.map((k, i) => i === idx ? { ...k, [alan]: typeof deger === "string" && alan !== "aciklama" ? Number(deger) : deger } : k));
@@ -78,25 +83,25 @@ export default function FaturaYeni() {
   }, { toplamTutar: 0, kdvTutari: 0 });
 
   function kaydet() {
-    if (!sirketId || !cariId || !faturaTarihi || !vadeTarihi || kalemler.some(k => !k.aciklama)) {
-      toast({ title: "Hata", description: "Zorunlu alanlari doldurun", variant: "destructive" });
+    if (!catiFirmaId || !bagliFirmaId || !faturaTarihi || !vadeTarihi || kalemler.some(k => !k.aciklama)) {
+      toast({ title: "Hata", description: "Zorunlu alanları doldurun", variant: "destructive" });
       return;
     }
     createFatura.mutate({
       data: {
-        sirketId: Number(sirketId), cariId: Number(cariId),
-        gemiId: gemiId ? Number(gemiId) : undefined,
-        faturaSerisiId: serisiId ? Number(serisiId) : undefined,
+        catiFirmaId: Number(catiFirmaId), bagliFirmaId: Number(bagliFirmaId),
+        gemiId: gemiId && gemiId !== "none" ? Number(gemiId) : undefined,
+        faturaSerisiId: serisiId && serisiId !== "none" ? Number(serisiId) : undefined,
         faturaTarihi, vadeTarihi, paraBirimi, notlar,
         kalemler: kalemler.map(k => ({ aciklama: k.aciklama, miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani })),
       },
     }, {
       onSuccess: (fatura) => {
         qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() });
-        toast({ title: "Fatura olusturuldu" });
+        toast({ title: "Fatura oluşturuldu" });
         setLocation(`/faturalar/${fatura.id}`);
       },
-      onError: () => toast({ title: "Hata", description: "Fatura olusturulamadi", variant: "destructive" }),
+      onError: () => toast({ title: "Hata", description: "Fatura oluşturulamadı", variant: "destructive" }),
     });
   }
 
@@ -111,25 +116,25 @@ export default function FaturaYeni() {
         <CardHeader><CardTitle className="text-base">Fatura Bilgileri</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label>Sirket *</Label>
-            <Select value={sirketId} onValueChange={v => { setSirketId(v); setCariId(""); setGemiId(""); setSerisiId(""); }}>
-              <SelectTrigger data-testid="select-fatura-sirket"><SelectValue placeholder="Sirket secin" /></SelectTrigger>
-              <SelectContent>{sirketler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad}</SelectItem>)}</SelectContent>
+            <Label>Çatı Firma *</Label>
+            <Select value={catiFirmaId} onValueChange={v => { setCatiFirmaId(v); setBagliFirmaId(""); setGemiId(""); setSerisiId(""); }}>
+              <SelectTrigger data-testid="select-fatura-sirket"><SelectValue placeholder="Çatı firma seçin" /></SelectTrigger>
+              <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Cari *</Label>
-            <Select value={cariId} onValueChange={v => { setCariId(v); setGemiId(""); }}>
-              <SelectTrigger data-testid="select-fatura-cari"><SelectValue placeholder="Cari secin" /></SelectTrigger>
-              <SelectContent>{filtrelenmisCariler.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.ad}</SelectItem>)}</SelectContent>
+            <Label>Bağlı Firma *</Label>
+            <Select value={bagliFirmaId} onValueChange={v => { setBagliFirmaId(v); setGemiId(""); }}>
+              <SelectTrigger data-testid="select-fatura-cari"><SelectValue placeholder="Bağlı firma seçin" /></SelectTrigger>
+              <SelectContent>{filtrelenmisCariler.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Gemi</Label>
             <Select value={gemiId} onValueChange={setGemiId}>
-              <SelectTrigger data-testid="select-fatura-gemi"><SelectValue placeholder="Gemi secin (opsiyonel)" /></SelectTrigger>
+              <SelectTrigger data-testid="select-fatura-gemi"><SelectValue placeholder="Gemi seçin (opsiyonel)" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Secilmedi</SelectItem>
+                <SelectItem value="none">Seçilmedi</SelectItem>
                 {filtrelenmisGemiler.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -137,9 +142,9 @@ export default function FaturaYeni() {
           <div className="space-y-1.5">
             <Label>Fatura Serisi</Label>
             <Select value={serisiId} onValueChange={setSerisiId}>
-              <SelectTrigger data-testid="select-fatura-seri"><SelectValue placeholder="Seri secin (opsiyonel)" /></SelectTrigger>
+              <SelectTrigger data-testid="select-fatura-seri"><SelectValue placeholder="Seri seçin (opsiyonel)" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Secilmedi</SelectItem>
+                <SelectItem value="none">Seçilmedi</SelectItem>
                 {filtrelenmisSeriler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad} ({s.onek})</SelectItem>)}
               </SelectContent>
             </Select>
@@ -175,7 +180,7 @@ export default function FaturaYeni() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground px-1 font-medium">
-            <span className="col-span-4">Aciklama</span>
+            <span className="col-span-4">Açıklama</span>
             <span className="col-span-2">Miktar</span>
             <span className="col-span-2">Birim Fiyat</span>
             <span className="col-span-2">KDV %</span>
@@ -187,7 +192,7 @@ export default function FaturaYeni() {
             const kdv = ara * (k.kdvOrani / 100);
             return (
               <div key={i} className="grid grid-cols-12 gap-2 items-center" data-testid={`kalem-${i}`}>
-                <Input className="col-span-4 text-sm h-9" value={k.aciklama} onChange={e => kalemGuncelle(i, "aciklama", e.target.value)} placeholder="Aciklama" data-testid={`input-kalem-aciklama-${i}`} />
+                <Input className="col-span-4 text-sm h-9" value={k.aciklama} onChange={e => kalemGuncelle(i, "aciklama", e.target.value)} placeholder="Açıklama" data-testid={`input-kalem-aciklama-${i}`} />
                 <Input className="col-span-2 text-sm h-9" type="number" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", e.target.value)} min="0.01" step="0.01" data-testid={`input-kalem-miktar-${i}`} />
                 <Input className="col-span-2 text-sm h-9" type="number" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", e.target.value)} min="0" step="0.01" data-testid={`input-kalem-fiyat-${i}`} />
                 <Select value={String(k.kdvOrani)} onValueChange={v => kalemGuncelle(i, "kdvOrani", Number(v))}>
@@ -220,9 +225,9 @@ export default function FaturaYeni() {
       </Card>
 
       <div className="flex justify-end gap-3">
-        <Link href="/faturalar"><Button variant="outline" className="rounded-full">Iptal</Button></Link>
+        <Link href="/faturalar"><Button variant="outline" className="rounded-full">İptal</Button></Link>
         <Button onClick={kaydet} disabled={createFatura.isPending} className="rounded-full" data-testid="button-fatura-kaydet">
-          {createFatura.isPending ? "Kaydediliyor..." : "Fatura Olustur"}
+          {createFatura.isPending ? "Kaydediliyor..." : "Fatura Oluştur"}
         </Button>
       </div>
     </div>

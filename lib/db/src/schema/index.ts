@@ -9,17 +9,11 @@ import {
   date,
   pgEnum,
 } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 // ── Enums ──────────────────────────────────────────────────────────────────
-export const cariTipEnum = pgEnum("cari_tip", [
-  "musteri",
-  "tedarikci",
-  "ana_firma",
-  "bagli_firma",
-  "gemi_sahibi",
-  "diger",
-]);
+export const firmaTipEnum = pgEnum("firma_tip", ["cati", "bagli"]);
 
 export const faturaDurumEnum = pgEnum("fatura_durum", [
   "acik",
@@ -40,47 +34,46 @@ export const odemeYontemiEnum = pgEnum("odeme_yontemi", [
   "diger",
 ]);
 
-// ── Şirketler ─────────────────────────────────────────────────────────────
-export const sirketler = pgTable("sirketler", {
+export const kullaniciRolEnum = pgEnum("kullanici_rol", ["yonetici", "muhasebeci", "salt_okunur"]);
+
+// ── Firmalar (çatı + bağlı) ───────────────────────────────────────────────
+export const firmalar = pgTable("firmalar", {
   id: serial("id").primaryKey(),
+  tip: firmaTipEnum("tip").notNull().default("cati"),
+  ustFirmaId: integer("ust_firma_id").references((): AnyPgColumn => firmalar.id),
   ad: text("ad").notNull(),
   vergiNo: text("vergi_no"),
   vergiDairesi: text("vergi_dairesi"),
   adres: text("adres"),
   telefon: text("telefon"),
   eposta: text("eposta"),
-  seriOneki: text("seri_oneki").notNull().default("FAT"),
+  yetkiliKisi: text("yetkili_kisi"),
+  paraBirimi: text("para_birimi").notNull().default("USD"),
+  notlar: text("notlar"),
+  seriOneki: text("seri_oneki"),
   logo: text("logo"),
   aktif: boolean("aktif").notNull().default(true),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 
-// ── Cariler ───────────────────────────────────────────────────────────────
-export const cariler = pgTable("cariler", {
+// ── Firma E-posta Ayarları ────────────────────────────────────────────────
+export const firmaEpostaAyarlari = pgTable("firma_eposta_ayarlari", {
   id: serial("id").primaryKey(),
-  sirketId: integer("sirket_id")
-    .notNull()
-    .references(() => sirketler.id),
-  ad: text("ad").notNull(),
-  tip: cariTipEnum("tip").notNull().default("musteri"),
-  vergiNo: text("vergi_no"),
-  vergiDairesi: text("vergi_dairesi"),
-  telefon: text("telefon"),
-  eposta: text("eposta"),
-  adres: text("adres"),
-  yetkiliKisi: text("yetkili_kisi"),
-  paraBirimi: text("para_birimi").notNull().default("USD"),
-  notlar: text("notlar"),
+  firmaId: integer("firma_id").notNull().references(() => firmalar.id, { onDelete: "cascade" }),
+  smtpHost: text("smtp_host").notNull(),
+  smtpPort: integer("smtp_port").notNull().default(587),
+  smtpGuvenlik: text("smtp_guvenlik").notNull().default("starttls"),
+  smtpKullanici: text("smtp_kullanici").notNull(),
+  smtpSifre: text("smtp_sifre").notNull(),
+  gonderenAd: text("gonderen_ad").notNull(),
+  gonderenAdres: text("gonderen_adres").notNull(),
   aktif: boolean("aktif").notNull().default(true),
-  olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 
 // ── Gemiler ───────────────────────────────────────────────────────────────
 export const gemiler = pgTable("gemiler", {
   id: serial("id").primaryKey(),
-  cariId: integer("cari_id")
-    .notNull()
-    .references(() => cariler.id),
+  firmaId: integer("firma_id").notNull().references(() => firmalar.id),
   ad: text("ad").notNull(),
   imoNumarasi: text("imo_numarasi"),
   bayrakDevleti: text("bayrak_devleti"),
@@ -92,9 +85,7 @@ export const gemiler = pgTable("gemiler", {
 // ── Banka Hesapları ───────────────────────────────────────────────────────
 export const bankaHesaplari = pgTable("banka_hesaplari", {
   id: serial("id").primaryKey(),
-  sirketId: integer("sirket_id")
-    .notNull()
-    .references(() => sirketler.id),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
   bankaAdi: text("banka_adi").notNull(),
   hesapAdi: text("hesap_adi").notNull(),
   iban: text("iban"),
@@ -108,37 +99,27 @@ export const bankaHesaplari = pgTable("banka_hesaplari", {
 // ── KDV Oranları ──────────────────────────────────────────────────────────
 export const kdvOranlari = pgTable("kdv_oranlari", {
   id: serial("id").primaryKey(),
-  sirketId: integer("sirket_id")
-    .notNull()
-    .references(() => sirketler.id),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
   ad: text("ad").notNull(),
   oran: numeric("oran", { precision: 5, scale: 2 }).notNull(),
   varsayilan: boolean("varsayilan").notNull().default(false),
-  olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 
 // ── Fatura Serileri ───────────────────────────────────────────────────────
 export const faturaSerileri = pgTable("fatura_serileri", {
   id: serial("id").primaryKey(),
-  sirketId: integer("sirket_id")
-    .notNull()
-    .references(() => sirketler.id),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
   ad: text("ad").notNull(),
   onek: text("onek").notNull(),
   sonrakiNo: integer("sonraki_no").notNull().default(1),
   varsayilan: boolean("varsayilan").notNull().default(false),
-  olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 
 // ── Faturalar ─────────────────────────────────────────────────────────────
 export const faturalar = pgTable("faturalar", {
   id: serial("id").primaryKey(),
-  sirketId: integer("sirket_id")
-    .notNull()
-    .references(() => sirketler.id),
-  cariId: integer("cari_id")
-    .notNull()
-    .references(() => cariler.id),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
+  bagliFirmaId: integer("bagli_firma_id").notNull().references(() => firmalar.id),
   gemiId: integer("gemi_id").references(() => gemiler.id),
   faturaSerisiId: integer("fatura_serisi_id").references(() => faturaSerileri.id),
   faturaNo: text("fatura_no").notNull(),
@@ -157,9 +138,7 @@ export const faturalar = pgTable("faturalar", {
 // ── Fatura Kalemleri ──────────────────────────────────────────────────────
 export const faturaKalemleri = pgTable("fatura_kalemleri", {
   id: serial("id").primaryKey(),
-  faturaId: integer("fatura_id")
-    .notNull()
-    .references(() => faturalar.id, { onDelete: "cascade" }),
+  faturaId: integer("fatura_id").notNull().references(() => faturalar.id, { onDelete: "cascade" }),
   aciklama: text("aciklama").notNull(),
   miktar: numeric("miktar", { precision: 15, scale: 4 }).notNull(),
   birimFiyat: numeric("birim_fiyat", { precision: 15, scale: 4 }).notNull(),
@@ -172,12 +151,8 @@ export const faturaKalemleri = pgTable("fatura_kalemleri", {
 // ── Ödemeler ──────────────────────────────────────────────────────────────
 export const odemeler = pgTable("odemeler", {
   id: serial("id").primaryKey(),
-  sirketId: integer("sirket_id")
-    .notNull()
-    .references(() => sirketler.id),
-  cariId: integer("cari_id")
-    .notNull()
-    .references(() => cariler.id),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
+  bagliFirmaId: integer("bagli_firma_id").references(() => firmalar.id),
   gemiId: integer("gemi_id").references(() => gemiler.id),
   bankaHesabiId: integer("banka_hesabi_id").references(() => bankaHesaplari.id),
   faturaId: integer("fatura_id").references(() => faturalar.id),
@@ -190,39 +165,11 @@ export const odemeler = pgTable("odemeler", {
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 
-// ── Starlink Planları ─────────────────────────────────────────────────────
-export const starlinkPlanlari = pgTable("starlink_planlari", {
-  id: serial("id").primaryKey(),
-  sirketId: integer("sirket_id")
-    .notNull()
-    .references(() => sirketler.id),
-  cariId: integer("cari_id")
-    .notNull()
-    .references(() => cariler.id),
-  gemiId: integer("gemi_id")
-    .notNull()
-    .references(() => gemiler.id),
-  planAdi: text("plan_adi").notNull(),
-  hizMbps: integer("hiz_mbps"),
-  baslangicTarihi: date("baslangic_tarihi").notNull(),
-  bitisTarihi: date("bitis_tarihi").notNull(),
-  aylikUcret: numeric("aylik_ucret", { precision: 15, scale: 2 }).notNull(),
-  paraBirimi: text("para_birimi").notNull().default("USD"),
-  otomatikYenileme: boolean("otomatik_yenileme").notNull().default(true),
-  aktif: boolean("aktif").notNull().default(true),
-  notlar: text("notlar"),
-  olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
-});
-
 // ── Ekipmanlar ────────────────────────────────────────────────────────────
 export const ekipmanlar = pgTable("ekipmanlar", {
   id: serial("id").primaryKey(),
-  sirketId: integer("sirket_id")
-    .notNull()
-    .references(() => sirketler.id),
-  gemiId: integer("gemi_id")
-    .notNull()
-    .references(() => gemiler.id),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
+  gemiId: integer("gemi_id").notNull().references(() => gemiler.id),
   tip: text("tip").notNull(),
   seriNo: text("seri_no").notNull(),
   kurulumTarihi: date("kurulum_tarihi"),
@@ -233,8 +180,6 @@ export const ekipmanlar = pgTable("ekipmanlar", {
 });
 
 // ── Kullanıcılar ──────────────────────────────────────────────────────────
-export const kullaniciRolEnum = pgEnum("kullanici_rol", ["yonetici", "muhasebeci", "salt_okunur"]);
-
 export const kullanicilar = pgTable("kullanicilar", {
   id: serial("id").primaryKey(),
   ad: text("ad").notNull(),
@@ -245,49 +190,48 @@ export const kullanicilar = pgTable("kullanicilar", {
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 
-export const kullaniciSirketler = pgTable("kullanici_sirketler", {
+export const kullaniciFirmalar = pgTable("kullanici_firmalar", {
   id: serial("id").primaryKey(),
   kullaniciId: integer("kullanici_id").notNull().references(() => kullanicilar.id, { onDelete: "cascade" }),
-  sirketId: integer("sirket_id").notNull().references(() => sirketler.id, { onDelete: "cascade" }),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id, { onDelete: "cascade" }),
   rol: kullaniciRolEnum("rol").notNull().default("muhasebeci"),
 });
 
 // ── İlişkiler ─────────────────────────────────────────────────────────────
-export const sirketlerRelations = relations(sirketler, ({ many }) => ({
-  cariler: many(cariler),
+export const firmalarRelations = relations(firmalar, ({ one, many }) => ({
+  ustFirma: one(firmalar, { fields: [firmalar.ustFirmaId], references: [firmalar.id], relationName: "ustBagli" }),
+  bagliFirmalar: many(firmalar, { relationName: "ustBagli" }),
+  epostaAyarlari: many(firmaEpostaAyarlari),
+  gemiler: many(gemiler),
   bankaHesaplari: many(bankaHesaplari),
-  faturalar: many(faturalar),
-  odemeler: many(odemeler),
-  starlinkPlanlari: many(starlinkPlanlari),
+  catiFirmaFaturalar: many(faturalar, { relationName: "catiFirmaFaturalar" }),
+  bagliFirmaFaturalar: many(faturalar, { relationName: "bagliFirmaFaturalar" }),
+  catiFirmaOdemeler: many(odemeler, { relationName: "catiFirmaOdemeler" }),
   ekipmanlar: many(ekipmanlar),
   kdvOranlari: many(kdvOranlari),
   faturaSerileri: many(faturaSerileri),
+  kullaniciFirmalar: many(kullaniciFirmalar),
 }));
 
-export const carilerRelations = relations(cariler, ({ one, many }) => ({
-  sirket: one(sirketler, { fields: [cariler.sirketId], references: [sirketler.id] }),
-  gemiler: many(gemiler),
-  faturalar: many(faturalar),
-  odemeler: many(odemeler),
-  starlinkPlanlari: many(starlinkPlanlari),
+export const firmaEpostaAyarlariRelations = relations(firmaEpostaAyarlari, ({ one }) => ({
+  firma: one(firmalar, { fields: [firmaEpostaAyarlari.firmaId], references: [firmalar.id] }),
 }));
 
 export const gemilerRelations = relations(gemiler, ({ one, many }) => ({
-  cari: one(cariler, { fields: [gemiler.cariId], references: [cariler.id] }),
+  firma: one(firmalar, { fields: [gemiler.firmaId], references: [firmalar.id] }),
   faturalar: many(faturalar),
   odemeler: many(odemeler),
-  starlinkPlanlari: many(starlinkPlanlari),
   ekipmanlar: many(ekipmanlar),
 }));
 
 export const bankaHesaplariRelations = relations(bankaHesaplari, ({ one, many }) => ({
-  sirket: one(sirketler, { fields: [bankaHesaplari.sirketId], references: [sirketler.id] }),
+  catiFirma: one(firmalar, { fields: [bankaHesaplari.catiFirmaId], references: [firmalar.id] }),
   odemeler: many(odemeler),
 }));
 
 export const faturalarRelations = relations(faturalar, ({ one, many }) => ({
-  sirket: one(sirketler, { fields: [faturalar.sirketId], references: [sirketler.id] }),
-  cari: one(cariler, { fields: [faturalar.cariId], references: [cariler.id] }),
+  catiFirma: one(firmalar, { fields: [faturalar.catiFirmaId], references: [firmalar.id], relationName: "catiFirmaFaturalar" }),
+  bagliFirma: one(firmalar, { fields: [faturalar.bagliFirmaId], references: [firmalar.id], relationName: "bagliFirmaFaturalar" }),
   gemi: one(gemiler, { fields: [faturalar.gemiId], references: [gemiler.id] }),
   faturaSeri: one(faturaSerileri, { fields: [faturalar.faturaSerisiId], references: [faturaSerileri.id] }),
   kalemler: many(faturaKalemleri),
@@ -299,29 +243,32 @@ export const faturaKalemleriRelations = relations(faturaKalemleri, ({ one }) => 
 }));
 
 export const odemelerRelations = relations(odemeler, ({ one }) => ({
-  sirket: one(sirketler, { fields: [odemeler.sirketId], references: [sirketler.id] }),
-  cari: one(cariler, { fields: [odemeler.cariId], references: [cariler.id] }),
+  catiFirma: one(firmalar, { fields: [odemeler.catiFirmaId], references: [firmalar.id], relationName: "catiFirmaOdemeler" }),
+  bagliFirma: one(firmalar, { fields: [odemeler.bagliFirmaId], references: [firmalar.id] }),
   gemi: one(gemiler, { fields: [odemeler.gemiId], references: [gemiler.id] }),
   bankaHesabi: one(bankaHesaplari, { fields: [odemeler.bankaHesabiId], references: [bankaHesaplari.id] }),
   fatura: one(faturalar, { fields: [odemeler.faturaId], references: [faturalar.id] }),
 }));
 
-export const starlinkPlanlariRelations = relations(starlinkPlanlari, ({ one }) => ({
-  sirket: one(sirketler, { fields: [starlinkPlanlari.sirketId], references: [sirketler.id] }),
-  cari: one(cariler, { fields: [starlinkPlanlari.cariId], references: [cariler.id] }),
-  gemi: one(gemiler, { fields: [starlinkPlanlari.gemiId], references: [gemiler.id] }),
-}));
-
 export const ekipmanlarRelations = relations(ekipmanlar, ({ one }) => ({
-  sirket: one(sirketler, { fields: [ekipmanlar.sirketId], references: [sirketler.id] }),
+  catiFirma: one(firmalar, { fields: [ekipmanlar.catiFirmaId], references: [firmalar.id] }),
   gemi: one(gemiler, { fields: [ekipmanlar.gemiId], references: [gemiler.id] }),
 }));
 
 export const kdvOranlariRelations = relations(kdvOranlari, ({ one }) => ({
-  sirket: one(sirketler, { fields: [kdvOranlari.sirketId], references: [sirketler.id] }),
+  catiFirma: one(firmalar, { fields: [kdvOranlari.catiFirmaId], references: [firmalar.id] }),
 }));
 
 export const faturaSerileriRelations = relations(faturaSerileri, ({ one, many }) => ({
-  sirket: one(sirketler, { fields: [faturaSerileri.sirketId], references: [sirketler.id] }),
+  catiFirma: one(firmalar, { fields: [faturaSerileri.catiFirmaId], references: [firmalar.id] }),
   faturalar: many(faturalar),
+}));
+
+export const kullanicilarRelations = relations(kullanicilar, ({ many }) => ({
+  kullaniciFirmalar: many(kullaniciFirmalar),
+}));
+
+export const kullaniciFirmalarRelations = relations(kullaniciFirmalar, ({ one }) => ({
+  kullanici: one(kullanicilar, { fields: [kullaniciFirmalar.kullaniciId], references: [kullanicilar.id] }),
+  catiFirma: one(firmalar, { fields: [kullaniciFirmalar.catiFirmaId], references: [firmalar.id] }),
 }));

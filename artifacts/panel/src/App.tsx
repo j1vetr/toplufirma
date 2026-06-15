@@ -7,9 +7,7 @@ import { Layout } from "@/components/layout";
 import { SirketProvider } from "@/contexts/sirket-context";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
-import Sirketler from "@/pages/sirketler";
-import Cariler from "@/pages/cariler";
-import CariDetay from "@/pages/cari-detay";
+import Firmalar from "@/pages/firmalar";
 import Gemiler from "@/pages/gemiler";
 import GemiDetay from "@/pages/gemi-detay";
 import BankaHesaplari from "@/pages/banka-hesaplari";
@@ -18,7 +16,6 @@ import Faturalar from "@/pages/faturalar";
 import FaturaYeni from "@/pages/fatura-yeni";
 import FaturaDetay from "@/pages/fatura-detay";
 import Odemeler from "@/pages/odemeler";
-import StarlinkPlanlari from "@/pages/starlink-planlari";
 import Ekipmanlar from "@/pages/ekipmanlar";
 import Tanimlar from "@/pages/tanimlar";
 import Raporlar from "@/pages/raporlar";
@@ -78,19 +75,9 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
           <Dashboard />
         </AuthGuard>
       </Route>
-      <Route path="/sirketler">
+      <Route path="/firmalar">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
-          <Sirketler />
-        </AuthGuard>
-      </Route>
-      <Route path="/cariler">
-        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
-          <Cariler />
-        </AuthGuard>
-      </Route>
-      <Route path="/cariler/:id">
-        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
-          <CariDetay />
+          <Firmalar />
         </AuthGuard>
       </Route>
       <Route path="/gemiler">
@@ -131,11 +118,6 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
       <Route path="/odemeler">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
           <Odemeler />
-        </AuthGuard>
-      </Route>
-      <Route path="/starlink-planlari">
-        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
-          <StarlinkPlanlari />
         </AuthGuard>
       </Route>
       <Route path="/ekipmanlar">

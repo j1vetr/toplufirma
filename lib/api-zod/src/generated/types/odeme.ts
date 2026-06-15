@@ -3,19 +3,20 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import type { OdemeOdemeYontemi } from './odemeOdemeYontemi';
 import type { OdemeTip } from './odemeTip';
 
 export interface Odeme {
   id: number;
-  sirketId: number;
+  catiFirmaId: number;
   /** @nullable */
-  sirketAd?: string | null;
-  cariId: number;
+  catiFirmaAd?: string | null;
   /** @nullable */
-  cariAd?: string | null;
+  bagliFirmaId?: number | null;
+  /** @nullable */
+  bagliFirmaAd?: string | null;
   /** @nullable */
   gemiId?: number | null;
   /** @nullable */

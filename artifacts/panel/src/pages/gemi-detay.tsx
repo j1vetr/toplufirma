@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Wifi, HardDrive, FileText } from "lucide-react";
+import { ArrowLeft, HardDrive, FileText } from "lucide-react";
 
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
@@ -23,9 +23,7 @@ export default function GemiDetay() {
   const { data: gemi, isLoading } = useGetGemi(id, { query: { enabled: !!id, queryKey: getGetGemiQueryKey(id) } });
 
   if (isLoading) return <div className="animate-pulse space-y-4"><div className="h-32 bg-muted rounded-xl" /><div className="h-64 bg-muted rounded-xl" /></div>;
-  if (!gemi) return <div className="text-center py-16 text-muted-foreground">Gemi bulunamadi.</div>;
-
-  const aktifPlan = gemi.starlinkPlanlari?.find(p => p.aktif);
+  if (!gemi) return <div className="text-center py-16 text-muted-foreground">Gemi bulunamadı.</div>;
 
   return (
     <div className="space-y-6">
@@ -33,21 +31,16 @@ export default function GemiDetay() {
         <Link href="/gemiler"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-4 w-4" /></Button></Link>
         <div>
           <h2 className="text-xl font-display font-semibold">{gemi.ad}</h2>
-          <p className="text-sm text-muted-foreground">{gemi.cariAd}</p>
+          <p className="text-sm text-muted-foreground">{gemi.firmaAd}</p>
         </div>
-        {aktifPlan && (
-          <div className="ml-auto flex items-center gap-1.5 text-sm text-green-600 bg-green-500/10 px-3 py-1 rounded-full">
-            <Wifi className="h-4 w-4" /> {aktifPlan.planAdi} - {aktifPlan.kalanGun} gun kaldi
-          </div>
-        )}
       </div>
 
       <Card>
         <CardContent className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           {[
-            ["IMO Numarasi", gemi.imoNumarasi],
+            ["IMO Numarası", gemi.imoNumarasi],
             ["Bayrak Devleti", gemi.bayrakDevleti],
-            ["Cari", gemi.cariAd],
+            ["Bağlı Firma", gemi.firmaAd],
             ["Durum", gemi.aktif ? "Aktif" : "Pasif"],
           ].map(([etiket, deger]) => deger ? (
             <div key={etiket}><p className="text-muted-foreground">{etiket}</p><p className="font-medium mt-0.5">{deger}</p></div>
@@ -55,35 +48,11 @@ export default function GemiDetay() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="starlink">
+      <Tabs defaultValue="ekipmanlar">
         <TabsList className="rounded-full">
-          <TabsTrigger value="starlink" className="rounded-full">Starlink Planlari</TabsTrigger>
           <TabsTrigger value="ekipmanlar" className="rounded-full">Ekipmanlar</TabsTrigger>
           <TabsTrigger value="faturalar" className="rounded-full">Faturalar</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="starlink" className="mt-4">
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              {gemi.starlinkPlanlari && gemi.starlinkPlanlari.length > 0 ? gemi.starlinkPlanlari.map(p => (
-                <div key={p.id} className="flex items-center gap-4 py-3 border-b last:border-0">
-                  <div className="p-2 rounded-full bg-blue-500/10"><Wifi className="h-4 w-4 text-blue-500" /></div>
-                  <div className="flex-1">
-                    <p className="font-medium">{p.planAdi}</p>
-                    <p className="text-xs text-muted-foreground">{p.baslangicTarihi} - {p.bitisTarihi}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{fmt(p.aylikUcret, p.paraBirimi)}/ay</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={p.aktif ? "default" : "secondary"}>{p.aktif ? "Aktif" : "Pasif"}</Badge>
-                      {p.aktif && <span className="text-xs text-muted-foreground">{p.kalanGun} gun</span>}
-                    </div>
-                  </div>
-                </div>
-              )) : <p className="text-center text-muted-foreground py-8">Starlink plani yok.</p>}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="ekipmanlar" className="mt-4">
           <Card>
@@ -100,7 +69,7 @@ export default function GemiDetay() {
                     <Badge variant={e.aktif ? "default" : "secondary"} className="mt-1">{e.aktif ? "Aktif" : "Pasif"}</Badge>
                   </div>
                 </div>
-              )) : <p className="text-center text-muted-foreground py-8">Ekipman kaydi yok.</p>}
+              )) : <p className="text-center text-muted-foreground py-8">Ekipman kaydı yok.</p>}
             </CardContent>
           </Card>
         </TabsContent>
@@ -120,7 +89,7 @@ export default function GemiDetay() {
                     <p className="font-semibold mt-1">{fmt(f.genelToplam, f.paraBirimi)}</p>
                   </div>
                 </div>
-              )) : <p className="text-center text-muted-foreground py-8">Fatura kaydi yok.</p>}
+              )) : <p className="text-center text-muted-foreground py-8">Fatura kaydı yok.</p>}
             </CardContent>
           </Card>
         </TabsContent>

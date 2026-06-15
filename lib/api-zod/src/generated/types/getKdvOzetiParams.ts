@@ -3,14 +3,14 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export type GetKdvOzetiParams = {
 /**
  * @nullable
  */
-sirketId?: number | null;
+catiFirmaId?: number | null;
 yil?: number;
 ay?: number;
 };

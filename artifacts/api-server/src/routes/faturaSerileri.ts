@@ -8,10 +8,10 @@ const router = Router();
 
 router.get("/fatura-serileri", async (req, res) => {
   try {
-    const { sirketId } = req.query as Record<string, string>;
+    const { catiFirmaId } = req.query as Record<string, string>;
     const rows = await db.select().from(faturaSerileri).orderBy(faturaSerileri.ad);
-    const { rows: scoped, yetkisiz } = sirketlerFiltrele(rows, req, sirketId);
-    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
+    const { rows: scoped, yetkisiz } = sirketlerFiltrele(rows, req, catiFirmaId);
+    if (yetkisiz) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     res.json(scoped);
   } catch {
     res.status(500).json({ error: "Fatura serileri listelenemedi" });
@@ -20,11 +20,11 @@ router.get("/fatura-serileri", async (req, res) => {
 
 router.post("/fatura-serileri", requireYazma, async (req, res) => {
   try {
-    const { sirketId, ad, onek, sonrakiNo, varsayilan } = req.body;
-    if (!sirketId || !ad || !onek) { res.status(400).json({ error: "Zorunlu alanlar eksik" }); return; }
-    if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
+    const { catiFirmaId, ad, onek, sonrakiNo, varsayilan } = req.body;
+    if (!catiFirmaId || !ad || !onek) { res.status(400).json({ error: "Zorunlu alanlar eksik" }); return; }
+    if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     const [row] = await db.insert(faturaSerileri).values({
-      sirketId, ad, onek, sonrakiNo: sonrakiNo ?? 1, varsayilan: varsayilan ?? false,
+      catiFirmaId, ad, onek, sonrakiNo: sonrakiNo ?? 1, varsayilan: varsayilan ?? false,
     }).returning();
     res.status(201).json(row);
   } catch {
@@ -37,7 +37,7 @@ router.patch("/fatura-serileri/:id", requireYazma, async (req, res) => {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(faturaSerileri).where(eq(faturaSerileri.id, id));
     if (!existing) { res.status(404).json({ error: "Fatura serisi bulunamadı" }); return; }
-    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { ad, onek, sonrakiNo, varsayilan } = req.body;
     const [row] = await db.update(faturaSerileri)
@@ -54,7 +54,7 @@ router.delete("/fatura-serileri/:id", requireYazma, async (req, res) => {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(faturaSerileri).where(eq(faturaSerileri.id, id));
     if (!existing) { res.status(404).json({ error: "Fatura serisi bulunamadı" }); return; }
-    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     await db.delete(faturaSerileri).where(eq(faturaSerileri.id, id));
     res.status(204).send();
   } catch {

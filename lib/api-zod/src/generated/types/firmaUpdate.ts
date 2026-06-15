@@ -3,19 +3,17 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
-export interface CariUpdate {
+export interface FirmaUpdate {
   ad?: string;
-  tip?: string;
   vergiNo?: string;
   vergiDairesi?: string;
+  adres?: string;
   telefon?: string;
   eposta?: string;
-  adres?: string;
-  yetkiliKisi?: string;
-  paraBirimi?: string;
-  notlar?: string;
+  seriOneki?: string;
+  logoUrl?: string;
   aktif?: boolean;
 }

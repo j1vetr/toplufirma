@@ -3,94 +3,51 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 export interface HealthStatus {
   status: string;
 }
 
-export interface Sirket {
-  id: number;
-  ad: string;
-  /** @nullable */
-  vergiNo?: string | null;
-  /** @nullable */
-  vergiDairesi?: string | null;
-  /** @nullable */
-  adres?: string | null;
-  /** @nullable */
-  telefon?: string | null;
-  /** @nullable */
-  eposta?: string | null;
-  seriOneki: string;
-  /** @nullable */
-  logo?: string | null;
-  aktif?: boolean;
-  olusturmaTarihi: string;
-}
-
-export interface SirketInput {
-  ad: string;
-  vergiNo?: string;
-  vergiDairesi?: string;
-  adres?: string;
-  telefon?: string;
-  eposta?: string;
-  seriOneki: string;
-  aktif?: boolean;
-}
-
-export interface SirketUpdate {
-  ad?: string;
-  vergiNo?: string;
-  vergiDairesi?: string;
-  adres?: string;
-  telefon?: string;
-  eposta?: string;
-  seriOneki?: string;
-  aktif?: boolean;
-}
-
-export type CariTip = typeof CariTip[keyof typeof CariTip];
+export type FirmaTip = typeof FirmaTip[keyof typeof FirmaTip];
 
 
-export const CariTip = {
-  musteri: 'musteri',
-  tedarikci: 'tedarikci',
-  ana_firma: 'ana_firma',
-  bagli_firma: 'bagli_firma',
-  gemi_sahibi: 'gemi_sahibi',
-  diger: 'diger',
+export const FirmaTip = {
+  cati: 'cati',
+  bagli: 'bagli',
 } as const;
 
-export interface Cari {
+export interface Firma {
   id: number;
-  sirketId: number;
+  tip: FirmaTip;
   /** @nullable */
-  sirketAd?: string | null;
+  ustFirmaId?: number | null;
   ad: string;
-  tip: CariTip;
   /** @nullable */
   vergiNo?: string | null;
   /** @nullable */
   vergiDairesi?: string | null;
   /** @nullable */
+  adres?: string | null;
+  /** @nullable */
   telefon?: string | null;
   /** @nullable */
   eposta?: string | null;
   /** @nullable */
-  adres?: string | null;
+  seriOneki?: string | null;
   /** @nullable */
-  yetkiliKisi?: string | null;
-  paraBirimi?: string;
-  /** @nullable */
-  notlar?: string | null;
+  logoUrl?: string | null;
   aktif?: boolean;
-  toplamBorc?: number;
-  toplamAlacak?: number;
-  kalanBakiye?: number;
   olusturmaTarihi: string;
 }
+
+export type FirmaDetayTip = typeof FirmaDetayTip[keyof typeof FirmaDetayTip];
+
+
+export const FirmaDetayTip = {
+  cati: 'cati',
+  bagli: 'bagli',
+} as const;
 
 export type FaturaDurum = typeof FaturaDurum[keyof typeof FaturaDurum];
 
@@ -104,12 +61,12 @@ export const FaturaDurum = {
 
 export interface Fatura {
   id: number;
-  sirketId: number;
+  catiFirmaId: number;
   /** @nullable */
-  sirketAd?: string | null;
-  cariId: number;
+  catiFirmaAd?: string | null;
+  bagliFirmaId: number;
   /** @nullable */
-  cariAd?: string | null;
+  bagliFirmaAd?: string | null;
   /** @nullable */
   gemiId?: number | null;
   /** @nullable */
@@ -133,11 +90,11 @@ export interface Fatura {
 
 export interface Gemi {
   id: number;
-  cariId: number;
+  firmaId: number;
   /** @nullable */
-  cariAd?: string | null;
+  firmaAd?: string | null;
   /** @nullable */
-  sirketId?: number | null;
+  catiFirmaId?: number | null;
   ad: string;
   /** @nullable */
   imoNumarasi?: string | null;
@@ -179,118 +136,125 @@ export interface EkstreKalemi {
   bakiye: number;
 }
 
-export interface CariDetay {
+export interface FirmaDetay {
   id: number;
-  sirketId: number;
+  tip: FirmaDetayTip;
   /** @nullable */
-  sirketAd?: string | null;
+  ustFirmaId?: number | null;
   ad: string;
-  tip: string;
   /** @nullable */
   vergiNo?: string | null;
   /** @nullable */
   vergiDairesi?: string | null;
   /** @nullable */
+  adres?: string | null;
+  /** @nullable */
   telefon?: string | null;
   /** @nullable */
   eposta?: string | null;
   /** @nullable */
-  adres?: string | null;
+  seriOneki?: string | null;
   /** @nullable */
-  yetkiliKisi?: string | null;
-  paraBirimi?: string;
-  /** @nullable */
-  notlar?: string | null;
+  logoUrl?: string | null;
   aktif?: boolean;
   toplamBorc?: number;
   toplamAlacak?: number;
   kalanBakiye?: number;
+  bagliSirketler?: Firma[];
   acikFaturalar?: Fatura[];
   bagliGemiler?: Gemi[];
   sonIslemler?: EkstreKalemi[];
   olusturmaTarihi: string;
 }
 
-export type CariInputTip = typeof CariInputTip[keyof typeof CariInputTip];
+export type FirmaInputTip = typeof FirmaInputTip[keyof typeof FirmaInputTip];
 
 
-export const CariInputTip = {
-  musteri: 'musteri',
-  tedarikci: 'tedarikci',
-  ana_firma: 'ana_firma',
-  bagli_firma: 'bagli_firma',
-  gemi_sahibi: 'gemi_sahibi',
-  diger: 'diger',
+export const FirmaInputTip = {
+  cati: 'cati',
+  bagli: 'bagli',
 } as const;
 
-export interface CariInput {
-  sirketId: number;
+export interface FirmaInput {
+  tip: FirmaInputTip;
+  ustFirmaId?: number;
   ad: string;
-  tip: CariInputTip;
   vergiNo?: string;
   vergiDairesi?: string;
+  adres?: string;
   telefon?: string;
   eposta?: string;
-  adres?: string;
-  yetkiliKisi?: string;
-  paraBirimi?: string;
-  notlar?: string;
+  seriOneki?: string;
+  logoUrl?: string;
   aktif?: boolean;
 }
 
-export interface CariUpdate {
+export interface FirmaUpdate {
   ad?: string;
-  tip?: string;
   vergiNo?: string;
   vergiDairesi?: string;
+  adres?: string;
   telefon?: string;
   eposta?: string;
-  adres?: string;
-  yetkiliKisi?: string;
-  paraBirimi?: string;
-  notlar?: string;
+  seriOneki?: string;
+  logoUrl?: string;
   aktif?: boolean;
 }
 
-export interface CariEkstre {
-  cariId: number;
-  cariAd: string;
+export interface FirmaEkstre {
+  firmaId: number;
+  firmaAd: string;
   kalemler: EkstreKalemi[];
   toplamBorc: number;
   toplamAlacak: number;
   kalanBakiye: number;
 }
 
-export interface StarlinkPlani {
-  id: number;
-  sirketId: number;
+export type FirmaEpostaAyarlariSmtpGuvenlik = typeof FirmaEpostaAyarlariSmtpGuvenlik[keyof typeof FirmaEpostaAyarlariSmtpGuvenlik];
+
+
+export const FirmaEpostaAyarlariSmtpGuvenlik = {
+  starttls: 'starttls',
+  ssl: 'ssl',
+  none: 'none',
+} as const;
+
+export interface FirmaEpostaAyarlari {
+  firmaId: number;
+  smtpHost: string;
+  smtpPort?: number;
+  smtpGuvenlik?: FirmaEpostaAyarlariSmtpGuvenlik;
+  smtpKullanici: string;
   /** @nullable */
-  sirketAd?: string | null;
-  cariId: number;
-  /** @nullable */
-  cariAd?: string | null;
-  gemiId: number;
-  /** @nullable */
-  gemiAd?: string | null;
-  planAdi: string;
-  /** @nullable */
-  hizMbps?: number | null;
-  baslangicTarihi: string;
-  bitisTarihi: string;
-  aylikUcret: number;
-  paraBirimi: string;
-  otomatikYenileme?: boolean;
+  smtpSifre?: string | null;
+  gonderenAd: string;
+  gonderenAdres: string;
   aktif?: boolean;
-  /** @nullable */
-  notlar?: string | null;
-  /** @nullable */
-  kalanGun?: number | null;
-  olusturmaTarihi: string;
+}
+
+export type FirmaEpostaAyarlariInputSmtpGuvenlik = typeof FirmaEpostaAyarlariInputSmtpGuvenlik[keyof typeof FirmaEpostaAyarlariInputSmtpGuvenlik];
+
+
+export const FirmaEpostaAyarlariInputSmtpGuvenlik = {
+  starttls: 'starttls',
+  ssl: 'ssl',
+  none: 'none',
+} as const;
+
+export interface FirmaEpostaAyarlariInput {
+  smtpHost: string;
+  smtpPort?: number;
+  smtpGuvenlik?: FirmaEpostaAyarlariInputSmtpGuvenlik;
+  smtpKullanici: string;
+  smtpSifre?: string;
+  gonderenAd: string;
+  gonderenAdres: string;
+  aktif?: boolean;
 }
 
 export interface Ekipman {
   id: number;
-  sirketId: number;
+  catiFirmaId: number;
   gemiId: number;
   /** @nullable */
   gemiAd?: string | null;
@@ -308,9 +272,11 @@ export interface Ekipman {
 
 export interface GemiDetay {
   id: number;
-  cariId: number;
+  firmaId: number;
   /** @nullable */
-  cariAd?: string | null;
+  firmaAd?: string | null;
+  /** @nullable */
+  catiFirmaId?: number | null;
   ad: string;
   /** @nullable */
   imoNumarasi?: string | null;
@@ -319,14 +285,13 @@ export interface GemiDetay {
   /** @nullable */
   notlar?: string | null;
   aktif?: boolean;
-  starlinkPlanlari?: StarlinkPlani[];
   ekipmanlar?: Ekipman[];
   faturalar?: Fatura[];
   olusturmaTarihi: string;
 }
 
 export interface GemiInput {
-  cariId: number;
+  firmaId: number;
   ad: string;
   imoNumarasi?: string;
   bayrakDevleti?: string;
@@ -340,14 +305,14 @@ export interface GemiUpdate {
   bayrakDevleti?: string;
   notlar?: string;
   aktif?: boolean;
-  cariId?: number;
+  firmaId?: number;
 }
 
 export interface BankaHesabi {
   id: number;
-  sirketId: number;
+  catiFirmaId: number;
   /** @nullable */
-  sirketAd?: string | null;
+  catiFirmaAd?: string | null;
   bankaAdi: string;
   hesapAdi: string;
   /** @nullable */
@@ -363,7 +328,7 @@ export interface BankaHesabi {
 }
 
 export interface BankaHesabiInput {
-  sirketId: number;
+  catiFirmaId: number;
   bankaAdi: string;
   hesapAdi: string;
   iban?: string;
@@ -400,7 +365,7 @@ export interface BankaHareketi {
   /** @nullable */
   aciklama?: string | null;
   /** @nullable */
-  cariAd?: string | null;
+  firmaAd?: string | null;
   /** @nullable */
   faturaNo?: string | null;
 }
@@ -448,12 +413,13 @@ export const OdemeOdemeYontemi = {
 
 export interface Odeme {
   id: number;
-  sirketId: number;
+  catiFirmaId: number;
   /** @nullable */
-  sirketAd?: string | null;
-  cariId: number;
+  catiFirmaAd?: string | null;
   /** @nullable */
-  cariAd?: string | null;
+  bagliFirmaId?: number | null;
+  /** @nullable */
+  bagliFirmaAd?: string | null;
   /** @nullable */
   gemiId?: number | null;
   /** @nullable */
@@ -478,12 +444,12 @@ export interface Odeme {
 
 export interface FaturaDetay {
   id: number;
-  sirketId: number;
+  catiFirmaId: number;
   /** @nullable */
-  sirketAd?: string | null;
-  cariId: number;
+  catiFirmaAd?: string | null;
+  bagliFirmaId: number;
   /** @nullable */
-  cariAd?: string | null;
+  bagliFirmaAd?: string | null;
   /** @nullable */
   gemiId?: number | null;
   /** @nullable */
@@ -515,8 +481,8 @@ export interface FaturaKalemiInput {
 }
 
 export interface FaturaInput {
-  sirketId: number;
-  cariId: number;
+  catiFirmaId: number;
+  bagliFirmaId: number;
   /** @nullable */
   gemiId?: number | null;
   /** @nullable */
@@ -558,8 +524,9 @@ export const OdemeInputOdemeYontemi = {
 } as const;
 
 export interface OdemeInput {
-  sirketId: number;
-  cariId: number;
+  catiFirmaId: number;
+  /** @nullable */
+  bagliFirmaId?: number | null;
   /** @nullable */
   gemiId?: number | null;
   /** @nullable */
@@ -581,33 +548,8 @@ export interface OdemeUpdate {
   odemeYontemi?: string;
 }
 
-export interface StarlinkPlaniInput {
-  sirketId: number;
-  cariId: number;
-  gemiId: number;
-  planAdi: string;
-  hizMbps?: number;
-  baslangicTarihi: string;
-  bitisTarihi: string;
-  aylikUcret: number;
-  paraBirimi: string;
-  otomatikYenileme?: boolean;
-  aktif?: boolean;
-  notlar?: string;
-}
-
-export interface StarlinkPlaniUpdate {
-  planAdi?: string;
-  hizMbps?: number;
-  bitisTarihi?: string;
-  aylikUcret?: number;
-  otomatikYenileme?: boolean;
-  aktif?: boolean;
-  notlar?: string;
-}
-
 export interface EkipmanInput {
-  sirketId: number;
+  catiFirmaId: number;
   gemiId: number;
   tip: string;
   seriNo: string;
@@ -629,7 +571,7 @@ export interface EkipmanUpdate {
 
 export interface KdvOrani {
   id: number;
-  sirketId: number;
+  catiFirmaId: number;
   ad: string;
   oran: number;
   varsayilan?: boolean;
@@ -637,7 +579,7 @@ export interface KdvOrani {
 }
 
 export interface KdvOraniInput {
-  sirketId: number;
+  catiFirmaId: number;
   ad: string;
   oran: number;
   varsayilan?: boolean;
@@ -651,7 +593,7 @@ export interface KdvOraniUpdate {
 
 export interface FaturaSeri {
   id: number;
-  sirketId: number;
+  catiFirmaId: number;
   ad: string;
   onek: string;
   sonrakiNo: number;
@@ -660,7 +602,7 @@ export interface FaturaSeri {
 }
 
 export interface FaturaSeriInput {
-  sirketId: number;
+  catiFirmaId: number;
   ad: string;
   onek: string;
   sonrakiNo?: number;
@@ -695,12 +637,11 @@ export interface DashboardOzet {
   kalanBakiye: number;
   toplamFaturaSayisi: number;
   toplamOdemeSayisi: number;
-  toplamCariSayisi: number;
+  toplamFirmaSayisi: number;
   vadesGecmisFaturaSayisi: number;
   vadesYaklasiyor: number;
   paraBirimiOzetleri: ParaBirimiOzet[];
   bankaHesapBakiyeleri: BankaHesapBakiye[];
-  aktifStarlinkPlanSayisi?: number;
 }
 
 export interface SonIslemler {
@@ -723,9 +664,9 @@ export interface KdvParaBirimiKirilim {
   kdvDahil: number;
 }
 
-export interface KdvSirketKirilim {
-  sirketId: number;
-  sirketAd: string;
+export interface KdvFirmaKirilim {
+  catiFirmaId: number;
+  catiFirmaAd: string;
   kdvHaric: number;
   kdvTutari: number;
   kdvDahil: number;
@@ -736,7 +677,7 @@ export interface KdvOzeti {
   kdvTutariToplam: number;
   kdvDahilToplam: number;
   paraBirimiKirilim: KdvParaBirimiKirilim[];
-  sirketKirilim: KdvSirketKirilim[];
+  firmaKirilim: KdvFirmaKirilim[];
 }
 
 export interface YaslandirmaDilimi {
@@ -750,24 +691,32 @@ export interface AlacakYaslandirma {
   dilimler: YaslandirmaDilimi[];
 }
 
-export type ListCarilerParams = {
-sirketId?: number;
-tip?: string;
+export type ListFirmalarParams = {
+tip?: ListFirmalarTip;
+ustFirmaId?: number;
 arama?: string;
 };
 
+export type ListFirmalarTip = typeof ListFirmalarTip[keyof typeof ListFirmalarTip];
+
+
+export const ListFirmalarTip = {
+  cati: 'cati',
+  bagli: 'bagli',
+} as const;
+
 export type ListGemilerParams = {
-cariId?: number;
-sirketId?: number;
+firmaId?: number;
+catiFirmaId?: number;
 };
 
 export type ListBankaHesaplariParams = {
-sirketId?: number;
+catiFirmaId?: number;
 };
 
 export type ListFaturalarParams = {
-sirketId?: number;
-cariId?: number;
+catiFirmaId?: number;
+bagliFirmaId?: number;
 durum?: string;
 paraBirimi?: string;
 baslangicTarihi?: string;
@@ -775,43 +724,37 @@ bitisTarihi?: string;
 };
 
 export type ListOdemelerParams = {
-sirketId?: number;
-cariId?: number;
+catiFirmaId?: number;
+bagliFirmaId?: number;
 faturaId?: number;
 tip?: string;
 };
 
-export type ListStarlinkPlanlariParams = {
-sirketId?: number;
-gemiId?: number;
-aktif?: boolean;
-};
-
 export type ListEkipmanlarParams = {
-sirketId?: number;
+catiFirmaId?: number;
 gemiId?: number;
 };
 
 export type ListKdvOranlariParams = {
-sirketId?: number;
+catiFirmaId?: number;
 };
 
 export type ListFaturaSerileriParams = {
-sirketId?: number;
+catiFirmaId?: number;
 };
 
 export type GetDashboardOzetParams = {
 /**
  * @nullable
  */
-sirketId?: number | null;
+catiFirmaId?: number | null;
 };
 
 export type GetVadesiYaklasanFaturalarParams = {
 /**
  * @nullable
  */
-sirketId?: number | null;
+catiFirmaId?: number | null;
 gun?: number;
 };
 
@@ -819,7 +762,7 @@ export type GetSonIslemlerParams = {
 /**
  * @nullable
  */
-sirketId?: number | null;
+catiFirmaId?: number | null;
 limit?: number;
 };
 
@@ -827,23 +770,15 @@ export type GetAylikGelirParams = {
 /**
  * @nullable
  */
-sirketId?: number | null;
+catiFirmaId?: number | null;
 yil?: number;
-};
-
-export type GetYenilemeyeYaklasanPlanlarParams = {
-/**
- * @nullable
- */
-sirketId?: number | null;
-gun?: number;
 };
 
 export type GetKdvOzetiParams = {
 /**
  * @nullable
  */
-sirketId?: number | null;
+catiFirmaId?: number | null;
 yil?: number;
 ay?: number;
 };
@@ -852,6 +787,6 @@ export type GetAlacakYaslandirmaParams = {
 /**
  * @nullable
  */
-sirketId?: number | null;
+catiFirmaId?: number | null;
 };
 

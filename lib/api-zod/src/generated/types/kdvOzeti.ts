@@ -3,15 +3,15 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
+import type { KdvFirmaKirilim } from './kdvFirmaKirilim';
 import type { KdvParaBirimiKirilim } from './kdvParaBirimiKirilim';
-import type { KdvSirketKirilim } from './kdvSirketKirilim';
 
 export interface KdvOzeti {
   kdvHaricToplam: number;
   kdvTutariToplam: number;
   kdvDahilToplam: number;
   paraBirimiKirilim: KdvParaBirimiKirilim[];
-  sirketKirilim: KdvSirketKirilim[];
+  firmaKirilim: KdvFirmaKirilim[];
 }

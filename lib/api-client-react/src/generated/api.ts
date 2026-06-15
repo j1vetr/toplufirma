@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import {
   useMutation,
@@ -26,11 +26,6 @@ import type {
   BankaHesabi,
   BankaHesabiInput,
   BankaHesabiUpdate,
-  Cari,
-  CariDetay,
-  CariEkstre,
-  CariInput,
-  CariUpdate,
   DashboardOzet,
   Ekipman,
   EkipmanInput,
@@ -42,6 +37,13 @@ import type {
   FaturaSeriInput,
   FaturaSeriUpdate,
   FaturaUpdate,
+  Firma,
+  FirmaDetay,
+  FirmaEkstre,
+  FirmaEpostaAyarlari,
+  FirmaEpostaAyarlariInput,
+  FirmaInput,
+  FirmaUpdate,
   Gemi,
   GemiDetay,
   GemiInput,
@@ -52,31 +54,23 @@ import type {
   GetKdvOzetiParams,
   GetSonIslemlerParams,
   GetVadesiYaklasanFaturalarParams,
-  GetYenilemeyeYaklasanPlanlarParams,
   HealthStatus,
   KdvOrani,
   KdvOraniInput,
   KdvOraniUpdate,
   KdvOzeti,
   ListBankaHesaplariParams,
-  ListCarilerParams,
   ListEkipmanlarParams,
   ListFaturaSerileriParams,
   ListFaturalarParams,
+  ListFirmalarParams,
   ListGemilerParams,
   ListKdvOranlariParams,
   ListOdemelerParams,
-  ListStarlinkPlanlariParams,
   Odeme,
   OdemeInput,
   OdemeUpdate,
-  Sirket,
-  SirketInput,
-  SirketUpdate,
-  SonIslemler,
-  StarlinkPlani,
-  StarlinkPlaniInput,
-  StarlinkPlaniUpdate
+  SonIslemler
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -168,374 +162,7 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
-export const getListSirketlerUrl = () => {
-
-
-
-
-  return `/api/sirketler`
-}
-
-/**
- * @summary Şirketleri listele
- */
-export const listSirketler = async ( options?: RequestInit): Promise<Sirket[]> => {
-
-  return customFetch<Sirket[]>(getListSirketlerUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListSirketlerQueryKey = () => {
-    return [
-    `/api/sirketler`
-    ] as const;
-    }
-
-
-export const getListSirketlerQueryOptions = <TData = Awaited<ReturnType<typeof listSirketler>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSirketler>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListSirketlerQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSirketler>>> = ({ signal }) => listSirketler({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSirketler>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListSirketlerQueryResult = NonNullable<Awaited<ReturnType<typeof listSirketler>>>
-export type ListSirketlerQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Şirketleri listele
- */
-
-export function useListSirketler<TData = Awaited<ReturnType<typeof listSirketler>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSirketler>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListSirketlerQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getCreateSirketUrl = () => {
-
-
-
-
-  return `/api/sirketler`
-}
-
-/**
- * @summary Yeni şirket oluştur
- */
-export const createSirket = async (sirketInput: SirketInput, options?: RequestInit): Promise<Sirket> => {
-
-  return customFetch<Sirket>(getCreateSirketUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      sirketInput,)
-  }
-);}
-
-
-
-
-export const getCreateSirketMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSirket>>, TError,{data: BodyType<SirketInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createSirket>>, TError,{data: BodyType<SirketInput>}, TContext> => {
-
-const mutationKey = ['createSirket'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSirket>>, {data: BodyType<SirketInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  createSirket(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CreateSirketMutationResult = NonNullable<Awaited<ReturnType<typeof createSirket>>>
-    export type CreateSirketMutationBody = BodyType<SirketInput>
-    export type CreateSirketMutationError = ErrorType<unknown>
-
-    /**
- * @summary Yeni şirket oluştur
- */
-export const useCreateSirket = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSirket>>, TError,{data: BodyType<SirketInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createSirket>>,
-        TError,
-        {data: BodyType<SirketInput>},
-        TContext
-      > => {
-      return useMutation(getCreateSirketMutationOptions(options));
-    }
-
-export const getGetSirketUrl = (id: number,) => {
-
-
-
-
-  return `/api/sirketler/${id}`
-}
-
-/**
- * @summary Şirketi getir
- */
-export const getSirket = async (id: number, options?: RequestInit): Promise<Sirket> => {
-
-  return customFetch<Sirket>(getGetSirketUrl(id),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetSirketQueryKey = (id: number,) => {
-    return [
-    `/api/sirketler/${id}`
-    ] as const;
-    }
-
-
-export const getGetSirketQueryOptions = <TData = Awaited<ReturnType<typeof getSirket>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSirket>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetSirketQueryKey(id);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSirket>>> = ({ signal }) => getSirket(id, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSirket>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetSirketQueryResult = NonNullable<Awaited<ReturnType<typeof getSirket>>>
-export type GetSirketQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Şirketi getir
- */
-
-export function useGetSirket<TData = Awaited<ReturnType<typeof getSirket>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSirket>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetSirketQueryOptions(id,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getUpdateSirketUrl = (id: number,) => {
-
-
-
-
-  return `/api/sirketler/${id}`
-}
-
-/**
- * @summary Şirketi güncelle
- */
-export const updateSirket = async (id: number,
-    sirketUpdate: SirketUpdate, options?: RequestInit): Promise<Sirket> => {
-
-  return customFetch<Sirket>(getUpdateSirketUrl(id),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      sirketUpdate,)
-  }
-);}
-
-
-
-
-export const getUpdateSirketMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSirket>>, TError,{id: number;data: BodyType<SirketUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateSirket>>, TError,{id: number;data: BodyType<SirketUpdate>}, TContext> => {
-
-const mutationKey = ['updateSirket'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSirket>>, {id: number;data: BodyType<SirketUpdate>}> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  updateSirket(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateSirketMutationResult = NonNullable<Awaited<ReturnType<typeof updateSirket>>>
-    export type UpdateSirketMutationBody = BodyType<SirketUpdate>
-    export type UpdateSirketMutationError = ErrorType<unknown>
-
-    /**
- * @summary Şirketi güncelle
- */
-export const useUpdateSirket = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSirket>>, TError,{id: number;data: BodyType<SirketUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateSirket>>,
-        TError,
-        {id: number;data: BodyType<SirketUpdate>},
-        TContext
-      > => {
-      return useMutation(getUpdateSirketMutationOptions(options));
-    }
-
-export const getDeleteSirketUrl = (id: number,) => {
-
-
-
-
-  return `/api/sirketler/${id}`
-}
-
-/**
- * @summary Şirketi sil
- */
-export const deleteSirket = async (id: number, options?: RequestInit): Promise<void> => {
-
-  return customFetch<void>(getDeleteSirketUrl(id),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-export const getDeleteSirketMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSirket>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteSirket>>, TError,{id: number}, TContext> => {
-
-const mutationKey = ['deleteSirket'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSirket>>, {id: number}> = (props) => {
-          const {id} = props ?? {};
-
-          return  deleteSirket(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeleteSirketMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSirket>>>
-
-    export type DeleteSirketMutationError = ErrorType<unknown>
-
-    /**
- * @summary Şirketi sil
- */
-export const useDeleteSirket = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSirket>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof deleteSirket>>,
-        TError,
-        {id: number},
-        TContext
-      > => {
-      return useMutation(getDeleteSirketMutationOptions(options));
-    }
-
-export const getListCarilerUrl = (params?: ListCarilerParams,) => {
+export const getListFirmalarUrl = (params?: ListFirmalarParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -547,15 +174,15 @@ export const getListCarilerUrl = (params?: ListCarilerParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/cariler?${stringifiedParams}` : `/api/cariler`
+  return stringifiedParams.length > 0 ? `/api/firmalar?${stringifiedParams}` : `/api/firmalar`
 }
 
 /**
- * @summary Carileri listele
+ * @summary Firmaları listele
  */
-export const listCariler = async (params?: ListCarilerParams, options?: RequestInit): Promise<Cari[]> => {
+export const listFirmalar = async (params?: ListFirmalarParams, options?: RequestInit): Promise<Firma[]> => {
 
-  return customFetch<Cari[]>(getListCarilerUrl(params),
+  return customFetch<Firma[]>(getListFirmalarUrl(params),
   {
     ...options,
     method: 'GET'
@@ -568,45 +195,45 @@ export const listCariler = async (params?: ListCarilerParams, options?: RequestI
 
 
 
-export const getListCarilerQueryKey = (params?: ListCarilerParams,) => {
+export const getListFirmalarQueryKey = (params?: ListFirmalarParams,) => {
     return [
-    `/api/cariler`, ...(params ? [params] : [])
+    `/api/firmalar`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListCarilerQueryOptions = <TData = Awaited<ReturnType<typeof listCariler>>, TError = ErrorType<unknown>>(params?: ListCarilerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCariler>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListFirmalarQueryOptions = <TData = Awaited<ReturnType<typeof listFirmalar>>, TError = ErrorType<unknown>>(params?: ListFirmalarParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFirmalar>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListCarilerQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getListFirmalarQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCariler>>> = ({ signal }) => listCariler(params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFirmalar>>> = ({ signal }) => listFirmalar(params, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCariler>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFirmalar>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type ListCarilerQueryResult = NonNullable<Awaited<ReturnType<typeof listCariler>>>
-export type ListCarilerQueryError = ErrorType<unknown>
+export type ListFirmalarQueryResult = NonNullable<Awaited<ReturnType<typeof listFirmalar>>>
+export type ListFirmalarQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Carileri listele
+ * @summary Firmaları listele
  */
 
-export function useListCariler<TData = Awaited<ReturnType<typeof listCariler>>, TError = ErrorType<unknown>>(
- params?: ListCarilerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCariler>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useListFirmalar<TData = Awaited<ReturnType<typeof listFirmalar>>, TError = ErrorType<unknown>>(
+ params?: ListFirmalarParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFirmalar>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListCarilerQueryOptions(params,options)
+  const queryOptions = getListFirmalarQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -619,37 +246,37 @@ export function useListCariler<TData = Awaited<ReturnType<typeof listCariler>>, 
 
 
 
-export const getCreateCariUrl = () => {
+export const getCreateFirmaUrl = () => {
 
 
 
 
-  return `/api/cariler`
+  return `/api/firmalar`
 }
 
 /**
- * @summary Yeni cari oluştur
+ * @summary Yeni firma oluştur
  */
-export const createCari = async (cariInput: CariInput, options?: RequestInit): Promise<Cari> => {
+export const createFirma = async (firmaInput: FirmaInput, options?: RequestInit): Promise<Firma> => {
 
-  return customFetch<Cari>(getCreateCariUrl(),
+  return customFetch<Firma>(getCreateFirmaUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      cariInput,)
+      firmaInput,)
   }
 );}
 
 
 
 
-export const getCreateCariMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCari>>, TError,{data: BodyType<CariInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createCari>>, TError,{data: BodyType<CariInput>}, TContext> => {
+export const getCreateFirmaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFirma>>, TError,{data: BodyType<FirmaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFirma>>, TError,{data: BodyType<FirmaInput>}, TContext> => {
 
-const mutationKey = ['createCari'];
+const mutationKey = ['createFirma'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -659,10 +286,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCari>>, {data: BodyType<CariInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFirma>>, {data: BodyType<FirmaInput>}> = (props) => {
           const {data} = props ?? {};
 
-          return  createCari(data,requestOptions)
+          return  createFirma(data,requestOptions)
         }
 
 
@@ -672,38 +299,38 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type CreateCariMutationResult = NonNullable<Awaited<ReturnType<typeof createCari>>>
-    export type CreateCariMutationBody = BodyType<CariInput>
-    export type CreateCariMutationError = ErrorType<unknown>
+    export type CreateFirmaMutationResult = NonNullable<Awaited<ReturnType<typeof createFirma>>>
+    export type CreateFirmaMutationBody = BodyType<FirmaInput>
+    export type CreateFirmaMutationError = ErrorType<unknown>
 
     /**
- * @summary Yeni cari oluştur
+ * @summary Yeni firma oluştur
  */
-export const useCreateCari = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCari>>, TError,{data: BodyType<CariInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useCreateFirma = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFirma>>, TError,{data: BodyType<FirmaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof createCari>>,
+        Awaited<ReturnType<typeof createFirma>>,
         TError,
-        {data: BodyType<CariInput>},
+        {data: BodyType<FirmaInput>},
         TContext
       > => {
-      return useMutation(getCreateCariMutationOptions(options));
+      return useMutation(getCreateFirmaMutationOptions(options));
     }
 
-export const getGetCariUrl = (id: number,) => {
+export const getGetFirmaUrl = (id: number,) => {
 
 
 
 
-  return `/api/cariler/${id}`
+  return `/api/firmalar/${id}`
 }
 
 /**
- * @summary Cariyi getir
+ * @summary Firmayı getir
  */
-export const getCari = async (id: number, options?: RequestInit): Promise<CariDetay> => {
+export const getFirma = async (id: number, options?: RequestInit): Promise<FirmaDetay> => {
 
-  return customFetch<CariDetay>(getGetCariUrl(id),
+  return customFetch<FirmaDetay>(getGetFirmaUrl(id),
   {
     ...options,
     method: 'GET'
@@ -716,45 +343,45 @@ export const getCari = async (id: number, options?: RequestInit): Promise<CariDe
 
 
 
-export const getGetCariQueryKey = (id: number,) => {
+export const getGetFirmaQueryKey = (id: number,) => {
     return [
-    `/api/cariler/${id}`
+    `/api/firmalar/${id}`
     ] as const;
     }
 
 
-export const getGetCariQueryOptions = <TData = Awaited<ReturnType<typeof getCari>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCari>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetFirmaQueryOptions = <TData = Awaited<ReturnType<typeof getFirma>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirma>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetCariQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getGetFirmaQueryKey(id);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCari>>> = ({ signal }) => getCari(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFirma>>> = ({ signal }) => getFirma(id, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCari>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFirma>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetCariQueryResult = NonNullable<Awaited<ReturnType<typeof getCari>>>
-export type GetCariQueryError = ErrorType<unknown>
+export type GetFirmaQueryResult = NonNullable<Awaited<ReturnType<typeof getFirma>>>
+export type GetFirmaQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Cariyi getir
+ * @summary Firmayı getir
  */
 
-export function useGetCari<TData = Awaited<ReturnType<typeof getCari>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCari>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetFirma<TData = Awaited<ReturnType<typeof getFirma>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirma>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetCariQueryOptions(id,options)
+  const queryOptions = getGetFirmaQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -767,38 +394,38 @@ export function useGetCari<TData = Awaited<ReturnType<typeof getCari>>, TError =
 
 
 
-export const getUpdateCariUrl = (id: number,) => {
+export const getUpdateFirmaUrl = (id: number,) => {
 
 
 
 
-  return `/api/cariler/${id}`
+  return `/api/firmalar/${id}`
 }
 
 /**
- * @summary Cariyi güncelle
+ * @summary Firmayı güncelle
  */
-export const updateCari = async (id: number,
-    cariUpdate: CariUpdate, options?: RequestInit): Promise<Cari> => {
+export const updateFirma = async (id: number,
+    firmaUpdate: FirmaUpdate, options?: RequestInit): Promise<Firma> => {
 
-  return customFetch<Cari>(getUpdateCariUrl(id),
+  return customFetch<Firma>(getUpdateFirmaUrl(id),
   {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      cariUpdate,)
+      firmaUpdate,)
   }
 );}
 
 
 
 
-export const getUpdateCariMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCari>>, TError,{id: number;data: BodyType<CariUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateCari>>, TError,{id: number;data: BodyType<CariUpdate>}, TContext> => {
+export const getUpdateFirmaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFirma>>, TError,{id: number;data: BodyType<FirmaUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFirma>>, TError,{id: number;data: BodyType<FirmaUpdate>}, TContext> => {
 
-const mutationKey = ['updateCari'];
+const mutationKey = ['updateFirma'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -808,10 +435,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCari>>, {id: number;data: BodyType<CariUpdate>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFirma>>, {id: number;data: BodyType<FirmaUpdate>}> = (props) => {
           const {id,data} = props ?? {};
 
-          return  updateCari(id,data,requestOptions)
+          return  updateFirma(id,data,requestOptions)
         }
 
 
@@ -821,38 +448,38 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type UpdateCariMutationResult = NonNullable<Awaited<ReturnType<typeof updateCari>>>
-    export type UpdateCariMutationBody = BodyType<CariUpdate>
-    export type UpdateCariMutationError = ErrorType<unknown>
+    export type UpdateFirmaMutationResult = NonNullable<Awaited<ReturnType<typeof updateFirma>>>
+    export type UpdateFirmaMutationBody = BodyType<FirmaUpdate>
+    export type UpdateFirmaMutationError = ErrorType<unknown>
 
     /**
- * @summary Cariyi güncelle
+ * @summary Firmayı güncelle
  */
-export const useUpdateCari = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCari>>, TError,{id: number;data: BodyType<CariUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useUpdateFirma = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFirma>>, TError,{id: number;data: BodyType<FirmaUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof updateCari>>,
+        Awaited<ReturnType<typeof updateFirma>>,
         TError,
-        {id: number;data: BodyType<CariUpdate>},
+        {id: number;data: BodyType<FirmaUpdate>},
         TContext
       > => {
-      return useMutation(getUpdateCariMutationOptions(options));
+      return useMutation(getUpdateFirmaMutationOptions(options));
     }
 
-export const getDeleteCariUrl = (id: number,) => {
+export const getDeleteFirmaUrl = (id: number,) => {
 
 
 
 
-  return `/api/cariler/${id}`
+  return `/api/firmalar/${id}`
 }
 
 /**
- * @summary Cariyi sil
+ * @summary Firmayı sil
  */
-export const deleteCari = async (id: number, options?: RequestInit): Promise<void> => {
+export const deleteFirma = async (id: number, options?: RequestInit): Promise<void> => {
 
-  return customFetch<void>(getDeleteCariUrl(id),
+  return customFetch<void>(getDeleteFirmaUrl(id),
   {
     ...options,
     method: 'DELETE'
@@ -864,11 +491,11 @@ export const deleteCari = async (id: number, options?: RequestInit): Promise<voi
 
 
 
-export const getDeleteCariMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCari>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteCari>>, TError,{id: number}, TContext> => {
+export const getDeleteFirmaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFirma>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFirma>>, TError,{id: number}, TContext> => {
 
-const mutationKey = ['deleteCari'];
+const mutationKey = ['deleteFirma'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -878,10 +505,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCari>>, {id: number}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFirma>>, {id: number}> = (props) => {
           const {id} = props ?? {};
 
-          return  deleteCari(id,requestOptions)
+          return  deleteFirma(id,requestOptions)
         }
 
 
@@ -891,38 +518,38 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type DeleteCariMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCari>>>
+    export type DeleteFirmaMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFirma>>>
 
-    export type DeleteCariMutationError = ErrorType<unknown>
+    export type DeleteFirmaMutationError = ErrorType<unknown>
 
     /**
- * @summary Cariyi sil
+ * @summary Firmayı sil
  */
-export const useDeleteCari = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCari>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useDeleteFirma = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFirma>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof deleteCari>>,
+        Awaited<ReturnType<typeof deleteFirma>>,
         TError,
         {id: number},
         TContext
       > => {
-      return useMutation(getDeleteCariMutationOptions(options));
+      return useMutation(getDeleteFirmaMutationOptions(options));
     }
 
-export const getGetCariEkstreUrl = (id: number,) => {
+export const getGetFirmaEkstreUrl = (id: number,) => {
 
 
 
 
-  return `/api/cariler/${id}/ekstre`
+  return `/api/firmalar/${id}/ekstre`
 }
 
 /**
- * @summary Cari ekstre
+ * @summary Firma ekstre (bağlı firmalar için)
  */
-export const getCariEkstre = async (id: number, options?: RequestInit): Promise<CariEkstre> => {
+export const getFirmaEkstre = async (id: number, options?: RequestInit): Promise<FirmaEkstre> => {
 
-  return customFetch<CariEkstre>(getGetCariEkstreUrl(id),
+  return customFetch<FirmaEkstre>(getGetFirmaEkstreUrl(id),
   {
     ...options,
     method: 'GET'
@@ -935,45 +562,45 @@ export const getCariEkstre = async (id: number, options?: RequestInit): Promise<
 
 
 
-export const getGetCariEkstreQueryKey = (id: number,) => {
+export const getGetFirmaEkstreQueryKey = (id: number,) => {
     return [
-    `/api/cariler/${id}/ekstre`
+    `/api/firmalar/${id}/ekstre`
     ] as const;
     }
 
 
-export const getGetCariEkstreQueryOptions = <TData = Awaited<ReturnType<typeof getCariEkstre>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCariEkstre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetFirmaEkstreQueryOptions = <TData = Awaited<ReturnType<typeof getFirmaEkstre>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetCariEkstreQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getGetFirmaEkstreQueryKey(id);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCariEkstre>>> = ({ signal }) => getCariEkstre(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFirmaEkstre>>> = ({ signal }) => getFirmaEkstre(id, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCariEkstre>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstre>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetCariEkstreQueryResult = NonNullable<Awaited<ReturnType<typeof getCariEkstre>>>
-export type GetCariEkstreQueryError = ErrorType<unknown>
+export type GetFirmaEkstreQueryResult = NonNullable<Awaited<ReturnType<typeof getFirmaEkstre>>>
+export type GetFirmaEkstreQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Cari ekstre
+ * @summary Firma ekstre (bağlı firmalar için)
  */
 
-export function useGetCariEkstre<TData = Awaited<ReturnType<typeof getCariEkstre>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCariEkstre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetFirmaEkstre<TData = Awaited<ReturnType<typeof getFirmaEkstre>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetCariEkstreQueryOptions(id,options)
+  const queryOptions = getGetFirmaEkstreQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -985,6 +612,155 @@ export function useGetCariEkstre<TData = Awaited<ReturnType<typeof getCariEkstre
 
 
 
+
+export const getGetFirmaEpostaAyarlariUrl = (id: number,) => {
+
+
+
+
+  return `/api/firmalar/${id}/eposta-ayarlari`
+}
+
+/**
+ * @summary Firma e-posta ayarlarını getir (çatı firmalar)
+ */
+export const getFirmaEpostaAyarlari = async (id: number, options?: RequestInit): Promise<FirmaEpostaAyarlari> => {
+
+  return customFetch<FirmaEpostaAyarlari>(getGetFirmaEpostaAyarlariUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFirmaEpostaAyarlariQueryKey = (id: number,) => {
+    return [
+    `/api/firmalar/${id}/eposta-ayarlari`
+    ] as const;
+    }
+
+
+export const getGetFirmaEpostaAyarlariQueryOptions = <TData = Awaited<ReturnType<typeof getFirmaEpostaAyarlari>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEpostaAyarlari>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFirmaEpostaAyarlariQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFirmaEpostaAyarlari>>> = ({ signal }) => getFirmaEpostaAyarlari(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFirmaEpostaAyarlari>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFirmaEpostaAyarlariQueryResult = NonNullable<Awaited<ReturnType<typeof getFirmaEpostaAyarlari>>>
+export type GetFirmaEpostaAyarlariQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Firma e-posta ayarlarını getir (çatı firmalar)
+ */
+
+export function useGetFirmaEpostaAyarlari<TData = Awaited<ReturnType<typeof getFirmaEpostaAyarlari>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEpostaAyarlari>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFirmaEpostaAyarlariQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpsertFirmaEpostaAyarlariUrl = (id: number,) => {
+
+
+
+
+  return `/api/firmalar/${id}/eposta-ayarlari`
+}
+
+/**
+ * @summary Firma e-posta ayarlarını kaydet
+ */
+export const upsertFirmaEpostaAyarlari = async (id: number,
+    firmaEpostaAyarlariInput: FirmaEpostaAyarlariInput, options?: RequestInit): Promise<FirmaEpostaAyarlari> => {
+
+  return customFetch<FirmaEpostaAyarlari>(getUpsertFirmaEpostaAyarlariUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      firmaEpostaAyarlariInput,)
+  }
+);}
+
+
+
+
+export const getUpsertFirmaEpostaAyarlariMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertFirmaEpostaAyarlari>>, TError,{id: number;data: BodyType<FirmaEpostaAyarlariInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof upsertFirmaEpostaAyarlari>>, TError,{id: number;data: BodyType<FirmaEpostaAyarlariInput>}, TContext> => {
+
+const mutationKey = ['upsertFirmaEpostaAyarlari'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertFirmaEpostaAyarlari>>, {id: number;data: BodyType<FirmaEpostaAyarlariInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  upsertFirmaEpostaAyarlari(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpsertFirmaEpostaAyarlariMutationResult = NonNullable<Awaited<ReturnType<typeof upsertFirmaEpostaAyarlari>>>
+    export type UpsertFirmaEpostaAyarlariMutationBody = BodyType<FirmaEpostaAyarlariInput>
+    export type UpsertFirmaEpostaAyarlariMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Firma e-posta ayarlarını kaydet
+ */
+export const useUpsertFirmaEpostaAyarlari = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertFirmaEpostaAyarlari>>, TError,{id: number;data: BodyType<FirmaEpostaAyarlariInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof upsertFirmaEpostaAyarlari>>,
+        TError,
+        {id: number;data: BodyType<FirmaEpostaAyarlariInput>},
+        TContext
+      > => {
+      return useMutation(getUpsertFirmaEpostaAyarlariMutationOptions(options));
+    }
 
 export const getListGemilerUrl = (params?: ListGemilerParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -2559,380 +2335,6 @@ export const useDeleteOdeme = <TError = ErrorType<unknown>,
       return useMutation(getDeleteOdemeMutationOptions(options));
     }
 
-export const getListStarlinkPlanlariUrl = (params?: ListStarlinkPlanlariParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/starlink-planlari?${stringifiedParams}` : `/api/starlink-planlari`
-}
-
-/**
- * @summary Starlink planlarını listele
- */
-export const listStarlinkPlanlari = async (params?: ListStarlinkPlanlariParams, options?: RequestInit): Promise<StarlinkPlani[]> => {
-
-  return customFetch<StarlinkPlani[]>(getListStarlinkPlanlariUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListStarlinkPlanlariQueryKey = (params?: ListStarlinkPlanlariParams,) => {
-    return [
-    `/api/starlink-planlari`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getListStarlinkPlanlariQueryOptions = <TData = Awaited<ReturnType<typeof listStarlinkPlanlari>>, TError = ErrorType<unknown>>(params?: ListStarlinkPlanlariParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStarlinkPlanlari>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListStarlinkPlanlariQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStarlinkPlanlari>>> = ({ signal }) => listStarlinkPlanlari(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStarlinkPlanlari>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListStarlinkPlanlariQueryResult = NonNullable<Awaited<ReturnType<typeof listStarlinkPlanlari>>>
-export type ListStarlinkPlanlariQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Starlink planlarını listele
- */
-
-export function useListStarlinkPlanlari<TData = Awaited<ReturnType<typeof listStarlinkPlanlari>>, TError = ErrorType<unknown>>(
- params?: ListStarlinkPlanlariParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStarlinkPlanlari>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListStarlinkPlanlariQueryOptions(params,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getCreateStarlinkPlaniUrl = () => {
-
-
-
-
-  return `/api/starlink-planlari`
-}
-
-/**
- * @summary Yeni Starlink planı oluştur
- */
-export const createStarlinkPlani = async (starlinkPlaniInput: StarlinkPlaniInput, options?: RequestInit): Promise<StarlinkPlani> => {
-
-  return customFetch<StarlinkPlani>(getCreateStarlinkPlaniUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      starlinkPlaniInput,)
-  }
-);}
-
-
-
-
-export const getCreateStarlinkPlaniMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStarlinkPlani>>, TError,{data: BodyType<StarlinkPlaniInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createStarlinkPlani>>, TError,{data: BodyType<StarlinkPlaniInput>}, TContext> => {
-
-const mutationKey = ['createStarlinkPlani'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStarlinkPlani>>, {data: BodyType<StarlinkPlaniInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  createStarlinkPlani(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CreateStarlinkPlaniMutationResult = NonNullable<Awaited<ReturnType<typeof createStarlinkPlani>>>
-    export type CreateStarlinkPlaniMutationBody = BodyType<StarlinkPlaniInput>
-    export type CreateStarlinkPlaniMutationError = ErrorType<unknown>
-
-    /**
- * @summary Yeni Starlink planı oluştur
- */
-export const useCreateStarlinkPlani = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStarlinkPlani>>, TError,{data: BodyType<StarlinkPlaniInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createStarlinkPlani>>,
-        TError,
-        {data: BodyType<StarlinkPlaniInput>},
-        TContext
-      > => {
-      return useMutation(getCreateStarlinkPlaniMutationOptions(options));
-    }
-
-export const getGetStarlinkPlaniUrl = (id: number,) => {
-
-
-
-
-  return `/api/starlink-planlari/${id}`
-}
-
-/**
- * @summary Starlink planını getir
- */
-export const getStarlinkPlani = async (id: number, options?: RequestInit): Promise<StarlinkPlani> => {
-
-  return customFetch<StarlinkPlani>(getGetStarlinkPlaniUrl(id),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetStarlinkPlaniQueryKey = (id: number,) => {
-    return [
-    `/api/starlink-planlari/${id}`
-    ] as const;
-    }
-
-
-export const getGetStarlinkPlaniQueryOptions = <TData = Awaited<ReturnType<typeof getStarlinkPlani>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStarlinkPlani>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetStarlinkPlaniQueryKey(id);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStarlinkPlani>>> = ({ signal }) => getStarlinkPlani(id, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStarlinkPlani>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetStarlinkPlaniQueryResult = NonNullable<Awaited<ReturnType<typeof getStarlinkPlani>>>
-export type GetStarlinkPlaniQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Starlink planını getir
- */
-
-export function useGetStarlinkPlani<TData = Awaited<ReturnType<typeof getStarlinkPlani>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStarlinkPlani>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetStarlinkPlaniQueryOptions(id,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getUpdateStarlinkPlaniUrl = (id: number,) => {
-
-
-
-
-  return `/api/starlink-planlari/${id}`
-}
-
-/**
- * @summary Starlink planını güncelle
- */
-export const updateStarlinkPlani = async (id: number,
-    starlinkPlaniUpdate: StarlinkPlaniUpdate, options?: RequestInit): Promise<StarlinkPlani> => {
-
-  return customFetch<StarlinkPlani>(getUpdateStarlinkPlaniUrl(id),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      starlinkPlaniUpdate,)
-  }
-);}
-
-
-
-
-export const getUpdateStarlinkPlaniMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStarlinkPlani>>, TError,{id: number;data: BodyType<StarlinkPlaniUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateStarlinkPlani>>, TError,{id: number;data: BodyType<StarlinkPlaniUpdate>}, TContext> => {
-
-const mutationKey = ['updateStarlinkPlani'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStarlinkPlani>>, {id: number;data: BodyType<StarlinkPlaniUpdate>}> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  updateStarlinkPlani(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateStarlinkPlaniMutationResult = NonNullable<Awaited<ReturnType<typeof updateStarlinkPlani>>>
-    export type UpdateStarlinkPlaniMutationBody = BodyType<StarlinkPlaniUpdate>
-    export type UpdateStarlinkPlaniMutationError = ErrorType<unknown>
-
-    /**
- * @summary Starlink planını güncelle
- */
-export const useUpdateStarlinkPlani = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStarlinkPlani>>, TError,{id: number;data: BodyType<StarlinkPlaniUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateStarlinkPlani>>,
-        TError,
-        {id: number;data: BodyType<StarlinkPlaniUpdate>},
-        TContext
-      > => {
-      return useMutation(getUpdateStarlinkPlaniMutationOptions(options));
-    }
-
-export const getDeleteStarlinkPlaniUrl = (id: number,) => {
-
-
-
-
-  return `/api/starlink-planlari/${id}`
-}
-
-/**
- * @summary Starlink planını sil
- */
-export const deleteStarlinkPlani = async (id: number, options?: RequestInit): Promise<void> => {
-
-  return customFetch<void>(getDeleteStarlinkPlaniUrl(id),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-export const getDeleteStarlinkPlaniMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStarlinkPlani>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteStarlinkPlani>>, TError,{id: number}, TContext> => {
-
-const mutationKey = ['deleteStarlinkPlani'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStarlinkPlani>>, {id: number}> = (props) => {
-          const {id} = props ?? {};
-
-          return  deleteStarlinkPlani(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeleteStarlinkPlaniMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStarlinkPlani>>>
-
-    export type DeleteStarlinkPlaniMutationError = ErrorType<unknown>
-
-    /**
- * @summary Starlink planını sil
- */
-export const useDeleteStarlinkPlani = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStarlinkPlani>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof deleteStarlinkPlani>>,
-        TError,
-        {id: number},
-        TContext
-      > => {
-      return useMutation(getDeleteStarlinkPlaniMutationOptions(options));
-    }
-
 export const getListEkipmanlarUrl = (params?: ListEkipmanlarParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -4148,90 +3550,6 @@ export function useGetAylikGelir<TData = Awaited<ReturnType<typeof getAylikGelir
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAylikGelirQueryOptions(params,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getGetYenilemeyeYaklasanPlanlarUrl = (params?: GetYenilemeyeYaklasanPlanlarParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/dashboard/yenileme-uyarilari?${stringifiedParams}` : `/api/dashboard/yenileme-uyarilari`
-}
-
-/**
- * @summary Süresi dolmak üzere olan Starlink planları
- */
-export const getYenilemeyeYaklasanPlanlar = async (params?: GetYenilemeyeYaklasanPlanlarParams, options?: RequestInit): Promise<StarlinkPlani[]> => {
-
-  return customFetch<StarlinkPlani[]>(getGetYenilemeyeYaklasanPlanlarUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetYenilemeyeYaklasanPlanlarQueryKey = (params?: GetYenilemeyeYaklasanPlanlarParams,) => {
-    return [
-    `/api/dashboard/yenileme-uyarilari`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getGetYenilemeyeYaklasanPlanlarQueryOptions = <TData = Awaited<ReturnType<typeof getYenilemeyeYaklasanPlanlar>>, TError = ErrorType<unknown>>(params?: GetYenilemeyeYaklasanPlanlarParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYenilemeyeYaklasanPlanlar>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetYenilemeyeYaklasanPlanlarQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getYenilemeyeYaklasanPlanlar>>> = ({ signal }) => getYenilemeyeYaklasanPlanlar(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getYenilemeyeYaklasanPlanlar>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetYenilemeyeYaklasanPlanlarQueryResult = NonNullable<Awaited<ReturnType<typeof getYenilemeyeYaklasanPlanlar>>>
-export type GetYenilemeyeYaklasanPlanlarQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Süresi dolmak üzere olan Starlink planları
- */
-
-export function useGetYenilemeyeYaklasanPlanlar<TData = Awaited<ReturnType<typeof getYenilemeyeYaklasanPlanlar>>, TError = ErrorType<unknown>>(
- params?: GetYenilemeyeYaklasanPlanlarParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYenilemeyeYaklasanPlanlar>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetYenilemeyeYaklasanPlanlarQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

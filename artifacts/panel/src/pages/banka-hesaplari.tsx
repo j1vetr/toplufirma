@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListBankaHesaplari, getListBankaHesaplariQueryKey,
-  useListSirketler, getListSirketlerQueryKey,
+  useListFirmalar, getListFirmalarQueryKey,
   useCreateBankaHesabi, useUpdateBankaHesabi, useDeleteBankaHesabi,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Landmark, ChevronRight, TrendingUp, TrendingDown } from "lucide-react";
 
 interface HesapForm {
-  sirketId: string;
+  catiFirmaId: string;
   bankaAdi: string;
   hesapAdi: string;
   iban: string;
@@ -35,7 +35,7 @@ interface HesapForm {
   aciklama: string;
 }
 
-const BOSH: HesapForm = { sirketId: "", bankaAdi: "", hesapAdi: "", iban: "", paraBirimi: "TRY", subeAdi: "", aciklama: "" };
+const BOSH: HesapForm = { catiFirmaId: "", bankaAdi: "", hesapAdi: "", iban: "", paraBirimi: "TRY", subeAdi: "", aciklama: "" };
 
 const fmt = (n: number, pb = "TRY") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
@@ -49,7 +49,10 @@ export default function BankaHesaplari() {
   const [silId, setSilId] = useState<number | null>(null);
 
   const { data: hesaplar = [], isLoading } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
-  const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
+  const { data: catiFirmalar = [] } = useListFirmalar(
+    { tip: "cati" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
+  );
   const createHesap = useCreateBankaHesabi();
   const updateHesap = useUpdateBankaHesabi();
   const deleteHesap = useDeleteBankaHesabi();
@@ -58,10 +61,10 @@ export default function BankaHesaplari() {
     if (id) {
       const h = hesaplar.find(h => h.id === id);
       if (!h) return;
-      setForm({ sirketId: String(h.sirketId), bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, iban: h.iban ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "" });
+      setForm({ catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, iban: h.iban ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "" });
       setDuzenleId(id);
     } else {
-      setForm({ ...BOSH, sirketId: sirketler[0] ? String(sirketler[0].id) : "" });
+      setForm({ ...BOSH, catiFirmaId: catiFirmalar[0] ? String(catiFirmalar[0].id) : "" });
       setDuzenleId(null);
     }
     setModalAcik(true);
@@ -70,15 +73,15 @@ export default function BankaHesaplari() {
   function kapat() { setModalAcik(false); setDuzenleId(null); setForm(BOSH); }
 
   function kaydet() {
-    const data = { ...form, sirketId: Number(form.sirketId), aktif: true };
+    const data = { catiFirmaId: Number(form.catiFirmaId), bankaAdi: form.bankaAdi, hesapAdi: form.hesapAdi, iban: form.iban || undefined, paraBirimi: form.paraBirimi, subeAdi: form.subeAdi || undefined, aciklama: form.aciklama || undefined, aktif: true };
     if (duzenleId) {
       updateHesap.mutate({ id: duzenleId, data }, {
-        onSuccess: () => { qc.invalidateQueries({ queryKey: getListBankaHesaplariQueryKey() }); kapat(); toast({ title: "Hesap guncellendi" }); },
+        onSuccess: () => { qc.invalidateQueries({ queryKey: getListBankaHesaplariQueryKey() }); kapat(); toast({ title: "Hesap güncellendi" }); },
         onError: () => toast({ title: "Hata", variant: "destructive" }),
       });
     } else {
       createHesap.mutate({ data }, {
-        onSuccess: () => { qc.invalidateQueries({ queryKey: getListBankaHesaplariQueryKey() }); kapat(); toast({ title: "Hesap olusturuldu" }); },
+        onSuccess: () => { qc.invalidateQueries({ queryKey: getListBankaHesaplariQueryKey() }); kapat(); toast({ title: "Hesap oluşturuldu" }); },
         onError: () => toast({ title: "Hata", variant: "destructive" }),
       });
     }
@@ -130,7 +133,7 @@ export default function BankaHesaplari() {
               </div>
               <div className="mt-3">
                 <p className="text-2xl font-display font-bold">{fmt(h.bakiye ?? 0, h.paraBirimi)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{h.sirketAd}</p>
+                <p className="text-xs text-muted-foreground mt-1">{h.catiFirmaAd}</p>
                 {h.iban && <p className="text-xs text-muted-foreground font-mono mt-0.5">{h.iban}</p>}
               </div>
               <div className="mt-3 flex items-center gap-2">
@@ -143,28 +146,28 @@ export default function BankaHesaplari() {
         {hesaplar.length === 0 && (
           <div className="col-span-3 text-center text-muted-foreground py-16">
             <Landmark className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p>Banka hesabi bulunamadi.</p>
+            <p>Banka hesabı bulunamadı.</p>
           </div>
         )}
       </div>
 
       <Dialog open={modalAcik} onOpenChange={setModalAcik}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{duzenleId ? "Hesabi Duzenle" : "Yeni Banka Hesabi"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{duzenleId ? "Hesabı Düzenle" : "Yeni Banka Hesabı"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
-              <Label>Sirket *</Label>
-              <Select value={form.sirketId} onValueChange={v => setForm(f => ({...f, sirketId: v}))}>
-                <SelectTrigger data-testid="select-hesap-sirket"><SelectValue placeholder="Sirket secin" /></SelectTrigger>
-                <SelectContent>{sirketler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad}</SelectItem>)}</SelectContent>
+              <Label>Çatı Firma *</Label>
+              <Select value={form.catiFirmaId} onValueChange={v => setForm(f => ({...f, catiFirmaId: v}))}>
+                <SelectTrigger data-testid="select-hesap-sirket"><SelectValue placeholder="Firma seçin" /></SelectTrigger>
+                <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Banka Adi *</Label>
+              <Label>Banka Adı *</Label>
               <Input value={form.bankaAdi} onChange={e => setForm(f => ({...f, bankaAdi: e.target.value}))} data-testid="input-hesap-banka-adi" />
             </div>
             <div className="space-y-1.5">
-              <Label>Hesap Adi *</Label>
+              <Label>Hesap Adı *</Label>
               <Input value={form.hesapAdi} onChange={e => setForm(f => ({...f, hesapAdi: e.target.value}))} data-testid="input-hesap-ad" />
             </div>
             <div className="space-y-1.5">
@@ -175,7 +178,7 @@ export default function BankaHesaplari() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Sube</Label>
+              <Label>Şube</Label>
               <Input value={form.subeAdi} onChange={e => setForm(f => ({...f, subeAdi: e.target.value}))} data-testid="input-hesap-sube" />
             </div>
             <div className="col-span-2 space-y-1.5">
@@ -184,17 +187,17 @@ export default function BankaHesaplari() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={kapat} className="rounded-full">Iptal</Button>
-            <Button onClick={kaydet} disabled={!form.sirketId || !form.bankaAdi || !form.hesapAdi} className="rounded-full" data-testid="button-hesap-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={kapat} className="rounded-full">İptal</Button>
+            <Button onClick={kaydet} disabled={!form.catiFirmaId || !form.bankaAdi || !form.hesapAdi} className="rounded-full" data-testid="button-hesap-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={!!silId} onOpenChange={o => !o && setSilId(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Hesabi sil</AlertDialogTitle><AlertDialogDescription>Bu islem geri alinamaz.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Hesabı sil</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Iptal</AlertDialogCancel>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (!silId) return; deleteHesap.mutate({ id: silId }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListBankaHesaplariQueryKey() }); setSilId(null); } }); }}>Sil</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

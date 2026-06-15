@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Api
-  version: 0.1.0
+  version: 0.2.0
   description: Çoklu Firma Muhasebe ve Cari Takip Paneli API
 servers:
   - url: /api
@@ -9,10 +9,8 @@ servers:
 tags:
   - name: health
     description: Sağlık kontrolü
-  - name: sirketler
-    description: Şirket yönetimi
-  - name: cariler
-    description: Cari ve müşteri yönetimi
+  - name: firmalar
+    description: Firma yönetimi (çatı ve bağlı firmalar)
   - name: gemiler
     description: Gemi yönetimi
   - name: banka-hesaplari
@@ -21,8 +19,6 @@ tags:
     description: Fatura yönetimi
   - name: odemeler
     description: Ödeme ve tahsilat yönetimi
-  - name: starlink-planlari
-    description: Starlink abonelik planı yönetimi
   - name: ekipmanlar
     description: Ekipman yönetimi
   - name: kdv-oranlari
@@ -48,145 +44,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
-  # ── Şirketler ──────────────────────────────────────────────────────────────
-  /sirketler:
+  # ── Firmalar ──────────────────────────────────────────────────────────────
+  /firmalar:
     get:
-      operationId: listSirketler
-      tags: [sirketler]
-      summary: Şirketleri listele
-      responses:
-        "200":
-          description: Şirket listesi
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Sirket"
-    post:
-      operationId: createSirket
-      tags: [sirketler]
-      summary: Yeni şirket oluştur
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SirketInput"
-      responses:
-        "201":
-          description: Oluşturuldu
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Sirket"
-
-  /sirketler/{id}:
-    get:
-      operationId: getSirket
-      tags: [sirketler]
-      summary: Şirketi getir
+      operationId: listFirmalar
+      tags: [firmalar]
+      summary: Firmaları listele
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Şirket
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Sirket"
-    patch:
-      operationId: updateSirket
-      tags: [sirketler]
-      summary: Şirketi güncelle
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SirketUpdate"
-      responses:
-        "200":
-          description: Güncellendi
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Sirket"
-    delete:
-      operationId: deleteSirket
-      tags: [sirketler]
-      summary: Şirketi sil
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "204":
-          description: Silindi
-
-  # ── Cariler ────────────────────────────────────────────────────────────────
-  /cariler:
-    get:
-      operationId: listCariler
-      tags: [cariler]
-      summary: Carileri listele
-      parameters:
-        - name: sirketId
-          in: query
-          schema:
-            type: integer
         - name: tip
           in: query
           schema:
             type: string
+            enum: [cati, bagli]
+        - name: ustFirmaId
+          in: query
+          schema:
+            type: integer
         - name: arama
           in: query
           schema:
             type: string
       responses:
         "200":
-          description: Cari listesi
+          description: Firma listesi
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Cari"
+                  $ref: "#/components/schemas/Firma"
     post:
-      operationId: createCari
-      tags: [cariler]
-      summary: Yeni cari oluştur
+      operationId: createFirma
+      tags: [firmalar]
+      summary: Yeni firma oluştur
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CariInput"
+              $ref: "#/components/schemas/FirmaInput"
       responses:
         "201":
           description: Oluşturuldu
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Cari"
+                $ref: "#/components/schemas/Firma"
 
-  /cariler/{id}:
+  /firmalar/{id}:
     get:
-      operationId: getCari
-      tags: [cariler]
-      summary: Cariyi getir
+      operationId: getFirma
+      tags: [firmalar]
+      summary: Firmayı getir
       parameters:
         - name: id
           in: path
@@ -195,15 +104,15 @@ paths:
             type: integer
       responses:
         "200":
-          description: Cari
+          description: Firma
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CariDetay"
+                $ref: "#/components/schemas/FirmaDetay"
     patch:
-      operationId: updateCari
-      tags: [cariler]
-      summary: Cariyi güncelle
+      operationId: updateFirma
+      tags: [firmalar]
+      summary: Firmayı güncelle
       parameters:
         - name: id
           in: path
@@ -215,18 +124,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CariUpdate"
+              $ref: "#/components/schemas/FirmaUpdate"
       responses:
         "200":
           description: Güncellendi
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Cari"
+                $ref: "#/components/schemas/Firma"
     delete:
-      operationId: deleteCari
-      tags: [cariler]
-      summary: Cariyi sil
+      operationId: deleteFirma
+      tags: [firmalar]
+      summary: Firmayı sil
       parameters:
         - name: id
           in: path
@@ -237,11 +146,11 @@ paths:
         "204":
           description: Silindi
 
-  /cariler/{id}/ekstre:
+  /firmalar/{id}/ekstre:
     get:
-      operationId: getCariEkstre
-      tags: [cariler]
-      summary: Cari ekstre
+      operationId: getFirmaEkstre
+      tags: [firmalar]
+      summary: Firma ekstre (bağlı firmalar için)
       parameters:
         - name: id
           in: path
@@ -250,11 +159,53 @@ paths:
             type: integer
       responses:
         "200":
-          description: Cari ekstre
+          description: Firma ekstre
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CariEkstre"
+                $ref: "#/components/schemas/FirmaEkstre"
+
+  /firmalar/{id}/eposta-ayarlari:
+    get:
+      operationId: getFirmaEpostaAyarlari
+      tags: [firmalar]
+      summary: Firma e-posta ayarlarını getir (çatı firmalar)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: E-posta ayarları
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FirmaEpostaAyarlari"
+    put:
+      operationId: upsertFirmaEpostaAyarlari
+      tags: [firmalar]
+      summary: Firma e-posta ayarlarını kaydet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FirmaEpostaAyarlariInput"
+      responses:
+        "200":
+          description: Kaydedildi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FirmaEpostaAyarlari"
 
   # ── Gemiler ────────────────────────────────────────────────────────────────
   /gemiler:
@@ -263,11 +214,11 @@ paths:
       tags: [gemiler]
       summary: Gemileri listele
       parameters:
-        - name: cariId
+        - name: firmaId
           in: query
           schema:
             type: integer
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: integer
@@ -360,7 +311,7 @@ paths:
       tags: [banka-hesaplari]
       summary: Banka hesaplarını listele
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: integer
@@ -472,11 +423,11 @@ paths:
       tags: [faturalar]
       summary: Faturaları listele
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: integer
-        - name: cariId
+        - name: bagliFirmaId
           in: query
           schema:
             type: integer
@@ -587,11 +538,11 @@ paths:
       tags: [odemeler]
       summary: Ödemeleri listele
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: integer
-        - name: cariId
+        - name: bagliFirmaId
           in: query
           schema:
             type: integer
@@ -685,107 +636,6 @@ paths:
         "204":
           description: Silindi
 
-  # ── Starlink Planları ──────────────────────────────────────────────────────
-  /starlink-planlari:
-    get:
-      operationId: listStarlinkPlanlari
-      tags: [starlink-planlari]
-      summary: Starlink planlarını listele
-      parameters:
-        - name: sirketId
-          in: query
-          schema:
-            type: integer
-        - name: gemiId
-          in: query
-          schema:
-            type: integer
-        - name: aktif
-          in: query
-          schema:
-            type: boolean
-      responses:
-        "200":
-          description: Starlink planı listesi
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/StarlinkPlani"
-    post:
-      operationId: createStarlinkPlani
-      tags: [starlink-planlari]
-      summary: Yeni Starlink planı oluştur
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/StarlinkPlaniInput"
-      responses:
-        "201":
-          description: Oluşturuldu
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/StarlinkPlani"
-
-  /starlink-planlari/{id}:
-    get:
-      operationId: getStarlinkPlani
-      tags: [starlink-planlari]
-      summary: Starlink planını getir
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Starlink planı
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/StarlinkPlani"
-    patch:
-      operationId: updateStarlinkPlani
-      tags: [starlink-planlari]
-      summary: Starlink planını güncelle
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/StarlinkPlaniUpdate"
-      responses:
-        "200":
-          description: Güncellendi
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/StarlinkPlani"
-    delete:
-      operationId: deleteStarlinkPlani
-      tags: [starlink-planlari]
-      summary: Starlink planını sil
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "204":
-          description: Silindi
-
   # ── Ekipmanlar ─────────────────────────────────────────────────────────────
   /ekipmanlar:
     get:
@@ -793,7 +643,7 @@ paths:
       tags: [ekipmanlar]
       summary: Ekipmanları listele
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: integer
@@ -873,7 +723,7 @@ paths:
       tags: [kdv-oranlari]
       summary: KDV oranlarını listele
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: integer
@@ -949,7 +799,7 @@ paths:
       tags: [fatura-serileri]
       summary: Fatura serilerini listele
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: integer
@@ -1025,7 +875,7 @@ paths:
       tags: [dashboard]
       summary: Dashboard özet verileri
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: ["integer", "null"]
@@ -1043,7 +893,7 @@ paths:
       tags: [dashboard]
       summary: Vadesi yaklaşan faturalar
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: ["integer", "null"]
@@ -1068,7 +918,7 @@ paths:
       tags: [dashboard]
       summary: Son işlemler
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: ["integer", "null"]
@@ -1091,7 +941,7 @@ paths:
       tags: [dashboard]
       summary: Aylık gelir grafik verisi
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: ["integer", "null"]
@@ -1109,31 +959,6 @@ paths:
                 items:
                   $ref: "#/components/schemas/AylikGelirNoktasi"
 
-  /dashboard/yenileme-uyarilari:
-    get:
-      operationId: getYenilemeyeYaklasanPlanlar
-      tags: [dashboard]
-      summary: Süresi dolmak üzere olan Starlink planları
-      parameters:
-        - name: sirketId
-          in: query
-          schema:
-            type: ["integer", "null"]
-        - name: gun
-          in: query
-          schema:
-            type: integer
-            default: 30
-      responses:
-        "200":
-          description: Yenileme uyarıları
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/StarlinkPlani"
-
   # ── Raporlar ───────────────────────────────────────────────────────────────
   /raporlar/kdv-ozeti:
     get:
@@ -1141,7 +966,7 @@ paths:
       tags: [raporlar]
       summary: KDV özet raporu
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: ["integer", "null"]
@@ -1167,7 +992,7 @@ paths:
       tags: [raporlar]
       summary: Alacak yaşlandırma raporu
       parameters:
-        - name: sirketId
+        - name: catiFirmaId
           in: query
           schema:
             type: ["integer", "null"]
@@ -1189,13 +1014,18 @@ components:
       required:
         - status
 
-    # ── Şirket ──────────────────────────────────────────────────────────────
-    Sirket:
+    # ── Firma ────────────────────────────────────────────────────────────────
+    Firma:
       type: object
-      required: [id, ad, seriOneki, olusturmaTarihi]
+      required: [id, tip, ad, olusturmaTarihi]
       properties:
         id:
           type: integer
+        tip:
+          type: string
+          enum: [cati, bagli]
+        ustFirmaId:
+          type: ["integer", "null"]
         ad:
           type: string
         vergiNo:
@@ -1209,8 +1039,8 @@ components:
         eposta:
           type: ["string", "null"]
         seriOneki:
-          type: string
-        logo:
+          type: ["string", "null"]
+        logoUrl:
           type: ["string", "null"]
         aktif:
           type: boolean
@@ -1219,79 +1049,32 @@ components:
           type: string
           format: date-time
 
-    SirketInput:
+    FirmaDetay:
       type: object
-      required: [ad, seriOneki]
-      properties:
-        ad:
-          type: string
-        vergiNo:
-          type: string
-        vergiDairesi:
-          type: string
-        adres:
-          type: string
-        telefon:
-          type: string
-        eposta:
-          type: string
-        seriOneki:
-          type: string
-        aktif:
-          type: boolean
-
-    SirketUpdate:
-      type: object
-      properties:
-        ad:
-          type: string
-        vergiNo:
-          type: string
-        vergiDairesi:
-          type: string
-        adres:
-          type: string
-        telefon:
-          type: string
-        eposta:
-          type: string
-        seriOneki:
-          type: string
-        aktif:
-          type: boolean
-
-    # ── Cari ────────────────────────────────────────────────────────────────
-    Cari:
-      type: object
-      required: [id, sirketId, ad, tip, olusturmaTarihi]
+      required: [id, tip, ad, olusturmaTarihi]
       properties:
         id:
           type: integer
-        sirketId:
-          type: integer
-        sirketAd:
-          type: ["string", "null"]
-        ad:
-          type: string
         tip:
           type: string
-          enum: [musteri, tedarikci, ana_firma, bagli_firma, gemi_sahibi, diger]
+          enum: [cati, bagli]
+        ustFirmaId:
+          type: ["integer", "null"]
+        ad:
+          type: string
         vergiNo:
           type: ["string", "null"]
         vergiDairesi:
+          type: ["string", "null"]
+        adres:
           type: ["string", "null"]
         telefon:
           type: ["string", "null"]
         eposta:
           type: ["string", "null"]
-        adres:
+        seriOneki:
           type: ["string", "null"]
-        yetkiliKisi:
-          type: ["string", "null"]
-        paraBirimi:
-          type: string
-          default: "USD"
-        notlar:
+        logoUrl:
           type: ["string", "null"]
         aktif:
           type: boolean
@@ -1301,48 +1084,10 @@ components:
           type: number
         kalanBakiye:
           type: number
-        olusturmaTarihi:
-          type: string
-          format: date-time
-
-    CariDetay:
-      type: object
-      required: [id, sirketId, ad, tip, olusturmaTarihi]
-      properties:
-        id:
-          type: integer
-        sirketId:
-          type: integer
-        sirketAd:
-          type: ["string", "null"]
-        ad:
-          type: string
-        tip:
-          type: string
-        vergiNo:
-          type: ["string", "null"]
-        vergiDairesi:
-          type: ["string", "null"]
-        telefon:
-          type: ["string", "null"]
-        eposta:
-          type: ["string", "null"]
-        adres:
-          type: ["string", "null"]
-        yetkiliKisi:
-          type: ["string", "null"]
-        paraBirimi:
-          type: string
-        notlar:
-          type: ["string", "null"]
-        aktif:
-          type: boolean
-        toplamBorc:
-          type: number
-        toplamAlacak:
-          type: number
-        kalanBakiye:
-          type: number
+        bagliSirketler:
+          type: array
+          items:
+            $ref: "#/components/schemas/Firma"
         acikFaturalar:
           type: array
           items:
@@ -1359,69 +1104,63 @@ components:
           type: string
           format: date-time
 
-    CariInput:
+    FirmaInput:
       type: object
-      required: [sirketId, ad, tip]
+      required: [tip, ad]
       properties:
-        sirketId:
+        tip:
+          type: string
+          enum: [cati, bagli]
+        ustFirmaId:
           type: integer
         ad:
-          type: string
-        tip:
-          type: string
-          enum: [musteri, tedarikci, ana_firma, bagli_firma, gemi_sahibi, diger]
-        vergiNo:
-          type: string
-        vergiDairesi:
-          type: string
-        telefon:
-          type: string
-        eposta:
-          type: string
-        adres:
-          type: string
-        yetkiliKisi:
-          type: string
-        paraBirimi:
-          type: string
-        notlar:
-          type: string
-        aktif:
-          type: boolean
-
-    CariUpdate:
-      type: object
-      properties:
-        ad:
-          type: string
-        tip:
           type: string
         vergiNo:
           type: string
         vergiDairesi:
           type: string
+        adres:
+          type: string
         telefon:
           type: string
         eposta:
           type: string
-        adres:
+        seriOneki:
           type: string
-        yetkiliKisi:
-          type: string
-        paraBirimi:
-          type: string
-        notlar:
+        logoUrl:
           type: string
         aktif:
           type: boolean
 
-    CariEkstre:
+    FirmaUpdate:
       type: object
-      required: [cariId, cariAd, kalemler, toplamBorc, toplamAlacak, kalanBakiye]
       properties:
-        cariId:
+        ad:
+          type: string
+        vergiNo:
+          type: string
+        vergiDairesi:
+          type: string
+        adres:
+          type: string
+        telefon:
+          type: string
+        eposta:
+          type: string
+        seriOneki:
+          type: string
+        logoUrl:
+          type: string
+        aktif:
+          type: boolean
+
+    FirmaEkstre:
+      type: object
+      required: [firmaId, firmaAd, kalemler, toplamBorc, toplamAlacak, kalanBakiye]
+      properties:
+        firmaId:
           type: integer
-        cariAd:
+        firmaAd:
           type: string
         kalemler:
           type: array
@@ -1433,6 +1172,55 @@ components:
           type: number
         kalanBakiye:
           type: number
+
+    FirmaEpostaAyarlari:
+      type: object
+      required: [firmaId, smtpHost, smtpKullanici, gonderenAd, gonderenAdres]
+      properties:
+        firmaId:
+          type: integer
+        smtpHost:
+          type: string
+        smtpPort:
+          type: integer
+          default: 587
+        smtpGuvenlik:
+          type: string
+          enum: [starttls, ssl, none]
+          default: starttls
+        smtpKullanici:
+          type: string
+        smtpSifre:
+          type: ["string", "null"]
+        gonderenAd:
+          type: string
+        gonderenAdres:
+          type: string
+        aktif:
+          type: boolean
+          default: true
+
+    FirmaEpostaAyarlariInput:
+      type: object
+      required: [smtpHost, smtpKullanici, gonderenAd, gonderenAdres]
+      properties:
+        smtpHost:
+          type: string
+        smtpPort:
+          type: integer
+        smtpGuvenlik:
+          type: string
+          enum: [starttls, ssl, none]
+        smtpKullanici:
+          type: string
+        smtpSifre:
+          type: string
+        gonderenAd:
+          type: string
+        gonderenAdres:
+          type: string
+        aktif:
+          type: boolean
 
     EkstreKalemi:
       type: object
@@ -1466,15 +1254,15 @@ components:
     # ── Gemi ────────────────────────────────────────────────────────────────
     Gemi:
       type: object
-      required: [id, cariId, ad, olusturmaTarihi]
+      required: [id, firmaId, ad, olusturmaTarihi]
       properties:
         id:
           type: integer
-        cariId:
+        firmaId:
           type: integer
-        cariAd:
+        firmaAd:
           type: ["string", "null"]
-        sirketId:
+        catiFirmaId:
           type: ["integer", "null"]
         ad:
           type: string
@@ -1494,14 +1282,16 @@ components:
 
     GemiDetay:
       type: object
-      required: [id, cariId, ad, olusturmaTarihi]
+      required: [id, firmaId, ad, olusturmaTarihi]
       properties:
         id:
           type: integer
-        cariId:
+        firmaId:
           type: integer
-        cariAd:
+        firmaAd:
           type: ["string", "null"]
+        catiFirmaId:
+          type: ["integer", "null"]
         ad:
           type: string
         imoNumarasi:
@@ -1512,10 +1302,6 @@ components:
           type: ["string", "null"]
         aktif:
           type: boolean
-        starlinkPlanlari:
-          type: array
-          items:
-            $ref: "#/components/schemas/StarlinkPlani"
         ekipmanlar:
           type: array
           items:
@@ -1530,9 +1316,9 @@ components:
 
     GemiInput:
       type: object
-      required: [cariId, ad]
+      required: [firmaId, ad]
       properties:
-        cariId:
+        firmaId:
           type: integer
         ad:
           type: string
@@ -1558,19 +1344,19 @@ components:
           type: string
         aktif:
           type: boolean
-        cariId:
+        firmaId:
           type: integer
 
     # ── Banka Hesabı ──────────────────────────────────────────────────────
     BankaHesabi:
       type: object
-      required: [id, sirketId, bankaAdi, hesapAdi, paraBirimi, olusturmaTarihi]
+      required: [id, catiFirmaId, bankaAdi, hesapAdi, paraBirimi, olusturmaTarihi]
       properties:
         id:
           type: integer
-        sirketId:
+        catiFirmaId:
           type: integer
-        sirketAd:
+        catiFirmaAd:
           type: ["string", "null"]
         bankaAdi:
           type: string
@@ -1594,9 +1380,9 @@ components:
 
     BankaHesabiInput:
       type: object
-      required: [sirketId, bankaAdi, hesapAdi, paraBirimi]
+      required: [catiFirmaId, bankaAdi, hesapAdi, paraBirimi]
       properties:
-        sirketId:
+        catiFirmaId:
           type: integer
         bankaAdi:
           type: string
@@ -1666,7 +1452,7 @@ components:
           type: string
         aciklama:
           type: ["string", "null"]
-        cariAd:
+        firmaAd:
           type: ["string", "null"]
         faturaNo:
           type: ["string", "null"]
@@ -1674,17 +1460,17 @@ components:
     # ── Fatura ────────────────────────────────────────────────────────────
     Fatura:
       type: object
-      required: [id, sirketId, cariId, faturaNo, faturaTarihi, vadeTarihi, paraBirimi, durum, toplamTutar, kdvTutari, genelToplam, olusturmaTarihi]
+      required: [id, catiFirmaId, bagliFirmaId, faturaNo, faturaTarihi, vadeTarihi, paraBirimi, durum, toplamTutar, kdvTutari, genelToplam, olusturmaTarihi]
       properties:
         id:
           type: integer
-        sirketId:
+        catiFirmaId:
           type: integer
-        sirketAd:
+        catiFirmaAd:
           type: ["string", "null"]
-        cariId:
+        bagliFirmaId:
           type: integer
-        cariAd:
+        bagliFirmaAd:
           type: ["string", "null"]
         gemiId:
           type: ["integer", "null"]
@@ -1723,17 +1509,17 @@ components:
 
     FaturaDetay:
       type: object
-      required: [id, sirketId, cariId, faturaNo, faturaTarihi, vadeTarihi, paraBirimi, durum, toplamTutar, kdvTutari, genelToplam, olusturmaTarihi, kalemler]
+      required: [id, catiFirmaId, bagliFirmaId, faturaNo, faturaTarihi, vadeTarihi, paraBirimi, durum, toplamTutar, kdvTutari, genelToplam, olusturmaTarihi, kalemler]
       properties:
         id:
           type: integer
-        sirketId:
+        catiFirmaId:
           type: integer
-        sirketAd:
+        catiFirmaAd:
           type: ["string", "null"]
-        cariId:
+        bagliFirmaId:
           type: integer
-        cariAd:
+        bagliFirmaAd:
           type: ["string", "null"]
         gemiId:
           type: ["integer", "null"]
@@ -1802,11 +1588,11 @@ components:
 
     FaturaInput:
       type: object
-      required: [sirketId, cariId, faturaTarihi, vadeTarihi, paraBirimi, kalemler]
+      required: [catiFirmaId, bagliFirmaId, faturaTarihi, vadeTarihi, paraBirimi, kalemler]
       properties:
-        sirketId:
+        catiFirmaId:
           type: integer
-        cariId:
+        bagliFirmaId:
           type: integer
         gemiId:
           type: ["integer", "null"]
@@ -1858,17 +1644,17 @@ components:
     # ── Ödeme ────────────────────────────────────────────────────────────
     Odeme:
       type: object
-      required: [id, sirketId, cariId, tip, tarih, tutar, paraBirimi, odemeYontemi, olusturmaTarihi]
+      required: [id, catiFirmaId, tip, tarih, tutar, paraBirimi, odemeYontemi, olusturmaTarihi]
       properties:
         id:
           type: integer
-        sirketId:
+        catiFirmaId:
           type: integer
-        sirketAd:
+        catiFirmaAd:
           type: ["string", "null"]
-        cariId:
-          type: integer
-        cariAd:
+        bagliFirmaId:
+          type: ["integer", "null"]
+        bagliFirmaAd:
           type: ["string", "null"]
         gemiId:
           type: ["integer", "null"]
@@ -1903,12 +1689,12 @@ components:
 
     OdemeInput:
       type: object
-      required: [sirketId, cariId, tip, tarih, tutar, paraBirimi, odemeYontemi]
+      required: [catiFirmaId, tip, tarih, tutar, paraBirimi, odemeYontemi]
       properties:
-        sirketId:
+        catiFirmaId:
           type: integer
-        cariId:
-          type: integer
+        bagliFirmaId:
+          type: ["integer", "null"]
         gemiId:
           type: ["integer", "null"]
         bankaHesabiId:
@@ -1944,109 +1730,14 @@ components:
         odemeYontemi:
           type: string
 
-    # ── Starlink Planı ────────────────────────────────────────────────────
-    StarlinkPlani:
-      type: object
-      required: [id, sirketId, cariId, gemiId, planAdi, baslangicTarihi, bitisTarihi, aylikUcret, paraBirimi, olusturmaTarihi]
-      properties:
-        id:
-          type: integer
-        sirketId:
-          type: integer
-        sirketAd:
-          type: ["string", "null"]
-        cariId:
-          type: integer
-        cariAd:
-          type: ["string", "null"]
-        gemiId:
-          type: integer
-        gemiAd:
-          type: ["string", "null"]
-        planAdi:
-          type: string
-        hizMbps:
-          type: ["integer", "null"]
-        baslangicTarihi:
-          type: string
-          format: date
-        bitisTarihi:
-          type: string
-          format: date
-        aylikUcret:
-          type: number
-        paraBirimi:
-          type: string
-        otomatikYenileme:
-          type: boolean
-        aktif:
-          type: boolean
-        notlar:
-          type: ["string", "null"]
-        kalanGun:
-          type: ["integer", "null"]
-        olusturmaTarihi:
-          type: string
-          format: date-time
-
-    StarlinkPlaniInput:
-      type: object
-      required: [sirketId, cariId, gemiId, planAdi, baslangicTarihi, bitisTarihi, aylikUcret, paraBirimi]
-      properties:
-        sirketId:
-          type: integer
-        cariId:
-          type: integer
-        gemiId:
-          type: integer
-        planAdi:
-          type: string
-        hizMbps:
-          type: integer
-        baslangicTarihi:
-          type: string
-          format: date
-        bitisTarihi:
-          type: string
-          format: date
-        aylikUcret:
-          type: number
-        paraBirimi:
-          type: string
-        otomatikYenileme:
-          type: boolean
-        aktif:
-          type: boolean
-        notlar:
-          type: string
-
-    StarlinkPlaniUpdate:
-      type: object
-      properties:
-        planAdi:
-          type: string
-        hizMbps:
-          type: integer
-        bitisTarihi:
-          type: string
-          format: date
-        aylikUcret:
-          type: number
-        otomatikYenileme:
-          type: boolean
-        aktif:
-          type: boolean
-        notlar:
-          type: string
-
     # ── Ekipman ───────────────────────────────────────────────────────────
     Ekipman:
       type: object
-      required: [id, sirketId, gemiId, tip, seriNo, olusturmaTarihi]
+      required: [id, catiFirmaId, gemiId, tip, seriNo, olusturmaTarihi]
       properties:
         id:
           type: integer
-        sirketId:
+        catiFirmaId:
           type: integer
         gemiId:
           type: integer
@@ -2070,9 +1761,9 @@ components:
 
     EkipmanInput:
       type: object
-      required: [sirketId, gemiId, tip, seriNo]
+      required: [catiFirmaId, gemiId, tip, seriNo]
       properties:
-        sirketId:
+        catiFirmaId:
           type: integer
         gemiId:
           type: integer
@@ -2114,11 +1805,11 @@ components:
     # ── KDV Oranı ─────────────────────────────────────────────────────────
     KdvOrani:
       type: object
-      required: [id, sirketId, ad, oran, olusturmaTarihi]
+      required: [id, catiFirmaId, ad, oran, olusturmaTarihi]
       properties:
         id:
           type: integer
-        sirketId:
+        catiFirmaId:
           type: integer
         ad:
           type: string
@@ -2132,9 +1823,9 @@ components:
 
     KdvOraniInput:
       type: object
-      required: [sirketId, ad, oran]
+      required: [catiFirmaId, ad, oran]
       properties:
-        sirketId:
+        catiFirmaId:
           type: integer
         ad:
           type: string
@@ -2156,11 +1847,11 @@ components:
     # ── Fatura Serisi ─────────────────────────────────────────────────────
     FaturaSeri:
       type: object
-      required: [id, sirketId, ad, onek, sonrakiNo, olusturmaTarihi]
+      required: [id, catiFirmaId, ad, onek, sonrakiNo, olusturmaTarihi]
       properties:
         id:
           type: integer
-        sirketId:
+        catiFirmaId:
           type: integer
         ad:
           type: string
@@ -2176,9 +1867,9 @@ components:
 
     FaturaSeriInput:
       type: object
-      required: [sirketId, ad, onek]
+      required: [catiFirmaId, ad, onek]
       properties:
-        sirketId:
+        catiFirmaId:
           type: integer
         ad:
           type: string
@@ -2205,7 +1896,7 @@ components:
     # ── Dashboard ──────────────────────────────────────────────────────────
     DashboardOzet:
       type: object
-      required: [toplamAlacak, toplamTahsilat, kalanBakiye, toplamFaturaSayisi, toplamOdemeSayisi, toplamCariSayisi, vadesGecmisFaturaSayisi, vadesYaklasiyor, paraBirimiOzetleri, bankaHesapBakiyeleri]
+      required: [toplamAlacak, toplamTahsilat, kalanBakiye, toplamFaturaSayisi, toplamOdemeSayisi, toplamFirmaSayisi, vadesGecmisFaturaSayisi, vadesYaklasiyor, paraBirimiOzetleri, bankaHesapBakiyeleri]
       properties:
         toplamAlacak:
           type: number
@@ -2217,7 +1908,7 @@ components:
           type: integer
         toplamOdemeSayisi:
           type: integer
-        toplamCariSayisi:
+        toplamFirmaSayisi:
           type: integer
         vadesGecmisFaturaSayisi:
           type: integer
@@ -2231,8 +1922,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BankaHesapBakiye"
-        aktifStarlinkPlanSayisi:
-          type: integer
 
     ParaBirimiOzet:
       type: object
@@ -2293,7 +1982,7 @@ components:
     # ── Raporlar ──────────────────────────────────────────────────────────
     KdvOzeti:
       type: object
-      required: [kdvHaricToplam, kdvTutariToplam, kdvDahilToplam, paraBirimiKirilim, sirketKirilim]
+      required: [kdvHaricToplam, kdvTutariToplam, kdvDahilToplam, paraBirimiKirilim, firmaKirilim]
       properties:
         kdvHaricToplam:
           type: number
@@ -2305,10 +1994,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/KdvParaBirimiKirilim"
-        sirketKirilim:
+        firmaKirilim:
           type: array
           items:
-            $ref: "#/components/schemas/KdvSirketKirilim"
+            $ref: "#/components/schemas/KdvFirmaKirilim"
 
     KdvParaBirimiKirilim:
       type: object
@@ -2323,13 +2012,13 @@ components:
         kdvDahil:
           type: number
 
-    KdvSirketKirilim:
+    KdvFirmaKirilim:
       type: object
-      required: [sirketId, sirketAd, kdvHaric, kdvTutari, kdvDahil]
+      required: [catiFirmaId, catiFirmaAd, kdvHaric, kdvTutari, kdvDahil]
       properties:
-        sirketId:
+        catiFirmaId:
           type: integer
-        sirketAd:
+        catiFirmaAd:
           type: string
         kdvHaric:
           type: number

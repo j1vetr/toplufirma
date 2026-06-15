@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, faturaKalemleri, sirketler, cariler, gemiler, odemeler, faturaSerileri } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri, bankaHesaplari } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 import ExcelJS from "exceljs";
 import { createRequire } from "node:module";
@@ -26,31 +26,31 @@ const router = Router();
 
 router.get("/faturalar", async (req, res) => {
   try {
-    const { sirketId, cariId, durum, paraBirimi, baslangicTarihi, bitisTarihi } = req.query as Record<string, string>;
+    const { catiFirmaId, bagliFirmaId, durum, paraBirimi, baslangicTarihi, bitisTarihi } = req.query as Record<string, string>;
 
     let rows = await db
-      .select({ f: faturalar, sirketAd: sirketler.ad, cariAd: cariler.ad, gemiAd: gemiler.ad })
+      .select({ f: faturalar, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
       .from(faturalar)
-      .leftJoin(sirketler, eq(faturalar.sirketId, sirketler.id))
-      .leftJoin(cariler, eq(faturalar.cariId, cariler.id))
+      .leftJoin(firmalar, eq(faturalar.catiFirmaId, firmalar.id))
       .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
       .orderBy(faturalar.faturaTarihi);
 
     const { rows: scoped, yetkisiz } = sirketlerFiltrele(
-      rows.map(r => ({ ...r, sirketId: r.f.sirketId })),
-      req, sirketId
+      rows.map(r => ({ ...r, catiFirmaId: r.f.catiFirmaId })),
+      req, catiFirmaId
     );
-    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
+    if (yetkisiz) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     rows = rows.filter(r => scoped.some(s => s.f.id === r.f.id));
 
-    if (cariId) rows = rows.filter(r => r.f.cariId === Number(cariId));
+    if (bagliFirmaId) rows = rows.filter(r => r.f.bagliFirmaId === Number(bagliFirmaId));
     if (durum) rows = rows.filter(r => r.f.durum === durum);
     if (paraBirimi) rows = rows.filter(r => r.f.paraBirimi === paraBirimi);
     if (baslangicTarihi) rows = rows.filter(r => r.f.faturaTarihi >= baslangicTarihi);
     if (bitisTarihi) rows = rows.filter(r => r.f.faturaTarihi <= bitisTarihi);
 
+    const bagliAds = await bagliAdlariGetir();
     const odenenler = await hesaplaOdenenler();
-    res.json(rows.map(r => formatFatura(r.f, r.sirketAd, r.cariAd, r.gemiAd, odenenler[r.f.id] ?? 0)));
+    res.json(rows.map(r => formatFatura(r.f, r.catiFirmaAd, bagliAds[r.f.bagliFirmaId ?? 0], r.gemiAd, odenenler[r.f.id] ?? 0)));
   } catch {
     res.status(500).json({ error: "Faturalar listelenemedi" });
   }
@@ -58,36 +58,35 @@ router.get("/faturalar", async (req, res) => {
 
 router.post("/faturalar", requireYazma, async (req, res) => {
   try {
-    const { sirketId, cariId, gemiId, faturaSerisiId, faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama, kalemler } = req.body;
-    if (!sirketId || !cariId || !faturaTarihi || !vadeTarihi || !kalemler?.length) {
+    const { catiFirmaId, bagliFirmaId, gemiId, faturaSerisiId, faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama, kalemler } = req.body;
+    if (!catiFirmaId || !bagliFirmaId || !faturaTarihi || !vadeTarihi || !kalemler?.length) {
       res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
     }
-    if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
+    if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
-    {
-      const [cari] = await db.select({ sid: cariler.sirketId }).from(cariler).where(eq(cariler.id, Number(cariId)));
-      if (!cari || cari.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen cari bu şirkete ait değil" }); return; }
-    }
+    const [bagliFirma] = await db.select({ uid: firmalar.ustFirmaId }).from(firmalar).where(eq(firmalar.id, Number(bagliFirmaId)));
+    if (!bagliFirma || bagliFirma.uid !== Number(catiFirmaId)) { res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return; }
+
     if (gemiId) {
-      const [gemiCari] = await db.select({ sid: cariler.sirketId }).from(gemiler)
-        .innerJoin(cariler, eq(gemiler.cariId, cariler.id))
+      const [gemiRow] = await db.select({ uid: firmalar.ustFirmaId })
+        .from(gemiler).leftJoin(firmalar, eq(gemiler.firmaId, firmalar.id))
         .where(eq(gemiler.id, Number(gemiId)));
-      if (!gemiCari || gemiCari.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen gemi bu şirkete ait değil" }); return; }
+      if (!gemiRow || gemiRow.uid !== Number(catiFirmaId)) { res.status(400).json({ error: "Belirtilen gemi bu firmaya ait değil" }); return; }
     }
 
     let faturaNo = "";
     if (faturaSerisiId) {
       const [seri] = await db.select().from(faturaSerileri).where(eq(faturaSerileri.id, faturaSerisiId));
-      if (!seri || seri.sirketId !== Number(sirketId)) {
-        res.status(400).json({ error: "Belirtilen fatura serisi bu şirkete ait değil" }); return;
+      if (!seri || seri.catiFirmaId !== Number(catiFirmaId)) {
+        res.status(400).json({ error: "Belirtilen fatura serisi bu firmaya ait değil" }); return;
       }
       faturaNo = `${seri.onek}${String(seri.sonrakiNo).padStart(6, "0")}`;
       await db.update(faturaSerileri).set({ sonrakiNo: seri.sonrakiNo + 1 }).where(eq(faturaSerileri.id, seri.id));
     }
     if (!faturaNo) {
-      const [sirket] = await db.select().from(sirketler).where(eq(sirketler.id, sirketId));
-      const prefix = sirket?.seriOneki ?? "FAT";
-      const [count] = await db.select({ n: sql<number>`count(*)` }).from(faturalar).where(eq(faturalar.sirketId, sirketId));
+      const [catiFirma] = await db.select().from(firmalar).where(eq(firmalar.id, catiFirmaId));
+      const prefix = catiFirma?.seriOneki ?? "FAT";
+      const [count] = await db.select({ n: sql<number>`count(*)` }).from(faturalar).where(eq(faturalar.catiFirmaId, catiFirmaId));
       faturaNo = `${prefix}${String((Number(count?.n ?? 0) + 1)).padStart(6, "0")}`;
     }
 
@@ -101,7 +100,7 @@ router.post("/faturalar", requireYazma, async (req, res) => {
     }
 
     const [fatura] = await db.insert(faturalar).values({
-      sirketId, cariId, gemiId: gemiId ?? null, faturaSerisiId: faturaSerisiId ?? null,
+      catiFirmaId, bagliFirmaId, gemiId: gemiId ?? null, faturaSerisiId: faturaSerisiId ?? null,
       faturaNo, faturaTarihi, vadeTarihi, paraBirimi: paraBirimi ?? "USD",
       durum: "acik", toplamTutar: String(toplamTutar), kdvTutari: String(kdvTutari),
       genelToplam: String(toplamTutar + kdvTutari), notlar, aciklama,
@@ -119,33 +118,33 @@ router.post("/faturalar", requireYazma, async (req, res) => {
 
 router.get("/faturalar/excel", async (req, res) => {
   try {
-    const { sirketId } = req.query as Record<string, string>;
-    if (sirketId && !sirketErisimKontrol(Number(sirketId), req)) {
-      res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
-      return;
+    const { catiFirmaId } = req.query as Record<string, string>;
+    if (catiFirmaId && !sirketErisimKontrol(Number(catiFirmaId), req)) {
+      res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return;
     }
 
     let rows = await db
-      .select({ f: faturalar, sirketAd: sirketler.ad, cariAd: cariler.ad, gemiAd: gemiler.ad })
+      .select({ f: faturalar, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
       .from(faturalar)
-      .leftJoin(sirketler, eq(faturalar.sirketId, sirketler.id))
-      .leftJoin(cariler, eq(faturalar.cariId, cariler.id))
+      .leftJoin(firmalar, eq(faturalar.catiFirmaId, firmalar.id))
       .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
       .orderBy(faturalar.faturaTarihi);
 
     const { rows: scoped, yetkisiz } = sirketlerFiltrele(
-      rows.map(r => ({ ...r, sirketId: r.f.sirketId })), req, sirketId
+      rows.map(r => ({ ...r, catiFirmaId: r.f.catiFirmaId })), req, catiFirmaId
     );
-    if (yetkisiz) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
+    if (yetkisiz) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     rows = rows.filter(r => scoped.some(s => s.f.id === r.f.id));
+
+    const bagliAds = await bagliAdlariGetir();
 
     const wb = new ExcelJS.Workbook();
     wb.creator = "Muhasebe Paneli";
     const ws = wb.addWorksheet("Faturalar");
     ws.columns = [
       { header: "Fatura No", key: "faturaNo", width: 16 },
-      { header: "Şirket", key: "sirketAd", width: 28 },
-      { header: "Cari", key: "cariAd", width: 28 },
+      { header: "Çatı Firma", key: "catiFirmaAd", width: 28 },
+      { header: "Cari / Bağlı Firma", key: "bagliFirmaAd", width: 28 },
       { header: "Gemi", key: "gemiAd", width: 20 },
       { header: "Fatura Tarihi", key: "faturaTarihi", width: 14 },
       { header: "Vade Tarihi", key: "vadeTarihi", width: 14 },
@@ -161,10 +160,12 @@ router.get("/faturalar/excel", async (req, res) => {
 
     for (const r of rows) {
       ws.addRow({
-        faturaNo: r.f.faturaNo, sirketAd: r.sirketAd, cariAd: r.cariAd, gemiAd: r.gemiAd,
-        faturaTarihi: r.f.faturaTarihi, vadeTarihi: r.f.vadeTarihi, paraBirimi: r.f.paraBirimi,
-        toplamTutar: Number(r.f.toplamTutar), kdvTutari: Number(r.f.kdvTutari),
-        genelToplam: Number(r.f.genelToplam), durum: r.f.durum, aciklama: r.f.aciklama,
+        faturaNo: r.f.faturaNo, catiFirmaAd: r.catiFirmaAd,
+        bagliFirmaAd: bagliAds[r.f.bagliFirmaId ?? 0] ?? null,
+        gemiAd: r.gemiAd, faturaTarihi: r.f.faturaTarihi, vadeTarihi: r.f.vadeTarihi,
+        paraBirimi: r.f.paraBirimi, toplamTutar: Number(r.f.toplamTutar),
+        kdvTutari: Number(r.f.kdvTutari), genelToplam: Number(r.f.genelToplam),
+        durum: r.f.durum, aciklama: r.f.aciklama,
       });
     }
 
@@ -181,21 +182,21 @@ router.get("/faturalar/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [row] = await db
-      .select({ f: faturalar, sirketAd: sirketler.ad, cariAd: cariler.ad, gemiAd: gemiler.ad })
+      .select({ f: faturalar, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
       .from(faturalar)
-      .leftJoin(sirketler, eq(faturalar.sirketId, sirketler.id))
-      .leftJoin(cariler, eq(faturalar.cariId, cariler.id))
+      .leftJoin(firmalar, eq(faturalar.catiFirmaId, firmalar.id))
       .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
       .where(eq(faturalar.id, id));
     if (!row) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
-    if (!sirketErisimKontrol(row.f.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!sirketErisimKontrol(row.f.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
+    const bagliFirmaAd = row.f.bagliFirmaId ? (await db.select({ ad: firmalar.ad }).from(firmalar).where(eq(firmalar.id, row.f.bagliFirmaId)))[0]?.ad ?? null : null;
     const kalemler = await db.select().from(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
     const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, id));
-    const odenen = ods.reduce((s, o) => s + Number(o.tutar), 0);
+    const odenen = ods.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
 
     res.json({
-      ...formatFatura(row.f, row.sirketAd, row.cariAd, row.gemiAd, odenen),
+      ...formatFatura(row.f, row.catiFirmaAd, bagliFirmaAd, row.gemiAd, odenen),
       kalemler: kalemler.map(k => ({
         id: k.id, faturaId: k.faturaId, aciklama: k.aciklama,
         miktar: Number(k.miktar), birimFiyat: Number(k.birimFiyat),
@@ -203,10 +204,10 @@ router.get("/faturalar/:id", async (req, res) => {
         kdvTutari: Number(k.kdvTutari), genelToplam: Number(k.genelToplam),
       })),
       odemeler: ods.map(o => ({
-        id: o.id, sirketId: o.sirketId, cariId: o.cariId, faturaId: o.faturaId,
+        id: o.id, catiFirmaId: o.catiFirmaId, bagliFirmaId: o.bagliFirmaId, faturaId: o.faturaId,
         tip: o.tip, tarih: o.tarih, tutar: Number(o.tutar), paraBirimi: o.paraBirimi,
         odemeYontemi: o.odemeYontemi, aciklama: o.aciklama, olusturmaTarihi: o.olusturmaTarihi,
-        sirketAd: null, cariAd: null, gemiId: o.gemiId, gemiAd: null,
+        catiFirmaAd: null, bagliFirmaAd: null, gemiId: o.gemiId, gemiAd: null,
         bankaHesabiId: o.bankaHesabiId, bankaHesabiAd: null, faturaNo: row.f.faturaNo,
       })),
     });
@@ -219,22 +220,28 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [row] = await db
-      .select({ f: faturalar, sirketAd: sirketler.ad, cariAd: cariler.ad, gemiAd: gemiler.ad })
+      .select({ f: faturalar, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
       .from(faturalar)
-      .leftJoin(sirketler, eq(faturalar.sirketId, sirketler.id))
-      .leftJoin(cariler, eq(faturalar.cariId, cariler.id))
+      .leftJoin(firmalar, eq(faturalar.catiFirmaId, firmalar.id))
       .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
       .where(eq(faturalar.id, id));
     if (!row) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
-    if (!sirketErisimKontrol(row.f.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!sirketErisimKontrol(row.f.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
+    const [catiFirmaRow] = await db.select().from(firmalar).where(eq(firmalar.id, row.f.catiFirmaId));
+    const bagliFirmaAd = row.f.bagliFirmaId ? (await db.select({ ad: firmalar.ad }).from(firmalar).where(eq(firmalar.id, row.f.bagliFirmaId)))[0]?.ad ?? null : null;
     const kalemler = await db.select().from(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
     const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, id));
-    const odenen = ods.reduce((s, o) => s + Number(o.tutar), 0);
+    const odenen = ods.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+    const bankalar = await db.select().from(bankaHesaplari).where(eq(bankaHesaplari.catiFirmaId, row.f.catiFirmaId));
     const f = row.f;
 
-    const durumEtiket = f.durum === "odendi" ? "ODENDI" : f.durum === "acik" ? "ODENMEDI" : "KISMI ODENDI";
+    const durumEtiket = f.durum === "odendi" ? "ÖDENDİ" : f.durum === "acik" ? "ÖDENMEDİ" : "KISMİ ÖDENDİ";
     const kalan = Math.max(0, Number(f.genelToplam) - odenen);
+
+    const bankaBilgileri = bankalar.map(b =>
+      `${b.paraBirimi} — ${b.bankaAdi}: ${b.hesapAdi}${b.iban ? `\nIBAN: ${b.iban}` : ""}`
+    ).join("\n\n");
 
     const docDefinition: TDocumentDefinitions = {
       defaultStyle: { font: "Roboto", fontSize: 10 },
@@ -242,22 +249,26 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
       content: [
         {
           columns: [
-            { text: row.sirketAd ?? "Sirket", style: "sirketAd", width: "*" },
+            {
+              stack: [
+                { text: catiFirmaRow?.ad ?? row.catiFirmaAd ?? "", style: "sirketAd" },
+                ...(catiFirmaRow?.adres ? [{ text: catiFirmaRow.adres, color: "#555", fontSize: 9, marginTop: 2 }] : []),
+                ...(catiFirmaRow?.vergiNo ? [{ text: `Vergi No: ${catiFirmaRow.vergiNo}${catiFirmaRow.vergiDairesi ? ` — ${catiFirmaRow.vergiDairesi}` : ""}`, color: "#555", fontSize: 9, marginTop: 1 }] : []),
+              ],
+              width: "*",
+            },
             { text: ["FATURA\n", { text: f.faturaNo, fontSize: 14, bold: true }], style: "faturaBaslik", alignment: "right", width: "auto" },
           ],
-          marginBottom: 20,
-        },
-        {
-          canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: "#0070d1" }],
           marginBottom: 16,
         },
+        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: "#0070d1" }], marginBottom: 16 },
         {
           columns: [
             {
               width: "*",
               stack: [
-                { text: "MUSTERI BILGILERI", style: "bolumBaslik" },
-                { text: row.cariAd ?? "-", bold: true, marginTop: 4 },
+                { text: "MÜŞTERİ BİLGİLERİ", style: "bolumBaslik" },
+                { text: bagliFirmaAd ?? "-", bold: true, marginTop: 4 },
                 ...(row.gemiAd ? [{ text: `Gemi: ${row.gemiAd}`, color: "#555", marginTop: 2 }] : []),
               ],
             },
@@ -281,7 +292,7 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
             widths: ["*", 55, 70, 40, 70],
             body: ([
               [
-                { text: "Aciklama", style: "tabloBaslik" },
+                { text: "Açıklama", style: "tabloBaslik" },
                 { text: "Miktar", style: "tabloBaslik", alignment: "right" },
                 { text: "Birim Fiyat", style: "tabloBaslik", alignment: "right" },
                 { text: "KDV %", style: "tabloBaslik", alignment: "right" },
@@ -313,11 +324,11 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
                 widths: ["*", "auto"],
                 body: [
                   [{ text: "Ara Toplam:", color: "#555" }, { text: `${Number(f.toplamTutar).toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
-                  [{ text: "KDV Tutari:", color: "#555" }, { text: `${Number(f.kdvTutari).toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
+                  [{ text: "KDV Tutarı:", color: "#555" }, { text: `${Number(f.kdvTutari).toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
                   [{ text: "Genel Toplam:", bold: true }, { text: `${Number(f.genelToplam).toFixed(2)} ${f.paraBirimi}`, alignment: "right", bold: true }],
-                  [{ text: "Odenen:", color: "#555" }, { text: `${odenen.toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
+                  [{ text: "Ödenen:", color: "#555" }, { text: `${odenen.toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
                   [
-                    { text: "KALAN BORC:", bold: true, fontSize: 12, color: "#0070d1" },
+                    { text: "KALAN BORÇ:", bold: true, fontSize: 12, color: "#0070d1" },
                     { text: `${kalan.toFixed(2)} ${f.paraBirimi}`, alignment: "right", bold: true, fontSize: 12, color: "#0070d1" },
                   ],
                 ],
@@ -329,11 +340,18 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
               },
             },
           ],
+          marginBottom: bankaBilgileri ? 16 : 0,
         },
-        ...(f.aciklama ? [{ text: f.aciklama, marginTop: 24, color: "#555", italics: true }] : []),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(bankaBilgileri ? [
+          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: "#e8eaf0" }] } as unknown as import("pdfmake/interfaces").Content,
+          { text: "ÖDEME BİLGİLERİ", style: "bolumBaslik", marginBottom: 6 },
+          { text: bankaBilgileri, fontSize: 9, color: "#333", lineHeight: 1.4 },
+        ] : []),
+        ...(f.aciklama ? [{ text: f.aciklama, marginTop: 16, color: "#555", italics: true }] : []),
       ],
       styles: {
-        sirketAd: { fontSize: 18, bold: true, color: "#0070d1" },
+        sirketAd: { fontSize: 16, bold: true, color: "#0070d1" },
         faturaBaslik: { fontSize: 22, color: "#0070d1" },
         bolumBaslik: { fontSize: 8, bold: true, color: "#888", characterSpacing: 1 },
         tabloBaslik: { bold: true, color: "#ffffff", fillColor: "#0070d1" },
@@ -357,7 +375,7 @@ router.patch("/faturalar/:id", requireYazma, async (req, res) => {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(faturalar).where(eq(faturalar.id, id));
     if (!existing) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
-    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const { vadeTarihi, notlar, aciklama, durum } = req.body;
     const [row] = await db.update(faturalar)
@@ -375,7 +393,7 @@ router.delete("/faturalar/:id", requireYazma, async (req, res) => {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(faturalar).where(eq(faturalar.id, id));
     if (!existing) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
-    if (!sirketErisimKontrol(existing.sirketId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     await db.delete(faturalar).where(eq(faturalar.id, id));
     res.status(204).send();
   } catch {
@@ -386,21 +404,31 @@ router.delete("/faturalar/:id", requireYazma, async (req, res) => {
 async function hesaplaOdenenler(): Promise<Record<number, number>> {
   const rows = await db
     .select({ faturaId: odemeler.faturaId, toplam: sql<string>`sum(${odemeler.tutar})` })
-    .from(odemeler).where(sql`${odemeler.faturaId} is not null`).groupBy(odemeler.faturaId);
+    .from(odemeler).where(sql`${odemeler.faturaId} is not null AND ${odemeler.tip} = 'tahsilat'`).groupBy(odemeler.faturaId);
   const result: Record<number, number> = {};
   for (const r of rows) { if (r.faturaId != null) result[r.faturaId] = Number(r.toplam ?? 0); }
   return result;
 }
 
+async function bagliAdlariGetir(): Promise<Record<number, string>> {
+  const rows = await db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar);
+  const result: Record<number, string> = {};
+  for (const r of rows) result[r.id] = r.ad;
+  return result;
+}
+
 function formatFatura(
   f: typeof faturalar.$inferSelect,
-  sirketAd: string | null | undefined, cariAd: string | null | undefined,
-  gemiAd: string | null | undefined, odenen: number
+  catiFirmaAd: string | null | undefined,
+  bagliFirmaAd: string | null | undefined,
+  gemiAd: string | null | undefined,
+  odenen: number
 ) {
   const genel = Number(f.genelToplam);
   return {
-    id: f.id, sirketId: f.sirketId, sirketAd: sirketAd ?? null,
-    cariId: f.cariId, cariAd: cariAd ?? null, gemiId: f.gemiId, gemiAd: gemiAd ?? null,
+    id: f.id, catiFirmaId: f.catiFirmaId, catiFirmaAd: catiFirmaAd ?? null,
+    bagliFirmaId: f.bagliFirmaId, bagliFirmaAd: bagliFirmaAd ?? null,
+    gemiId: f.gemiId, gemiAd: gemiAd ?? null,
     faturaNo: f.faturaNo, faturaTarihi: f.faturaTarihi, vadeTarihi: f.vadeTarihi,
     paraBirimi: f.paraBirimi, durum: f.durum,
     toplamTutar: Number(f.toplamTutar), kdvTutari: Number(f.kdvTutari),

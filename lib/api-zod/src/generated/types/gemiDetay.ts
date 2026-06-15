@@ -3,17 +3,18 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import type { Ekipman } from './ekipman';
 import type { Fatura } from './fatura';
-import type { StarlinkPlani } from './starlinkPlani';
 
 export interface GemiDetay {
   id: number;
-  cariId: number;
+  firmaId: number;
   /** @nullable */
-  cariAd?: string | null;
+  firmaAd?: string | null;
+  /** @nullable */
+  catiFirmaId?: number | null;
   ad: string;
   /** @nullable */
   imoNumarasi?: string | null;
@@ -22,7 +23,6 @@ export interface GemiDetay {
   /** @nullable */
   notlar?: string | null;
   aktif?: boolean;
-  starlinkPlanlari?: StarlinkPlani[];
   ekipmanlar?: Ekipman[];
   faturalar?: Fatura[];
   olusturmaTarihi: Date;

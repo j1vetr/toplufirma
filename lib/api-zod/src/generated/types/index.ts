@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export * from './alacakYaslandirma';
@@ -15,13 +15,6 @@ export * from './bankaHesabi';
 export * from './bankaHesabiInput';
 export * from './bankaHesabiUpdate';
 export * from './bankaHesapBakiye';
-export * from './cari';
-export * from './cariDetay';
-export * from './cariEkstre';
-export * from './cariInput';
-export * from './cariInputTip';
-export * from './cariTip';
-export * from './cariUpdate';
 export * from './dashboardOzet';
 export * from './ekipman';
 export * from './ekipmanInput';
@@ -38,6 +31,18 @@ export * from './faturaSeri';
 export * from './faturaSeriInput';
 export * from './faturaSeriUpdate';
 export * from './faturaUpdate';
+export * from './firma';
+export * from './firmaDetay';
+export * from './firmaDetayTip';
+export * from './firmaEkstre';
+export * from './firmaEpostaAyarlari';
+export * from './firmaEpostaAyarlariInput';
+export * from './firmaEpostaAyarlariInputSmtpGuvenlik';
+export * from './firmaEpostaAyarlariSmtpGuvenlik';
+export * from './firmaInput';
+export * from './firmaInputTip';
+export * from './firmaTip';
+export * from './firmaUpdate';
 export * from './gemi';
 export * from './gemiDetay';
 export * from './gemiInput';
@@ -48,23 +53,22 @@ export * from './getDashboardOzetParams';
 export * from './getKdvOzetiParams';
 export * from './getSonIslemlerParams';
 export * from './getVadesiYaklasanFaturalarParams';
-export * from './getYenilemeyeYaklasanPlanlarParams';
 export * from './healthStatus';
+export * from './kdvFirmaKirilim';
 export * from './kdvOrani';
 export * from './kdvOraniInput';
 export * from './kdvOraniUpdate';
 export * from './kdvOzeti';
 export * from './kdvParaBirimiKirilim';
-export * from './kdvSirketKirilim';
 export * from './listBankaHesaplariParams';
-export * from './listCarilerParams';
 export * from './listEkipmanlarParams';
 export * from './listFaturalarParams';
 export * from './listFaturaSerileriParams';
+export * from './listFirmalarParams';
+export * from './listFirmalarTip';
 export * from './listGemilerParams';
 export * from './listKdvOranlariParams';
 export * from './listOdemelerParams';
-export * from './listStarlinkPlanlariParams';
 export * from './odeme';
 export * from './odemeInput';
 export * from './odemeInputOdemeYontemi';
@@ -73,11 +77,5 @@ export * from './odemeOdemeYontemi';
 export * from './odemeTip';
 export * from './odemeUpdate';
 export * from './paraBirimiOzet';
-export * from './sirket';
-export * from './sirketInput';
-export * from './sirketUpdate';
 export * from './sonIslemler';
-export * from './starlinkPlani';
-export * from './starlinkPlaniInput';
-export * from './starlinkPlaniUpdate';
 export * from './yaslandirmaDilimi';

@@ -3,13 +3,11 @@ import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListFaturalar, getListFaturalarQueryKey,
-  useListSirketler, getListSirketlerQueryKey,
   useDeleteFatura,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -28,7 +26,7 @@ const DURUM_RENK: Record<string, string> = {
   iptal: "bg-gray-500/10 text-gray-500",
 };
 const DURUM_ETIKET: Record<string, string> = {
-  acik: "Acik", kismi_odendi: "Kismi Odendi", odendi: "Odendi", iptal: "Iptal",
+  acik: "Açık", kismi_odendi: "Kısmi Ödendi", odendi: "Ödendi", iptal: "İptal",
 };
 
 const fmt = (n: number, pb = "USD") =>
@@ -42,12 +40,11 @@ export default function Faturalar() {
   const [silId, setSilId] = useState<number | null>(null);
 
   const { data: faturalar = [], isLoading } = useListFaturalar(undefined, { query: { queryKey: getListFaturalarQueryKey() } });
-  const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
   const deleteFatura = useDeleteFatura();
 
   const bugun = new Date().toISOString().split("T")[0];
   const filtrelenmis = faturalar.filter(f => {
-    const aramaUyum = !arama || f.faturaNo?.toLowerCase().includes(arama.toLowerCase()) || f.cariAd?.toLowerCase().includes(arama.toLowerCase());
+    const aramaUyum = !arama || f.faturaNo?.toLowerCase().includes(arama.toLowerCase()) || f.bagliFirmaAd?.toLowerCase().includes(arama.toLowerCase());
     const durumUyum = durumFiltre === "tumu" || f.durum === durumFiltre;
     return aramaUyum && durumUyum;
   });
@@ -59,14 +56,14 @@ export default function Faturalar() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Fatura no veya cari ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-fatura-ara" />
+          <Input className="pl-9" placeholder="Fatura no veya firma ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-fatura-ara" />
         </div>
         <Select value={durumFiltre} onValueChange={setDurumFiltre}>
           <SelectTrigger className="w-44" data-testid="select-fatura-durum">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="tumu">Tum Durumlar</SelectItem>
+            <SelectItem value="tumu">Tüm Durumlar</SelectItem>
             {Object.entries(DURUM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -91,14 +88,14 @@ export default function Faturalar() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <Link href={`/faturalar/${f.id}`} className="font-semibold hover:text-primary" data-testid={`link-fatura-${f.id}`}>{f.faturaNo}</Link>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${DURUM_RENK[f.durum]}`}>{DURUM_ETIKET[f.durum]}</span>
-                    {vadesiGecmis && <span className="text-xs text-red-500 font-medium">Vadesi Gecmis</span>}
+                    {vadesiGecmis && <span className="text-xs text-red-500 font-medium">Vadesi Geçmiş</span>}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">{f.cariAd} {f.gemiAd ? `- ${f.gemiAd}` : ""}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">{f.bagliFirmaAd} {f.gemiAd ? `- ${f.gemiAd}` : ""}</p>
                   <p className="text-xs text-muted-foreground">{f.faturaTarihi} - Vade: {f.vadeTarihi}</p>
                 </div>
                 <div className="text-right shrink-0 hidden sm:block">
                   <p className="font-semibold">{fmt(f.genelToplam, f.paraBirimi)}</p>
-                  {( f.kalanTutar ?? 0) > 0 && f.durum !== "odendi" && (
+                  {(f.kalanTutar ?? 0) > 0 && f.durum !== "odendi" && (
                     <p className="text-xs text-muted-foreground">Kalan: {fmt(f.kalanTutar ?? 0, f.paraBirimi)}</p>
                   )}
                 </div>
@@ -113,16 +110,16 @@ export default function Faturalar() {
         {filtrelenmis.length === 0 && (
           <div className="text-center text-muted-foreground py-16">
             <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p>Fatura bulunamadi.</p>
+            <p>Fatura bulunamadı.</p>
           </div>
         )}
       </div>
 
       <AlertDialog open={!!silId} onOpenChange={o => !o && setSilId(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Faturay sil</AlertDialogTitle><AlertDialogDescription>Bu islem geri alinamaz.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Faturayı sil</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Iptal</AlertDialogCancel>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (!silId) return; deleteFatura.mutate({ id: silId }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() }); setSilId(null); toast({ title: "Fatura silindi" }); } }); }}>Sil</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

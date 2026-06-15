@@ -3,12 +3,12 @@
  * Do not edit manually.
  * Api
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export interface KdvOrani {
   id: number;
-  sirketId: number;
+  catiFirmaId: number;
   ad: string;
   oran: number;
   varsayilan?: boolean;

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { useListSirketler, getListSirketlerQueryKey } from "@workspace/api-client-react";
+import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 
 interface SirketContextType {
   aktifSirketId: number | null;
@@ -10,7 +10,7 @@ interface SirketContextType {
 const SirketContext = createContext<SirketContextType>({
   aktifSirketId: null,
   setAktifSirketId: () => {},
-  aktifSirketAd: "Tüm Şirketler",
+  aktifSirketAd: "Tüm Firmalar",
 });
 
 export function SirketProvider({ children }: { children: ReactNode }) {
@@ -19,12 +19,13 @@ export function SirketProvider({ children }: { children: ReactNode }) {
     return stored ? Number(stored) : null;
   });
 
-  const { data: sirketler = [] } = useListSirketler({
-    query: { queryKey: getListSirketlerQueryKey() },
-  });
+  const { data: firmalar = [] } = useListFirmalar(
+    { tip: "cati" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
+  );
 
-  const aktifSirket = sirketler.find(s => s.id === aktifSirketId);
-  const aktifSirketAd = aktifSirket?.ad ?? "Tüm Şirketler";
+  const aktifFirma = firmalar.find(f => f.id === aktifSirketId);
+  const aktifSirketAd = aktifFirma?.ad ?? "Tüm Firmalar";
 
   function setAktifSirketId(id: number | null) {
     setAktifSirketIdState(id);
@@ -36,10 +37,10 @@ export function SirketProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    if (sirketler.length > 0 && aktifSirketId === null) {
-      setAktifSirketId(sirketler[0].id);
+    if (firmalar.length > 0 && aktifSirketId === null) {
+      setAktifSirketId(firmalar[0].id);
     }
-  }, [sirketler]);
+  }, [firmalar]);
 
   return (
     <SirketContext.Provider value={{ aktifSirketId, setAktifSirketId, aktifSirketAd }}>
