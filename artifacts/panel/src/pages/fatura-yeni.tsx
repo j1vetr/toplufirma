@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -43,6 +44,7 @@ export default function FaturaYeni() {
   const [vadeTarihi, setVadeTarihi] = useState("");
   const [paraBirimi, setParaBirimi] = useState("USD");
   const [notlar, setNotlar] = useState("");
+  const [tekrarlat, setTekrarlat] = useState(false);
   const [kalemler, setKalemler] = useState<Kalem[]>([
     { aciklama: "", miktar: 1, birimFiyat: 0, kdvOrani: 0 },
   ]);
@@ -100,7 +102,7 @@ export default function FaturaYeni() {
         ...(faturaAdi ? { faturaAdi } : {}),
         gemiId: gemiId && gemiId !== "none" ? Number(gemiId) : undefined,
         faturaSerisiId: serisiId && serisiId !== "none" ? Number(serisiId) : undefined,
-        faturaTarihi, vadeTarihi, paraBirimi, notlar,
+        faturaTarihi, vadeTarihi, paraBirimi, notlar, tekrarlat,
         kalemler: kalemler.map(k => ({ aciklama: k.aciklama, miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani })),
       },
     }, {
@@ -194,6 +196,13 @@ export default function FaturaYeni() {
           <div className="space-y-1.5">
             <Label>Notlar</Label>
             <Input value={notlar} onChange={e => setNotlar(e.target.value)} data-testid="input-fatura-notlar" />
+          </div>
+          <div className="flex items-start gap-2.5 rounded-lg border p-3 bg-muted/30">
+            <Checkbox id="tekrarlat" checked={tekrarlat} onCheckedChange={v => setTekrarlat(v === true)} data-testid="checkbox-tekrarlat" />
+            <div className="space-y-0.5">
+              <Label htmlFor="tekrarlat" className="cursor-pointer">Bu faturayı aylık tekrarlat</Label>
+              <p className="text-xs text-muted-foreground">Bu faturadaki tüm kalemleri kopyalayan aylık tekrarlayan tanım oluşturulur. Otomatik üretilen faturalar taslak olarak kaydedilir.</p>
+            </div>
           </div>
         </CardContent>
       </Card>

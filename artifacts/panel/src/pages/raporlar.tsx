@@ -19,6 +19,7 @@ const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
 
 const DURUM_RENK: Record<string, string> = {
+  taslak: "bg-slate-500/10 text-slate-500",
   acik: "bg-orange-500/10 text-orange-600",
   kismi_odendi: "bg-yellow-500/10 text-yellow-600",
   odendi: "bg-green-500/10 text-green-600",

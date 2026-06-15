@@ -1836,7 +1836,7 @@ components:
           type: string
         durum:
           type: string
-          enum: [acik, kismi_odendi, odendi, iptal]
+          enum: [taslak, acik, kismi_odendi, odendi, iptal]
         toplamTutar:
           type: number
         kdvTutari:
@@ -1978,6 +1978,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FaturaKalemiInput"
+        tekrarlat:
+          type: boolean
+          description: İşaretliyse faturayla birlikte aylık tekrarlayan tanım oluşturulur
 
     FaturaKalemiInput:
       type: object
@@ -2430,7 +2433,7 @@ components:
             type: integer
         durum:
           type: string
-          enum: [acik, kismi_odendi, odendi, iptal]
+          enum: [taslak, acik, kismi_odendi, odendi, iptal]
 
     # ── Firma Gelir ───────────────────────────────────────────────────────────
     FirmaGelirNoktasi:
@@ -2479,6 +2482,10 @@ components:
           type: integer
         bagliFirmaAd:
           type: ["string", "null"]
+        grupFirmaId:
+          type: ["integer", "null"]
+        grupFirmaAd:
+          type: ["string", "null"]
         gemiId:
           type: ["integer", "null"]
         gemiAd:
@@ -2496,9 +2503,43 @@ components:
           format: date
         aktif:
           type: boolean
+        kalemler:
+          type: array
+          items:
+            $ref: "#/components/schemas/TekrarlayanFaturaKalemi"
         olusturmaTarihi:
           type: string
           format: date-time
+
+    TekrarlayanFaturaKalemi:
+      type: object
+      required: [id, tekrarlayanFaturaId, aciklama, miktar, birimFiyat, kdvOrani]
+      properties:
+        id:
+          type: integer
+        tekrarlayanFaturaId:
+          type: integer
+        aciklama:
+          type: string
+        miktar:
+          type: number
+        birimFiyat:
+          type: number
+        kdvOrani:
+          type: number
+
+    TekrarlayanFaturaKalemiInput:
+      type: object
+      required: [aciklama, miktar, birimFiyat, kdvOrani]
+      properties:
+        aciklama:
+          type: string
+        miktar:
+          type: number
+        birimFiyat:
+          type: number
+        kdvOrani:
+          type: number
 
     TekrarlayanFaturaInput:
       type: object
@@ -2508,6 +2549,8 @@ components:
           type: integer
         bagliFirmaId:
           type: integer
+        grupFirmaId:
+          type: ["integer", "null"]
         gemiId:
           type: ["integer", "null"]
         aciklama:
@@ -2523,12 +2566,18 @@ components:
           format: date
         aktif:
           type: boolean
+        kalemler:
+          type: array
+          items:
+            $ref: "#/components/schemas/TekrarlayanFaturaKalemiInput"
 
     TekrarlayanFaturaUpdate:
       type: object
       properties:
         bagliFirmaId:
           type: integer
+        grupFirmaId:
+          type: ["integer", "null"]
         gemiId:
           type: ["integer", "null"]
         aciklama:
@@ -2544,3 +2593,7 @@ components:
           format: date
         aktif:
           type: boolean
+        kalemler:
+          type: array
+          items:
+            $ref: "#/components/schemas/TekrarlayanFaturaKalemiInput"

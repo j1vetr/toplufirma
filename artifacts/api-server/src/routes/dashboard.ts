@@ -170,7 +170,7 @@ router.get("/dashboard/aylik-gelir", async (req, res) => {
     const result = Array.from({ length: 12 }, (_, i) => {
       const ay = i + 1;
       const prefix = `${hedefYil}-${String(ay).padStart(2, "0")}`;
-      const toplamFatura = fats.filter(f => f.faturaTarihi.startsWith(prefix)).reduce((s, f) => s + Number(f.genelToplam), 0);
+      const toplamFatura = fats.filter(f => f.faturaTarihi.startsWith(prefix) && f.durum !== "taslak").reduce((s, f) => s + Number(f.genelToplam), 0);
       const toplamTahsilat = ods.filter(o => o.tarih.startsWith(prefix)).reduce((s, o) => s + Number(o.tutar), 0);
       return { yil: hedefYil, ay, ayAd: AY_ADLARI[i], toplamFatura, toplamTahsilat };
     });
@@ -199,7 +199,7 @@ router.get("/dashboard/firma-gelir", async (req, res) => {
     for (const f of catiFirmaRows) catiFirmaAdMap[f.id] = f.ad;
 
     const map: Record<number, { catiFirmaId: number; catiFirmaAd: string; toplamFatura: number; toplamTahsilat: number }> = {};
-    for (const f of fats.filter(f => f.faturaTarihi.startsWith(prefix))) {
+    for (const f of fats.filter(f => f.faturaTarihi.startsWith(prefix) && f.durum !== "taslak")) {
       if (!map[f.catiFirmaId]) map[f.catiFirmaId] = { catiFirmaId: f.catiFirmaId, catiFirmaAd: catiFirmaAdMap[f.catiFirmaId] ?? String(f.catiFirmaId), toplamFatura: 0, toplamTahsilat: 0 };
       map[f.catiFirmaId].toplamFatura += Number(f.genelToplam);
     }

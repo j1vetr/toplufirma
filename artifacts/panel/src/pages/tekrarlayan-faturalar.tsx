@@ -31,17 +31,35 @@ import { Plus, Trash2, RefreshCw, Pencil, Repeat } from "lucide-react";
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
 
+interface KalemForm {
+  aciklama: string;
+  miktar: string;
+  birimFiyat: string;
+  kdvOrani: string;
+}
+
+const BOSH_KALEM: KalemForm = { aciklama: "", miktar: "1", birimFiyat: "", kdvOrani: "0" };
+
 const BOSH_FORM = {
   catiFirmaId: "",
   bagliFirmaId: "",
+  grupFirmaId: "",
   gemiId: "",
-  aciklama: "",
-  birimFiyat: "",
-  kdvOrani: "0",
   paraBirimi: "USD",
   sonrakiTarih: new Date().toISOString().split("T")[0],
   aktif: true,
+  kalemler: [{ ...BOSH_KALEM }] as KalemForm[],
 };
+
+const kalemGenelToplam = (k: { miktar: number; birimFiyat: number; kdvOrani: number }) =>
+  k.miktar * k.birimFiyat * (1 + k.kdvOrani / 100);
+
+function trToplam(tr: TekrarlayanFatura): number {
+  if (tr.kalemler && tr.kalemler.length) {
+    return tr.kalemler.reduce((s, k) => s + kalemGenelToplam(k), 0);
+  }
+  return kalemGenelToplam({ miktar: 1, birimFiyat: tr.birimFiyat, kdvOrani: tr.kdvOrani });
+}
 
 export default function TekrarlayanFaturalar() {
   const qc = useQueryClient();
@@ -66,6 +84,10 @@ export default function TekrarlayanFaturalar() {
     { tip: "bagli" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
   );
+  const { data: grupFirmalar = [] } = useListFirmalar(
+    { tip: "grup" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "grup"] } },
+  );
   const { data: gemilerData = [] } = useListGemiler(
     params,
     { query: { queryKey: [...getListGemilerQueryKey(params), aktifSirketId] } },
@@ -82,13 +104,14 @@ export default function TekrarlayanFaturalar() {
       setForm({
         catiFirmaId: String(tr.catiFirmaId),
         bagliFirmaId: String(tr.bagliFirmaId),
+        grupFirmaId: tr.grupFirmaId ? String(tr.grupFirmaId) : "",
         gemiId: tr.gemiId ? String(tr.gemiId) : "",
-        aciklama: tr.aciklama,
-        birimFiyat: String(tr.birimFiyat),
-        kdvOrani: String(tr.kdvOrani),
         paraBirimi: tr.paraBirimi,
         sonrakiTarih: tr.sonrakiTarih,
         aktif: tr.aktif,
+        kalemler: tr.kalemler && tr.kalemler.length
+          ? tr.kalemler.map(k => ({ aciklama: k.aciklama, miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: String(k.kdvOrani) }))
+          : [{ aciklama: tr.aciklama, miktar: "1", birimFiyat: String(tr.birimFiyat), kdvOrani: String(tr.kdvOrani) }],
       });
     } else {
       setDuzenleId(null);
@@ -102,18 +125,27 @@ export default function TekrarlayanFaturalar() {
   }
 
   function kaydet() {
+    const kalemler = form.kalemler.map(k => ({
+      aciklama: k.aciklama,
+      miktar: Number(k.miktar) || 1,
+      birimFiyat: Number(k.birimFiyat),
+      kdvOrani: Number(k.kdvOrani) || 0,
+    }));
+    const ilk = kalemler[0];
     const data = {
       catiFirmaId: Number(form.catiFirmaId),
       bagliFirmaId: Number(form.bagliFirmaId),
+      grupFirmaId: form.grupFirmaId ? Number(form.grupFirmaId) : null,
       gemiId: form.gemiId ? Number(form.gemiId) : undefined,
-      aciklama: form.aciklama,
-      birimFiyat: Number(form.birimFiyat),
-      kdvOrani: Number(form.kdvOrani),
+      aciklama: ilk?.aciklama ?? "",
+      birimFiyat: ilk?.birimFiyat ?? 0,
+      kdvOrani: ilk?.kdvOrani ?? 0,
       paraBirimi: form.paraBirimi,
       sonrakiTarih: form.sonrakiTarih,
       aktif: form.aktif,
+      kalemler,
     };
-    if (!data.catiFirmaId || !data.bagliFirmaId || !data.aciklama || !data.birimFiyat) {
+    if (!data.catiFirmaId || !data.bagliFirmaId || kalemler.some(k => !k.aciklama || !k.birimFiyat)) {
       toast({ title: "Zorunlu alanları doldurun", variant: "destructive" }); return;
     }
 
@@ -172,6 +204,16 @@ export default function TekrarlayanFaturalar() {
     );
   }
 
+  function kalemGuncelle(idx: number, alan: keyof KalemForm, deger: string) {
+    setForm(f => ({ ...f, kalemler: f.kalemler.map((k, i) => i === idx ? { ...k, [alan]: deger } : k) }));
+  }
+  function kalemEkle() {
+    setForm(f => ({ ...f, kalemler: [...f.kalemler, { ...BOSH_KALEM, kdvOrani: f.kalemler[0]?.kdvOrani ?? "0" }] }));
+  }
+  function kalemSil(idx: number) {
+    setForm(f => ({ ...f, kalemler: f.kalemler.length > 1 ? f.kalemler.filter((_, i) => i !== idx) : f.kalemler }));
+  }
+
   const filtreli = aktifSirketId
     ? liste.filter(t => t.catiFirmaId === aktifSirketId)
     : liste;
@@ -213,11 +255,14 @@ export default function TekrarlayanFaturalar() {
                     {tr.catiFirmaAd ?? `Firma #${tr.catiFirmaId}`} → {tr.bagliFirmaAd ?? `Firma #${tr.bagliFirmaId}`}
                     {tr.gemiAd ? ` (${tr.gemiAd})` : ""}
                   </p>
-                  <p className="text-xs text-muted-foreground">Sonraki: {tr.sonrakiTarih}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Sonraki: {tr.sonrakiTarih}
+                    {tr.kalemler && tr.kalemler.length > 1 ? ` · ${tr.kalemler.length} kalem` : ""}
+                  </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-semibold text-sm">{fmt(tr.birimFiyat, tr.paraBirimi)}</p>
-                  <p className="text-xs text-muted-foreground">KDV: %{tr.kdvOrani}</p>
+                  <p className="font-semibold text-sm">{fmt(trToplam(tr), tr.paraBirimi)}</p>
+                  <p className="text-xs text-muted-foreground">KDV dahil</p>
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <Button
@@ -266,16 +311,42 @@ export default function TekrarlayanFaturalar() {
               </Select>
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label className="text-xs">Açıklama *</Label>
-              <Input className="h-8 text-sm" value={form.aciklama} onChange={e => setForm(f => ({ ...f, aciklama: e.target.value }))} placeholder="Hizmet açıklaması" />
+              <Label className="text-xs">Çatı / Grup Firma</Label>
+              <Select value={form.grupFirmaId || "none"} onValueChange={v => setForm(f => ({ ...f, grupFirmaId: v === "none" ? "" : v }))}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Yok" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Yok</SelectItem>
+                  {grupFirmalar.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Birim Fiyat *</Label>
-              <Input className="h-8 text-sm" type="number" step="0.01" value={form.birimFiyat} onChange={e => setForm(f => ({ ...f, birimFiyat: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">KDV Oranı (%)</Label>
-              <Input className="h-8 text-sm" type="number" step="1" value={form.kdvOrani} onChange={e => setForm(f => ({ ...f, kdvOrani: e.target.value }))} />
+            <div className="col-span-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Kalemler *</Label>
+                <Button type="button" variant="outline" size="sm" className="h-7 rounded-full text-xs" onClick={kalemEkle} data-testid="button-tekrar-kalem-ekle">
+                  <Plus className="mr-1 h-3 w-3" /> Kalem Ekle
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <div className="grid grid-cols-12 gap-1.5 text-[10px] text-muted-foreground px-1">
+                  <span className="col-span-5">Açıklama</span>
+                  <span className="col-span-2 text-right">Miktar</span>
+                  <span className="col-span-2 text-right">Birim Fiyat</span>
+                  <span className="col-span-2 text-right">KDV %</span>
+                  <span className="col-span-1" />
+                </div>
+                {form.kalemler.map((k, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-1.5 items-center">
+                    <Input className="col-span-5 h-8 text-sm" value={k.aciklama} onChange={e => kalemGuncelle(i, "aciklama", e.target.value)} placeholder="Hizmet açıklaması" data-testid={`input-tekrar-kalem-aciklama-${i}`} />
+                    <Input className="col-span-2 h-8 text-sm text-right" type="number" step="0.01" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", e.target.value)} data-testid={`input-tekrar-kalem-miktar-${i}`} />
+                    <Input className="col-span-2 h-8 text-sm text-right" type="number" step="0.01" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", e.target.value)} data-testid={`input-tekrar-kalem-fiyat-${i}`} />
+                    <Input className="col-span-2 h-8 text-sm text-right" type="number" step="1" value={k.kdvOrani} onChange={e => kalemGuncelle(i, "kdvOrani", e.target.value)} data-testid={`input-tekrar-kalem-kdv-${i}`} />
+                    <Button type="button" size="icon" variant="ghost" className="col-span-1 h-7 w-7 text-destructive" onClick={() => kalemSil(i)} disabled={form.kalemler.length === 1} data-testid={`button-tekrar-kalem-sil-${i}`}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Para Birimi</Label>

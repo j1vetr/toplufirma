@@ -28,13 +28,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, FileText, Search, ChevronRight, AlertCircle, Download, Mail, CreditCard, CheckSquare, SquarePen } from "lucide-react";
 
 const DURUM_RENK: Record<string, string> = {
+  taslak: "bg-slate-500/10 text-slate-500",
   acik: "bg-orange-500/10 text-orange-600",
   kismi_odendi: "bg-yellow-500/10 text-yellow-600",
   odendi: "bg-green-500/10 text-green-600",
   iptal: "bg-gray-500/10 text-gray-500",
 };
 const DURUM_ETIKET: Record<string, string> = {
-  acik: "Açık", kismi_odendi: "Kısmi Ödendi", odendi: "Ödendi", iptal: "İptal",
+  taslak: "Taslak", acik: "Açık", kismi_odendi: "Kısmi Ödendi", odendi: "Ödendi", iptal: "İptal",
 };
 
 const YONTEM_ETIKET: Record<string, string> = {

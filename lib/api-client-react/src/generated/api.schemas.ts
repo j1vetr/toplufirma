@@ -59,6 +59,7 @@ export type FaturaDurum = typeof FaturaDurum[keyof typeof FaturaDurum];
 
 
 export const FaturaDurum = {
+  taslak: 'taslak',
   acik: 'acik',
   kismi_odendi: 'kismi_odendi',
   odendi: 'odendi',
@@ -542,6 +543,8 @@ export interface FaturaInput {
   notlar?: string;
   aciklama?: string;
   kalemler: FaturaKalemiInput[];
+  /** İşaretliyse faturayla birlikte aylık tekrarlayan tanım oluşturulur */
+  tekrarlat?: boolean;
 }
 
 export interface FaturaUpdate {
@@ -747,6 +750,7 @@ export type TopluDurumInputDurum = typeof TopluDurumInputDurum[keyof typeof Topl
 
 
 export const TopluDurumInputDurum = {
+  taslak: 'taslak',
   acik: 'acik',
   kismi_odendi: 'kismi_odendi',
   odendi: 'odendi',
@@ -771,6 +775,15 @@ export interface AramaResult {
   faturalar: Fatura[];
 }
 
+export interface TekrarlayanFaturaKalemi {
+  id: number;
+  tekrarlayanFaturaId: number;
+  aciklama: string;
+  miktar: number;
+  birimFiyat: number;
+  kdvOrani: number;
+}
+
 export interface TekrarlayanFatura {
   id: number;
   catiFirmaId: number;
@@ -779,6 +792,10 @@ export interface TekrarlayanFatura {
   bagliFirmaId: number;
   /** @nullable */
   bagliFirmaAd?: string | null;
+  /** @nullable */
+  grupFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaAd?: string | null;
   /** @nullable */
   gemiId?: number | null;
   /** @nullable */
@@ -789,12 +806,22 @@ export interface TekrarlayanFatura {
   paraBirimi: string;
   sonrakiTarih: string;
   aktif: boolean;
+  kalemler?: TekrarlayanFaturaKalemi[];
   olusturmaTarihi: string;
+}
+
+export interface TekrarlayanFaturaKalemiInput {
+  aciklama: string;
+  miktar: number;
+  birimFiyat: number;
+  kdvOrani: number;
 }
 
 export interface TekrarlayanFaturaInput {
   catiFirmaId: number;
   bagliFirmaId: number;
+  /** @nullable */
+  grupFirmaId?: number | null;
   /** @nullable */
   gemiId?: number | null;
   aciklama: string;
@@ -803,10 +830,13 @@ export interface TekrarlayanFaturaInput {
   paraBirimi: string;
   sonrakiTarih: string;
   aktif?: boolean;
+  kalemler?: TekrarlayanFaturaKalemiInput[];
 }
 
 export interface TekrarlayanFaturaUpdate {
   bagliFirmaId?: number;
+  /** @nullable */
+  grupFirmaId?: number | null;
   /** @nullable */
   gemiId?: number | null;
   aciklama?: string;
@@ -815,6 +845,7 @@ export interface TekrarlayanFaturaUpdate {
   paraBirimi?: string;
   sonrakiTarih?: string;
   aktif?: boolean;
+  kalemler?: TekrarlayanFaturaKalemiInput[];
 }
 
 export type ListFirmalarParams = {

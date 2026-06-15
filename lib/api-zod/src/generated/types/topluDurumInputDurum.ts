@@ -10,6 +10,7 @@ export type TopluDurumInputDurum = typeof TopluDurumInputDurum[keyof typeof Topl
 
 
 export const TopluDurumInputDurum = {
+  taslak: 'taslak',
   acik: 'acik',
   kismi_odendi: 'kismi_odendi',
   odendi: 'odendi',

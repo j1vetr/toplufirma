@@ -5,6 +5,7 @@
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
  * OpenAPI spec version: 0.2.0
  */
+import type { TekrarlayanFaturaKalemi } from './tekrarlayanFaturaKalemi';
 
 export interface TekrarlayanFatura {
   id: number;
@@ -15,6 +16,10 @@ export interface TekrarlayanFatura {
   /** @nullable */
   bagliFirmaAd?: string | null;
   /** @nullable */
+  grupFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaAd?: string | null;
+  /** @nullable */
   gemiId?: number | null;
   /** @nullable */
   gemiAd?: string | null;
@@ -24,5 +29,6 @@ export interface TekrarlayanFatura {
   paraBirimi: string;
   sonrakiTarih: Date;
   aktif: boolean;
+  kalemler?: TekrarlayanFaturaKalemi[];
   olusturmaTarihi: Date;
 }

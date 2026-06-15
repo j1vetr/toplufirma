@@ -16,6 +16,7 @@ import { relations } from "drizzle-orm";
 export const firmaTipEnum = pgEnum("firma_tip", ["cati", "bagli", "grup"]);
 
 export const faturaDurumEnum = pgEnum("fatura_durum", [
+  "taslak",
   "acik",
   "kismi_odendi",
   "odendi",
@@ -188,6 +189,7 @@ export const tekrarlayanFaturalar = pgTable("tekrarlayan_faturalar", {
   id: serial("id").primaryKey(),
   catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
   bagliFirmaId: integer("bagli_firma_id").notNull().references(() => firmalar.id),
+  grupFirmaId: integer("grup_firma_id").references(() => firmalar.id),
   gemiId: integer("gemi_id").references(() => gemiler.id),
   aciklama: text("aciklama").notNull(),
   birimFiyat: numeric("birim_fiyat", { precision: 15, scale: 2 }).notNull(),
@@ -196,6 +198,16 @@ export const tekrarlayanFaturalar = pgTable("tekrarlayan_faturalar", {
   sonrakiTarih: date("sonraki_tarih").notNull(),
   aktif: boolean("aktif").notNull().default(true),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
+});
+
+// ── Tekrarlayan Fatura Kalemleri ──────────────────────────────────────────
+export const tekrarlayanFaturaKalemleri = pgTable("tekrarlayan_fatura_kalemleri", {
+  id: serial("id").primaryKey(),
+  tekrarlayanFaturaId: integer("tekrarlayan_fatura_id").notNull().references(() => tekrarlayanFaturalar.id, { onDelete: "cascade" }),
+  aciklama: text("aciklama").notNull(),
+  miktar: numeric("miktar", { precision: 15, scale: 4 }).notNull().default("1"),
+  birimFiyat: numeric("birim_fiyat", { precision: 15, scale: 4 }).notNull(),
+  kdvOrani: numeric("kdv_orani", { precision: 5, scale: 2 }).notNull().default("0"),
 });
 
 // ── Kullanıcılar ──────────────────────────────────────────────────────────
@@ -285,6 +297,18 @@ export const kdvOranlariRelations = relations(kdvOranlari, ({ one }) => ({
 export const faturaSerileriRelations = relations(faturaSerileri, ({ one, many }) => ({
   catiFirma: one(firmalar, { fields: [faturaSerileri.catiFirmaId], references: [firmalar.id] }),
   faturalar: many(faturalar),
+}));
+
+export const tekrarlayanFaturalarRelations = relations(tekrarlayanFaturalar, ({ one, many }) => ({
+  catiFirma: one(firmalar, { fields: [tekrarlayanFaturalar.catiFirmaId], references: [firmalar.id] }),
+  bagliFirma: one(firmalar, { fields: [tekrarlayanFaturalar.bagliFirmaId], references: [firmalar.id] }),
+  grupFirma: one(firmalar, { fields: [tekrarlayanFaturalar.grupFirmaId], references: [firmalar.id] }),
+  gemi: one(gemiler, { fields: [tekrarlayanFaturalar.gemiId], references: [gemiler.id] }),
+  kalemler: many(tekrarlayanFaturaKalemleri),
+}));
+
+export const tekrarlayanFaturaKalemleriRelations = relations(tekrarlayanFaturaKalemleri, ({ one }) => ({
+  tekrarlayanFatura: one(tekrarlayanFaturalar, { fields: [tekrarlayanFaturaKalemleri.tekrarlayanFaturaId], references: [tekrarlayanFaturalar.id] }),
 }));
 
 export const kullanicilarRelations = relations(kullanicilar, ({ many }) => ({

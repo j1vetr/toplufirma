@@ -125,7 +125,7 @@ export const GetFirmaResponse = zod.object({
   "faturaTarihi": zod.coerce.date(),
   "vadeTarihi": zod.coerce.date(),
   "paraBirimi": zod.string(),
-  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal']),
+  "durum": zod.enum(['taslak', 'acik', 'kismi_odendi', 'odendi', 'iptal']),
   "toplamTutar": zod.number(),
   "kdvTutari": zod.number(),
   "genelToplam": zod.number(),
@@ -415,7 +415,7 @@ export const GetGemiResponse = zod.object({
   "faturaTarihi": zod.coerce.date(),
   "vadeTarihi": zod.coerce.date(),
   "paraBirimi": zod.string(),
-  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal']),
+  "durum": zod.enum(['taslak', 'acik', 'kismi_odendi', 'odendi', 'iptal']),
   "toplamTutar": zod.number(),
   "kdvTutari": zod.number(),
   "genelToplam": zod.number(),
@@ -650,7 +650,7 @@ export const ListFaturalarResponseItem = zod.object({
   "faturaTarihi": zod.coerce.date(),
   "vadeTarihi": zod.coerce.date(),
   "paraBirimi": zod.string(),
-  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal']),
+  "durum": zod.enum(['taslak', 'acik', 'kismi_odendi', 'odendi', 'iptal']),
   "toplamTutar": zod.number(),
   "kdvTutari": zod.number(),
   "genelToplam": zod.number(),
@@ -683,7 +683,8 @@ export const CreateFaturaBody = zod.object({
   "miktar": zod.number(),
   "birimFiyat": zod.number(),
   "kdvOrani": zod.number()
-}))
+})),
+  "tekrarlat": zod.boolean().optional().describe('İşaretliyse faturayla birlikte aylık tekrarlayan tanım oluşturulur')
 })
 
 
@@ -786,7 +787,7 @@ export const UpdateFaturaResponse = zod.object({
   "faturaTarihi": zod.coerce.date(),
   "vadeTarihi": zod.coerce.date(),
   "paraBirimi": zod.string(),
-  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal']),
+  "durum": zod.enum(['taslak', 'acik', 'kismi_odendi', 'odendi', 'iptal']),
   "toplamTutar": zod.number(),
   "kdvTutari": zod.number(),
   "genelToplam": zod.number(),
@@ -1210,7 +1211,7 @@ export const GetVadesiYaklasanFaturalarResponseItem = zod.object({
   "faturaTarihi": zod.coerce.date(),
   "vadeTarihi": zod.coerce.date(),
   "paraBirimi": zod.string(),
-  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal']),
+  "durum": zod.enum(['taslak', 'acik', 'kismi_odendi', 'odendi', 'iptal']),
   "toplamTutar": zod.number(),
   "kdvTutari": zod.number(),
   "genelToplam": zod.number(),
@@ -1249,7 +1250,7 @@ export const GetSonIslemlerResponse = zod.object({
   "faturaTarihi": zod.coerce.date(),
   "vadeTarihi": zod.coerce.date(),
   "paraBirimi": zod.string(),
-  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal']),
+  "durum": zod.enum(['taslak', 'acik', 'kismi_odendi', 'odendi', 'iptal']),
   "toplamTutar": zod.number(),
   "kdvTutari": zod.number(),
   "genelToplam": zod.number(),
@@ -1373,7 +1374,7 @@ export const GetAlacakYaslandirmaResponse = zod.object({
   "faturaTarihi": zod.coerce.date(),
   "vadeTarihi": zod.coerce.date(),
   "paraBirimi": zod.string(),
-  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal']),
+  "durum": zod.enum(['taslak', 'acik', 'kismi_odendi', 'odendi', 'iptal']),
   "toplamTutar": zod.number(),
   "kdvTutari": zod.number(),
   "genelToplam": zod.number(),
@@ -1443,7 +1444,7 @@ export const GlobalAramaResponse = zod.object({
   "faturaTarihi": zod.coerce.date(),
   "vadeTarihi": zod.coerce.date(),
   "paraBirimi": zod.string(),
-  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal']),
+  "durum": zod.enum(['taslak', 'acik', 'kismi_odendi', 'odendi', 'iptal']),
   "toplamTutar": zod.number(),
   "kdvTutari": zod.number(),
   "genelToplam": zod.number(),
@@ -1469,6 +1470,8 @@ export const ListTekrarlayanFaturalarResponseItem = zod.object({
   "catiFirmaAd": zod.string().nullish(),
   "bagliFirmaId": zod.number(),
   "bagliFirmaAd": zod.string().nullish(),
+  "grupFirmaId": zod.number().nullish(),
+  "grupFirmaAd": zod.string().nullish(),
   "gemiId": zod.number().nullish(),
   "gemiAd": zod.string().nullish(),
   "aciklama": zod.string(),
@@ -1477,6 +1480,14 @@ export const ListTekrarlayanFaturalarResponseItem = zod.object({
   "paraBirimi": zod.string(),
   "sonrakiTarih": zod.coerce.date(),
   "aktif": zod.boolean(),
+  "kalemler": zod.array(zod.object({
+  "id": zod.number(),
+  "tekrarlayanFaturaId": zod.number(),
+  "aciklama": zod.string(),
+  "miktar": zod.number(),
+  "birimFiyat": zod.number(),
+  "kdvOrani": zod.number()
+})).optional(),
   "olusturmaTarihi": zod.coerce.date()
 })
 export const ListTekrarlayanFaturalarResponse = zod.array(ListTekrarlayanFaturalarResponseItem)
@@ -1488,13 +1499,20 @@ export const ListTekrarlayanFaturalarResponse = zod.array(ListTekrarlayanFatural
 export const CreateTekrarlayanFaturaBody = zod.object({
   "catiFirmaId": zod.number(),
   "bagliFirmaId": zod.number(),
+  "grupFirmaId": zod.number().nullish(),
   "gemiId": zod.number().nullish(),
   "aciklama": zod.string(),
   "birimFiyat": zod.number(),
   "kdvOrani": zod.number(),
   "paraBirimi": zod.string(),
   "sonrakiTarih": zod.coerce.date(),
-  "aktif": zod.boolean().optional()
+  "aktif": zod.boolean().optional(),
+  "kalemler": zod.array(zod.object({
+  "aciklama": zod.string(),
+  "miktar": zod.number(),
+  "birimFiyat": zod.number(),
+  "kdvOrani": zod.number()
+})).optional()
 })
 
 
@@ -1507,13 +1525,20 @@ export const UpdateTekrarlayanFaturaParams = zod.object({
 
 export const UpdateTekrarlayanFaturaBody = zod.object({
   "bagliFirmaId": zod.number().optional(),
+  "grupFirmaId": zod.number().nullish(),
   "gemiId": zod.number().nullish(),
   "aciklama": zod.string().optional(),
   "birimFiyat": zod.number().optional(),
   "kdvOrani": zod.number().optional(),
   "paraBirimi": zod.string().optional(),
   "sonrakiTarih": zod.coerce.date().optional(),
-  "aktif": zod.boolean().optional()
+  "aktif": zod.boolean().optional(),
+  "kalemler": zod.array(zod.object({
+  "aciklama": zod.string(),
+  "miktar": zod.number(),
+  "birimFiyat": zod.number(),
+  "kdvOrani": zod.number()
+})).optional()
 })
 
 export const UpdateTekrarlayanFaturaResponse = zod.object({
@@ -1522,6 +1547,8 @@ export const UpdateTekrarlayanFaturaResponse = zod.object({
   "catiFirmaAd": zod.string().nullish(),
   "bagliFirmaId": zod.number(),
   "bagliFirmaAd": zod.string().nullish(),
+  "grupFirmaId": zod.number().nullish(),
+  "grupFirmaAd": zod.string().nullish(),
   "gemiId": zod.number().nullish(),
   "gemiAd": zod.string().nullish(),
   "aciklama": zod.string(),
@@ -1530,6 +1557,14 @@ export const UpdateTekrarlayanFaturaResponse = zod.object({
   "paraBirimi": zod.string(),
   "sonrakiTarih": zod.coerce.date(),
   "aktif": zod.boolean(),
+  "kalemler": zod.array(zod.object({
+  "id": zod.number(),
+  "tekrarlayanFaturaId": zod.number(),
+  "aciklama": zod.string(),
+  "miktar": zod.number(),
+  "birimFiyat": zod.number(),
+  "kdvOrani": zod.number()
+})).optional(),
   "olusturmaTarihi": zod.coerce.date()
 })
 
@@ -1555,7 +1590,7 @@ export const UretTekrarlayanFaturaParams = zod.object({
  */
 export const TopluDurumGuncelleBody = zod.object({
   "ids": zod.array(zod.number()),
-  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal'])
+  "durum": zod.enum(['taslak', 'acik', 'kismi_odendi', 'odendi', 'iptal'])
 })
 
 export const TopluDurumGuncelleResponse = zod.object({

@@ -10,6 +10,7 @@ export type FaturaDurum = typeof FaturaDurum[keyof typeof FaturaDurum];
 
 
 export const FaturaDurum = {
+  taslak: 'taslak',
   acik: 'acik',
   kismi_odendi: 'kismi_odendi',
   odendi: 'odendi',

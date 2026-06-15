@@ -19,19 +19,20 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Download, Mail } from "lucide-react";
+import { ArrowLeft, Plus, Download, Mail, CheckCircle2 } from "lucide-react";
 
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
 
 const DURUM_RENK: Record<string, string> = {
+  taslak: "bg-slate-500/10 text-slate-500",
   acik: "bg-orange-500/10 text-orange-600",
   kismi_odendi: "bg-yellow-500/10 text-yellow-600",
   odendi: "bg-green-500/10 text-green-600",
   iptal: "bg-gray-500/10 text-gray-500",
 };
 const DURUM_ETIKET: Record<string, string> = {
-  acik: "Açık", kismi_odendi: "Kısmi Ödendi", odendi: "Ödendi", iptal: "İptal",
+  taslak: "Taslak", acik: "Açık", kismi_odendi: "Kısmi Ödendi", odendi: "Ödendi", iptal: "İptal",
 };
 
 const YONTEM_ETIKET: Record<string, string> = {
@@ -175,6 +176,11 @@ export default function FaturaDetay() {
           <Button variant="outline" size="sm" className="rounded-full" onClick={() => setGonderModal(true)}>
             <Mail className="mr-1 h-4 w-4" /> E-posta
           </Button>
+          {fatura.durum === "taslak" && (
+            <Button size="sm" className="rounded-full" onClick={() => durumGuncelle("acik")} disabled={updateFatura.isPending} data-testid="button-kesinlestir">
+              <CheckCircle2 className="mr-1 h-4 w-4" /> Kesinleştir
+            </Button>
+          )}
           {(fatura.durum === "acik" || fatura.durum === "kismi_odendi") && (
             <Button size="sm" className="rounded-full" onClick={() => setOdemeModal(true)} data-testid="button-odeme-ekle">
               <Plus className="mr-1 h-4 w-4" /> Ödeme Kaydet

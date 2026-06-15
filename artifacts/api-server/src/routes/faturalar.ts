@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri, bankaHesaplari, firmaEpostaAyarlari } from "@workspace/db";
+import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri, bankaHesaplari, firmaEpostaAyarlari, tekrarlayanFaturalar, tekrarlayanFaturaKalemleri } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 import nodemailer from "nodemailer";
@@ -59,7 +59,7 @@ router.get("/faturalar", async (req, res) => {
 
 router.post("/faturalar", requireYazma, async (req, res) => {
   try {
-    const { catiFirmaId, bagliFirmaId, grupFirmaId, gemiId, faturaSerisiId, faturaAdi, faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama, kalemler } = req.body;
+    const { catiFirmaId, bagliFirmaId, grupFirmaId, gemiId, faturaSerisiId, faturaAdi, faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama, kalemler, tekrarlat } = req.body;
     if (!catiFirmaId || !bagliFirmaId || !faturaTarihi || !vadeTarihi || !kalemler?.length) {
       res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
     }
@@ -117,6 +117,31 @@ router.post("/faturalar", requireYazma, async (req, res) => {
       await db.insert(faturaKalemleri).values({ faturaId: fatura.id, ...k });
     }
 
+    if (tekrarlat) {
+      const ilkKalem = (kalemler as { aciklama: string; miktar: number; birimFiyat: number; kdvOrani: number }[])[0];
+      const sonraki = new Date(faturaTarihi);
+      sonraki.setMonth(sonraki.getMonth() + 1);
+      const [tr] = await db.insert(tekrarlayanFaturalar).values({
+        catiFirmaId, bagliFirmaId, grupFirmaId: grupFirmaId ? Number(grupFirmaId) : null, gemiId: gemiId ?? null,
+        aciklama: aciklama ?? ilkKalem.aciklama,
+        birimFiyat: String(ilkKalem.birimFiyat),
+        kdvOrani: String(ilkKalem.kdvOrani),
+        paraBirimi: paraBirimi ?? "USD",
+        sonrakiTarih: sonraki.toISOString().split("T")[0],
+        aktif: true,
+      }).returning();
+
+      for (const k of kalemler as { aciklama: string; miktar: number; birimFiyat: number; kdvOrani: number }[]) {
+        await db.insert(tekrarlayanFaturaKalemleri).values({
+          tekrarlayanFaturaId: tr.id,
+          aciklama: k.aciklama,
+          miktar: String(k.miktar),
+          birimFiyat: String(k.birimFiyat),
+          kdvOrani: String(k.kdvOrani),
+        });
+      }
+    }
+
     res.status(201).json(formatFatura(fatura, null, null, null, 0));
   } catch {
     res.status(500).json({ error: "Fatura oluşturulamadı" });
@@ -127,7 +152,7 @@ router.patch("/faturalar/toplu-durum", requireYazma, async (req, res) => {
   try {
     const { ids, durum } = req.body as { ids?: number[]; durum?: string };
     if (!ids?.length || !durum) { res.status(400).json({ error: "ids ve durum zorunludur" }); return; }
-    const izinliDurumlar = ["acik", "kismi_odendi", "odendi", "iptal"];
+    const izinliDurumlar = ["taslak", "acik", "kismi_odendi", "odendi", "iptal"];
     if (!izinliDurumlar.includes(durum)) { res.status(400).json({ error: "Geçersiz durum" }); return; }
 
     let guncellenen = 0;

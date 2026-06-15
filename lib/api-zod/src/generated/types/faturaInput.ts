@@ -23,4 +23,6 @@ export interface FaturaInput {
   notlar?: string;
   aciklama?: string;
   kalemler: FaturaKalemiInput[];
+  /** İşaretliyse faturayla birlikte aylık tekrarlayan tanım oluşturulur */
+  tekrarlat?: boolean;
 }

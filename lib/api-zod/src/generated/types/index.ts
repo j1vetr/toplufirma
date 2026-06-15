@@ -87,6 +87,8 @@ export * from './paraBirimiOzet';
 export * from './sonIslemler';
 export * from './tekrarlayanFatura';
 export * from './tekrarlayanFaturaInput';
+export * from './tekrarlayanFaturaKalemi';
+export * from './tekrarlayanFaturaKalemiInput';
 export * from './tekrarlayanFaturaUpdate';
 export * from './topluDurumGuncelle200';
 export * from './topluDurumInput';
