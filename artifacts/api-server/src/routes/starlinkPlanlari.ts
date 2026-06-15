@@ -36,9 +36,9 @@ router.get("/starlink-planlari", async (req, res) => {
 router.post("/starlink-planlari", requireYazma, async (req, res) => {
   try {
     const { sirketId, cariId, gemiId, planAdi, hizMbps, baslangicTarihi, bitisTarihi, aylikUcret, paraBirimi, otomatikYenileme, aktif, notlar } = req.body;
-    if (!sirketId || !cariId || !gemiId || !planAdi || !baslangicTarihi || !bitisTarihi || !aylikUcret)
-      res.status(400).json({ error: "Zorunlu alanlar eksik" });
-      return;
+    if (!sirketId || !cariId || !gemiId || !planAdi || !baslangicTarihi || !bitisTarihi || !aylikUcret) {
+      res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
+    }
     if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     const [row] = await db.insert(starlinkPlanlari).values({

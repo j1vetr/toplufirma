@@ -37,9 +37,9 @@ router.get("/odemeler", async (req, res) => {
 router.post("/odemeler", requireYazma, async (req, res) => {
   try {
     const { sirketId, cariId, gemiId, bankaHesabiId, faturaId, tip, tarih, tutar, paraBirimi, odemeYontemi, aciklama } = req.body;
-    if (!sirketId || !cariId || !tip || !tarih || !tutar)
-      res.status(400).json({ error: "Zorunlu alanlar eksik" });
-      return;
+    if (!sirketId || !cariId || !tip || !tarih || !tutar) {
+      res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
+    }
     if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
     const [row] = await db.insert(odemeler).values({
