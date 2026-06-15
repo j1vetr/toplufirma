@@ -126,7 +126,16 @@ router.delete("/gemiler/:id", requireYazma, async (req, res) => {
       .where(eq(gemiler.id, id));
     if (!existing) { res.status(404).json({ error: "Gemi bulunamadı" }); return; }
     if (existing.ustFirmaId && !sirketErisimKontrol(existing.ustFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
-    await db.delete(gemiler).where(eq(gemiler.id, id));
+    try {
+      await db.delete(gemiler).where(eq(gemiler.id, id));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("foreign key") || msg.includes("violates")) {
+        res.status(400).json({ error: "Bu gemi fatura veya kayıtlarda kullanılıyor. Önce ilgili kayıtları silin." });
+        return;
+      }
+      throw e;
+    }
     res.status(204).send();
   } catch {
     res.status(500).json({ error: "Gemi silinemedi" });

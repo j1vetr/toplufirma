@@ -184,7 +184,7 @@ export default function Gemiler() {
           <AlertDialogHeader><AlertDialogTitle>Gemiyi sil</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>İptal</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (!silId) return; deleteGemi.mutate({ id: silId }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListGemilerQueryKey() }); setSilId(null); } }); }}>Sil</AlertDialogAction>
+            <AlertDialogAction onClick={() => { if (!silId) return; deleteGemi.mutate({ id: silId }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListGemilerQueryKey() }); setSilId(null); toast({ title: "Gemi silindi" }); }, onError: (e: unknown) => { const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Gemi silinemedi"; toast({ title: msg, variant: "destructive" }); setSilId(null); } }); }}>Sil</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
