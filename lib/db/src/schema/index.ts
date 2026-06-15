@@ -232,6 +232,26 @@ export const ekipmanlar = pgTable("ekipmanlar", {
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 
+// ── Kullanıcılar ──────────────────────────────────────────────────────────
+export const kullaniciRolEnum = pgEnum("kullanici_rol", ["yonetici", "muhasebeci", "salt_okunur"]);
+
+export const kullanicilar = pgTable("kullanicilar", {
+  id: serial("id").primaryKey(),
+  ad: text("ad").notNull(),
+  email: text("email").notNull().unique(),
+  parola: text("parola").notNull(),
+  rol: kullaniciRolEnum("rol").notNull().default("muhasebeci"),
+  aktif: boolean("aktif").notNull().default(true),
+  olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
+});
+
+export const kullaniciSirketler = pgTable("kullanici_sirketler", {
+  id: serial("id").primaryKey(),
+  kullaniciId: integer("kullanici_id").notNull().references(() => kullanicilar.id, { onDelete: "cascade" }),
+  sirketId: integer("sirket_id").notNull().references(() => sirketler.id, { onDelete: "cascade" }),
+  rol: kullaniciRolEnum("rol").notNull().default("muhasebeci"),
+});
+
 // ── İlişkiler ─────────────────────────────────────────────────────────────
 export const sirketlerRelations = relations(sirketler, ({ many }) => ({
   cariler: many(cariler),

@@ -1,0 +1,2 @@
+- [Auth architecture](auth-architecture.md) — JWT always enforced; auth router mounted BEFORE requireAuth in app.ts so /api/auth/* is public
+- [Hook naming convention](hook-naming.md) — Orval generates useListXxx (collection) not useGetXxx; check generated/api.ts before importing

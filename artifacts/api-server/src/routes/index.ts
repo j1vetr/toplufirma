@@ -12,6 +12,7 @@ import kdvOranlariRouter from "./kdvOranlari";
 import faturaSerileriRouter from "./faturaSerileri";
 import dashboardRouter from "./dashboard";
 import raporlarRouter from "./raporlar";
+import kullanicilarRouter from "./kullanicilar";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(kdvOranlariRouter);
 router.use(faturaSerileriRouter);
 router.use(dashboardRouter);
 router.use(raporlarRouter);
+router.use(kullanicilarRouter);
 
 export default router;

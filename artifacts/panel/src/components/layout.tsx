@@ -11,11 +11,14 @@ import {
   HardDrive, 
   Settings, 
   PieChart,
-  ChevronDown
+  ChevronDown,
+  LogOut,
+  UserCog,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSirket } from "@/contexts/sirket-context";
-import { useListSirketler, getListSirketlerQueryKey } from "@workspace/api-client-react";
+import { useListSirketler } from "@workspace/api-client-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { KullaniciInfo } from "@/App";
 
 const navigation = [
   { name: "Ana Sayfa", href: "/dashboard", icon: LayoutDashboard },
@@ -38,12 +42,29 @@ const navigation = [
   { name: "Tanımlar", href: "/tanimlar", icon: Settings },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+interface LayoutProps {
+  children: React.ReactNode;
+  kullanici: KullaniciInfo | null;
+  onLogout: () => void;
+}
+
+export function Layout({ children, kullanici, onLogout }: LayoutProps) {
   const [location] = useLocation();
   const { aktifSirketId, setAktifSirketId, aktifSirketAd } = useSirket();
-  const { data: sirketler = [] } = useListSirketler({ query: { queryKey: getListSirketlerQueryKey() } });
+  const { data: sirketler = [] } = useListSirketler();
 
-  const currentPage = navigation.find(n => n.href === location || (location === "/" && n.href === "/dashboard"))?.name || "Panel";
+  const isYonetici = kullanici?.rol === "yonetici";
+
+  const allNav = isYonetici
+    ? [...navigation, { name: "Kullanıcılar", href: "/kullanicilar", icon: UserCog }]
+    : navigation;
+
+  const currentPage =
+    allNav.find(n => n.href === location || (location === "/" && n.href === "/dashboard"))?.name || "Panel";
+
+  const initials = kullanici?.ad
+    ? kullanici.ad.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()
+    : "?";
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -72,8 +93,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
               >
                 Tüm Şirketler
               </DropdownMenuItem>
-              {sirketler.length > 0 && <DropdownMenuSeparator />}
-              {sirketler.map(s => (
+              {(sirketler as Array<{ id: number; ad: string }>).length > 0 && <DropdownMenuSeparator />}
+              {(sirketler as Array<{ id: number; ad: string }>).map(s => (
                 <DropdownMenuItem
                   key={s.id}
                   onClick={() => setAktifSirketId(s.id)}
@@ -89,7 +110,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-3">
-            {navigation.map((item) => {
+            {allNav.map((item) => {
               const isActive = location === item.href || (location === "/" && item.href === "/dashboard");
               return (
                 <li key={item.name}>
@@ -107,6 +128,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
             })}
           </ul>
         </nav>
+
+        {/* Kullanıcı bilgisi + çıkış */}
+        <div className="border-t px-3 py-3 shrink-0">
+          <div className="flex items-center gap-3 px-2 py-1.5">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{kullanici?.ad}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                {isYonetici && <ShieldCheck className="h-3 w-3 text-primary" />}
+                {kullanici?.rol === "yonetici" ? "Yönetici" : kullanici?.rol === "muhasebeci" ? "Muhasebeci" : "Salt Okunur"}
+              </p>
+            </div>
+            <button
+              onClick={onLogout}
+              title="Çıkış yap"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -114,7 +158,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <header className="h-16 border-b bg-background flex items-center justify-between px-8 z-10 shrink-0">
           <div>
             <h1 className="text-xl font-display text-foreground hidden md:block">{currentPage}</h1>
-            {/* Mobil için şirket adı */}
             <p className="text-xs text-muted-foreground hidden md:block">{aktifSirketAd}</p>
           </div>
           <div className="flex items-center space-x-4">
@@ -127,15 +170,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => setAktifSirketId(null)} className={cn(aktifSirketId === null && "font-semibold text-primary")}>Tüm Şirketler</DropdownMenuItem>
-                  {sirketler.map(s => (
+                  {(sirketler as Array<{ id: number; ad: string }>).map(s => (
                     <DropdownMenuItem key={s.id} onClick={() => setAktifSirketId(s.id)} className={cn(aktifSirketId === s.id && "font-semibold text-primary")}>{s.ad}</DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-              OP
-            </div>
+
+            {/* Kullanıcı avatar + çıkış (header) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary hover:bg-primary/20 transition-colors">
+                {initials}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <div className="px-3 py-2 text-sm">
+                  <p className="font-medium">{kullanici?.ad}</p>
+                  <p className="text-xs text-muted-foreground">{kullanici?.email}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onLogout} className="text-destructive cursor-pointer gap-2">
+                  <LogOut className="h-4 w-4" /> Çıkış Yap
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-8 bg-background">
