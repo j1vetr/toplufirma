@@ -118,7 +118,7 @@ function GlobalArama() {
                 <div>
                   <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">Gemiler</p>
                   {sonuclar!.gemiler!.map(g => (
-                    <button key={g.id} className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => { navigate("/gemiler"); setAcik(false); setQ(""); }}>
+                    <button key={g.id} className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => { navigate(`/gemiler/${g.id}`); setAcik(false); setQ(""); }}>
                       <p className="font-medium">{g.ad}</p>
                       {g.imoNumarasi && <p className="text-xs text-muted-foreground">IMO: {g.imoNumarasi}</p>}
                     </button>

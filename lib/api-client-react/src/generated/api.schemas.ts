@@ -799,6 +799,16 @@ baslangicTarihi?: string;
 bitisTarihi?: string;
 };
 
+export type GetFirmaEkstrePdfParams = {
+baslangicTarihi?: string;
+bitisTarihi?: string;
+};
+
+export type GetFirmaEkstreExcelParams = {
+baslangicTarihi?: string;
+bitisTarihi?: string;
+};
+
 export type ListGemilerParams = {
 firmaId?: number;
 catiFirmaId?: number;

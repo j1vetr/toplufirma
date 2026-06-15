@@ -55,7 +55,9 @@ import type {
   GetAlacakYaslandirmaParams,
   GetAylikGelirParams,
   GetDashboardOzetParams,
+  GetFirmaEkstreExcelParams,
   GetFirmaEkstreParams,
+  GetFirmaEkstrePdfParams,
   GetFirmaGelirParams,
   GetKdvOzetiParams,
   GetSonIslemlerParams,
@@ -626,6 +628,184 @@ export function useGetFirmaEkstre<TData = Awaited<ReturnType<typeof getFirmaEkst
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetFirmaEkstreQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetFirmaEkstrePdfUrl = (id: number,
+    params?: GetFirmaEkstrePdfParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/firmalar/${id}/ekstre/pdf?${stringifiedParams}` : `/api/firmalar/${id}/ekstre/pdf`
+}
+
+/**
+ * @summary Firma ekstre PDF indir
+ */
+export const getFirmaEkstrePdf = async (id: number,
+    params?: GetFirmaEkstrePdfParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetFirmaEkstrePdfUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFirmaEkstrePdfQueryKey = (id: number,
+    params?: GetFirmaEkstrePdfParams,) => {
+    return [
+    `/api/firmalar/${id}/ekstre/pdf`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFirmaEkstrePdfQueryOptions = <TData = Awaited<ReturnType<typeof getFirmaEkstrePdf>>, TError = ErrorType<unknown>>(id: number,
+    params?: GetFirmaEkstrePdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstrePdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFirmaEkstrePdfQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFirmaEkstrePdf>>> = ({ signal }) => getFirmaEkstrePdf(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstrePdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFirmaEkstrePdfQueryResult = NonNullable<Awaited<ReturnType<typeof getFirmaEkstrePdf>>>
+export type GetFirmaEkstrePdfQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Firma ekstre PDF indir
+ */
+
+export function useGetFirmaEkstrePdf<TData = Awaited<ReturnType<typeof getFirmaEkstrePdf>>, TError = ErrorType<unknown>>(
+ id: number,
+    params?: GetFirmaEkstrePdfParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstrePdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFirmaEkstrePdfQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetFirmaEkstreExcelUrl = (id: number,
+    params?: GetFirmaEkstreExcelParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/firmalar/${id}/ekstre/excel?${stringifiedParams}` : `/api/firmalar/${id}/ekstre/excel`
+}
+
+/**
+ * @summary Firma ekstre Excel indir
+ */
+export const getFirmaEkstreExcel = async (id: number,
+    params?: GetFirmaEkstreExcelParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetFirmaEkstreExcelUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFirmaEkstreExcelQueryKey = (id: number,
+    params?: GetFirmaEkstreExcelParams,) => {
+    return [
+    `/api/firmalar/${id}/ekstre/excel`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFirmaEkstreExcelQueryOptions = <TData = Awaited<ReturnType<typeof getFirmaEkstreExcel>>, TError = ErrorType<unknown>>(id: number,
+    params?: GetFirmaEkstreExcelParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstreExcel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFirmaEkstreExcelQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFirmaEkstreExcel>>> = ({ signal }) => getFirmaEkstreExcel(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstreExcel>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFirmaEkstreExcelQueryResult = NonNullable<Awaited<ReturnType<typeof getFirmaEkstreExcel>>>
+export type GetFirmaEkstreExcelQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Firma ekstre Excel indir
+ */
+
+export function useGetFirmaEkstreExcel<TData = Awaited<ReturnType<typeof getFirmaEkstreExcel>>, TError = ErrorType<unknown>>(
+ id: number,
+    params?: GetFirmaEkstreExcelParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstreExcel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFirmaEkstreExcelQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -1600,6 +1780,160 @@ export function useGetBankaHesabiHareketleri<TData = Awaited<ReturnType<typeof g
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetBankaHesabiHareketleriQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBankaHesabiHareketleriExcelUrl = (id: number,) => {
+
+
+
+
+  return `/api/banka-hesaplari/${id}/hareketler/excel`
+}
+
+/**
+ * @summary Banka hareketleri Excel indir
+ */
+export const getBankaHesabiHareketleriExcel = async (id: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetBankaHesabiHareketleriExcelUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankaHesabiHareketleriExcelQueryKey = (id: number,) => {
+    return [
+    `/api/banka-hesaplari/${id}/hareketler/excel`
+    ] as const;
+    }
+
+
+export const getGetBankaHesabiHareketleriExcelQueryOptions = <TData = Awaited<ReturnType<typeof getBankaHesabiHareketleriExcel>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankaHesabiHareketleriExcel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankaHesabiHareketleriExcelQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankaHesabiHareketleriExcel>>> = ({ signal }) => getBankaHesabiHareketleriExcel(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankaHesabiHareketleriExcel>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBankaHesabiHareketleriExcelQueryResult = NonNullable<Awaited<ReturnType<typeof getBankaHesabiHareketleriExcel>>>
+export type GetBankaHesabiHareketleriExcelQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Banka hareketleri Excel indir
+ */
+
+export function useGetBankaHesabiHareketleriExcel<TData = Awaited<ReturnType<typeof getBankaHesabiHareketleriExcel>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankaHesabiHareketleriExcel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBankaHesabiHareketleriExcelQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBankaHesabiHareketleriPdfUrl = (id: number,) => {
+
+
+
+
+  return `/api/banka-hesaplari/${id}/hareketler/pdf`
+}
+
+/**
+ * @summary Banka hareketleri PDF indir
+ */
+export const getBankaHesabiHareketleriPdf = async (id: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetBankaHesabiHareketleriPdfUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankaHesabiHareketleriPdfQueryKey = (id: number,) => {
+    return [
+    `/api/banka-hesaplari/${id}/hareketler/pdf`
+    ] as const;
+    }
+
+
+export const getGetBankaHesabiHareketleriPdfQueryOptions = <TData = Awaited<ReturnType<typeof getBankaHesabiHareketleriPdf>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankaHesabiHareketleriPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankaHesabiHareketleriPdfQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankaHesabiHareketleriPdf>>> = ({ signal }) => getBankaHesabiHareketleriPdf(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankaHesabiHareketleriPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBankaHesabiHareketleriPdfQueryResult = NonNullable<Awaited<ReturnType<typeof getBankaHesabiHareketleriPdf>>>
+export type GetBankaHesabiHareketleriPdfQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Banka hareketleri PDF indir
+ */
+
+export function useGetBankaHesabiHareketleriPdf<TData = Awaited<ReturnType<typeof getBankaHesabiHareketleriPdf>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankaHesabiHareketleriPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBankaHesabiHareketleriPdfQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

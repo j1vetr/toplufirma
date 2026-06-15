@@ -29,6 +29,39 @@ import {
   Mail, FileBarChart, Users, Download,
 } from "lucide-react";
 
+const apiBase = () => {
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  return `${base}/api`;
+};
+
+async function ekstrePdfIndir(firmaId: number, firmaAd: string, baslangic: string, bitis: string) {
+  const token = localStorage.getItem("panel_token");
+  const params = new URLSearchParams({ baslangicTarihi: baslangic, bitisTarihi: bitis });
+  const resp = await fetch(`${apiBase()}/firmalar/${firmaId}/ekstre/pdf?${params}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) throw new Error("PDF indirilemedi");
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${firmaAd.replace(/\s+/g, "-")}-ekstre.pdf`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function ekstreExcelIndir(firmaId: number, firmaAd: string, baslangic: string, bitis: string) {
+  const token = localStorage.getItem("panel_token");
+  const params = new URLSearchParams({ baslangicTarihi: baslangic, bitisTarihi: bitis });
+  const resp = await fetch(`${apiBase()}/firmalar/${firmaId}/ekstre/excel?${params}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) throw new Error("Excel indirilemedi");
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${firmaAd.replace(/\s+/g, "-")}-ekstre.xlsx`; a.click();
+  URL.revokeObjectURL(url);
+}
+
 function ekstreCsvIndir(ekstreData: { kalemler?: Array<{ tarih: string; tip: string; aciklama?: string | null; referansNo?: string | null; borc?: number | null; alacak?: number | null; tutar?: number | null; paraBirimi?: string | null }> | null }, firmaAd: string) {
   const kalemler = ekstreData.kalemler ?? [];
   const satirlar = [
@@ -450,15 +483,37 @@ export default function Firmalar() {
               <Input type="date" className="h-8 text-sm w-36" value={ekstreBitis} onChange={e => setEkstreBitis(e.target.value)} />
             </div>
             {ekstreData && (ekstreData.kalemler ?? []).length > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-full gap-1.5 text-xs h-8 ml-auto"
-                onClick={() => ekstreCsvIndir(ekstreData, ekstreFirmaAd ?? "ekstre")}
-              >
-                <Download className="h-3.5 w-3.5" />
-                CSV İndir
-              </Button>
+              <div className="ml-auto flex gap-1.5 flex-wrap">
+                <Button
+                  size="sm" variant="outline"
+                  className="rounded-full gap-1.5 text-xs h-8"
+                  onClick={() => ekstreCsvIndir(ekstreData, ekstreFirmaAd ?? "ekstre")}
+                >
+                  <Download className="h-3.5 w-3.5" />CSV İndir
+                </Button>
+                <Button
+                  size="sm" variant="outline"
+                  className="rounded-full gap-1.5 text-xs h-8"
+                  onClick={() => {
+                    if (!ekstreFirmaId) return;
+                    ekstreExcelIndir(ekstreFirmaId, ekstreFirmaAd ?? "ekstre", ekstreBaslangic, ekstreBitis)
+                      .catch(() => {});
+                  }}
+                >
+                  <Download className="h-3.5 w-3.5" />Excel İndir
+                </Button>
+                <Button
+                  size="sm" variant="outline"
+                  className="rounded-full gap-1.5 text-xs h-8"
+                  onClick={() => {
+                    if (!ekstreFirmaId) return;
+                    ekstrePdfIndir(ekstreFirmaId, ekstreFirmaAd ?? "ekstre", ekstreBaslangic, ekstreBitis)
+                      .catch(() => {});
+                  }}
+                >
+                  <Download className="h-3.5 w-3.5" />PDF İndir
+                </Button>
+              </div>
             )}
           </div>
           {ekstreYukleniyor ? (

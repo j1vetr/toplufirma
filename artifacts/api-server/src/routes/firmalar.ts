@@ -3,6 +3,24 @@ import { db } from "@workspace/db";
 import { firmalar, firmaEpostaAyarlari, faturalar, odemeler } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireYazma, requireYonetici, sirketErisimKontrol } from "../middleware/auth";
+import { createRequire } from "node:module";
+import path from "node:path";
+import type { TDocumentDefinitions } from "pdfmake/interfaces";
+import ExcelJS from "exceljs";
+
+const _reqPdf = createRequire(import.meta.url);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _pdfmakeFirma = _reqPdf("pdfmake") as any;
+const _pdfmakeFirmaDir = path.dirname(_reqPdf.resolve("pdfmake/package.json"));
+_pdfmakeFirma.fonts = {
+  Roboto: {
+    normal:      path.join(_pdfmakeFirmaDir, "fonts/Roboto/Roboto-Regular.ttf"),
+    bold:        path.join(_pdfmakeFirmaDir, "fonts/Roboto/Roboto-Medium.ttf"),
+    italics:     path.join(_pdfmakeFirmaDir, "fonts/Roboto/Roboto-Italic.ttf"),
+    bolditalics: path.join(_pdfmakeFirmaDir, "fonts/Roboto/Roboto-MediumItalic.ttf"),
+  },
+};
+_pdfmakeFirma.setLocalAccessPolicy(() => true);
 
 const router = Router();
 
@@ -173,6 +191,120 @@ router.get("/firmalar/:id/ekstre", async (req, res) => {
     res.json({ firmaId: id, firmaAd: firma.ad, kalemler, toplamBorc, toplamAlacak, kalanBakiye });
   } catch {
     res.status(500).json({ error: "Ekstre getirilemedi" });
+  }
+});
+
+router.get("/firmalar/:id/ekstre/pdf", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { baslangicTarihi, bitisTarihi } = req.query as Record<string, string>;
+    const [firma] = await db.select().from(firmalar).where(eq(firmalar.id, id));
+    if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
+    if (firma.tip !== "bagli") { res.status(400).json({ error: "Ekstre yalnızca bağlı firmalar için mevcuttur" }); return; }
+    const catiFirmaId = firma.ustFirmaId!;
+    if (!sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+
+    const faturalarRows = await db.select().from(faturalar)
+      .where(and(eq(faturalar.catiFirmaId, catiFirmaId), eq(faturalar.bagliFirmaId, id)));
+    const odemelerRows = await db.select().from(odemeler)
+      .where(and(eq(odemeler.catiFirmaId, catiFirmaId), eq(odemeler.bagliFirmaId, id)));
+
+    const fatFilt = faturalarRows.filter(f =>
+      (!baslangicTarihi || f.faturaTarihi >= baslangicTarihi) && (!bitisTarihi || f.faturaTarihi <= bitisTarihi));
+    const odFilt = odemelerRows.filter(o =>
+      (!baslangicTarihi || o.tarih >= baslangicTarihi) && (!bitisTarihi || o.tarih <= bitisTarihi));
+
+    const kalemler = [
+      ...fatFilt.map(f => ({ tarih: f.faturaTarihi, tip: "Fatura", aciklama: f.aciklama ?? f.faturaNo, referansNo: f.faturaNo, borc: Number(f.genelToplam), alacak: null as number | null, paraBirimi: f.paraBirimi })),
+      ...odFilt.map(o => ({ tarih: o.tarih, tip: o.tip === "tahsilat" ? "Tahsilat" : "Ödeme", aciklama: o.aciklama ?? "", referansNo: null as string | null, borc: null as number | null, alacak: Number(o.tutar), paraBirimi: o.paraBirimi })),
+    ].sort((a, b) => a.tarih.localeCompare(b.tarih));
+
+    const toplamBorc = fatFilt.reduce((s, f) => s + Number(f.genelToplam), 0);
+    const toplamAlacak = odFilt.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+    const kalanBakiye = toplamBorc - toplamAlacak;
+
+    const docDef: TDocumentDefinitions = {
+      pageSize: "A4",
+      pageMargins: [40, 60, 40, 60],
+      content: [
+        { text: `Cari Ekstre: ${firma.ad}`, style: "header" } as unknown as import("pdfmake/interfaces").Content,
+        { text: `${baslangicTarihi ?? "-"} / ${bitisTarihi ?? "-"}`, style: "subheader" } as unknown as import("pdfmake/interfaces").Content,
+        {
+          table: {
+            headerRows: 1,
+            widths: [60, 60, "*", 70, 60, 60],
+            body: [
+              ["Tarih", "Tip", "Açıklama", "Referans", "Borç", "Alacak"].map(t => ({ text: t, bold: true, fillColor: "#f0f0f0" })),
+              ...kalemler.map(k => [k.tarih, k.tip, k.aciklama ?? "-", k.referansNo ?? "-", k.borc != null ? k.borc.toFixed(2) : "-", k.alacak != null ? k.alacak.toFixed(2) : "-"]),
+            ],
+          },
+          layout: "lightHorizontalLines",
+        },
+        { text: `Toplam Borç: ${toplamBorc.toFixed(2)}   Toplam Alacak: ${toplamAlacak.toFixed(2)}   Kalan Bakiye: ${kalanBakiye.toFixed(2)}`, margin: [0, 12, 0, 0] as [number, number, number, number] },
+      ],
+      styles: {
+        header: { fontSize: 15, bold: true, margin: [0, 0, 0, 6] as [number, number, number, number] },
+        subheader: { fontSize: 10, color: "#666666", margin: [0, 0, 0, 14] as [number, number, number, number] },
+      },
+      defaultStyle: { fontSize: 9, font: "Roboto" },
+    };
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${firma.ad.replace(/[^a-z0-9]/gi, "-")}-ekstre.pdf"`);
+    _pdfmakeFirma.createPdf(docDef).getStream().pipe(res);
+  } catch {
+    res.status(500).json({ error: "Ekstre PDF oluşturulamadı" });
+  }
+});
+
+router.get("/firmalar/:id/ekstre/excel", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { baslangicTarihi, bitisTarihi } = req.query as Record<string, string>;
+    const [firma] = await db.select().from(firmalar).where(eq(firmalar.id, id));
+    if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
+    if (firma.tip !== "bagli") { res.status(400).json({ error: "Ekstre yalnızca bağlı firmalar için mevcuttur" }); return; }
+    const catiFirmaId = firma.ustFirmaId!;
+    if (!sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+
+    const faturalarRows = await db.select().from(faturalar)
+      .where(and(eq(faturalar.catiFirmaId, catiFirmaId), eq(faturalar.bagliFirmaId, id)));
+    const odemelerRows = await db.select().from(odemeler)
+      .where(and(eq(odemeler.catiFirmaId, catiFirmaId), eq(odemeler.bagliFirmaId, id)));
+
+    const fatFilt = faturalarRows.filter(f =>
+      (!baslangicTarihi || f.faturaTarihi >= baslangicTarihi) && (!bitisTarihi || f.faturaTarihi <= bitisTarihi));
+    const odFilt = odemelerRows.filter(o =>
+      (!baslangicTarihi || o.tarih >= baslangicTarihi) && (!bitisTarihi || o.tarih <= bitisTarihi));
+
+    const kalemler = [
+      ...fatFilt.map(f => ({ tarih: f.faturaTarihi, tip: "Fatura", aciklama: f.aciklama ?? f.faturaNo, referansNo: f.faturaNo, borc: Number(f.genelToplam), alacak: null as number | null, paraBirimi: f.paraBirimi })),
+      ...odFilt.map(o => ({ tarih: o.tarih, tip: o.tip === "tahsilat" ? "Tahsilat" : "Ödeme", aciklama: o.aciklama ?? "", referansNo: null as string | null, borc: null as number | null, alacak: Number(o.tutar), paraBirimi: o.paraBirimi })),
+    ].sort((a, b) => a.tarih.localeCompare(b.tarih));
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "Muhasebe Paneli";
+    const ws = wb.addWorksheet("Cari Ekstre");
+    ws.columns = [
+      { header: "Tarih", key: "tarih", width: 14 },
+      { header: "Tip", key: "tip", width: 14 },
+      { header: "Açıklama", key: "aciklama", width: 36 },
+      { header: "Referans No", key: "referansNo", width: 18 },
+      { header: "Borç", key: "borc", width: 16 },
+      { header: "Alacak", key: "alacak", width: 16 },
+      { header: "Para Birimi", key: "paraBirimi", width: 12 },
+    ];
+    ws.getRow(1).font = { bold: true };
+    for (const k of kalemler) {
+      ws.addRow({ tarih: k.tarih, tip: k.tip, aciklama: k.aciklama ?? "", referansNo: k.referansNo ?? "", borc: k.borc ?? "", alacak: k.alacak ?? "", paraBirimi: k.paraBirimi });
+    }
+
+    res.setHeader("Content-Disposition", `attachment; filename="${firma.ad.replace(/[^a-z0-9]/gi, "-")}-ekstre.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    await wb.xlsx.write(res);
+    res.end();
+  } catch {
+    res.status(500).json({ error: "Ekstre Excel oluşturulamadı" });
   }
 });
 

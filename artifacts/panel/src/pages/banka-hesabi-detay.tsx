@@ -8,6 +8,37 @@ import { ArrowLeft, TrendingUp, TrendingDown, Download } from "lucide-react";
 const fmt = (n: number, pb = "TRY") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
 
+const apiBase = () => {
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  return `${base}/api`;
+};
+
+async function excelIndir(hesapId: number, hesapAdi: string) {
+  const token = localStorage.getItem("panel_token");
+  const resp = await fetch(`${apiBase()}/banka-hesaplari/${hesapId}/hareketler/excel`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) throw new Error("Excel indirilemedi");
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${hesapAdi.replace(/\s+/g, "-")}-hareketler.xlsx`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function pdfIndir(hesapId: number, hesapAdi: string) {
+  const token = localStorage.getItem("panel_token");
+  const resp = await fetch(`${apiBase()}/banka-hesaplari/${hesapId}/hareketler/pdf`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) throw new Error("PDF indirilemedi");
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${hesapAdi.replace(/\s+/g, "-")}-hareketler.pdf`; a.click();
+  URL.revokeObjectURL(url);
+}
+
 function csvIndir(hareketler: Array<{ id: number; tarih: string; tip: string; tutar: number; paraBirimi: string; aciklama?: string | null }>, hesapAdi: string) {
   const satirlar = [
     ["Tarih", "Tip", "Tutar", "Para Birimi", "Açıklama"],
@@ -46,17 +77,31 @@ export default function BankaHesabiDetay() {
           <h2 className="text-xl font-display font-semibold">{hesap.bankaAdi} - {hesap.hesapAdi}</h2>
           <p className="text-sm text-muted-foreground">{hesap.catiFirmaAd}</p>
         </div>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
           {hareketler && hareketler.hareketler && hareketler.hareketler.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full gap-1.5 text-xs"
-              onClick={() => csvIndir(hareketler.hareketler ?? [], `${hesap.bankaAdi}-${hesap.hesapAdi}`)}
-            >
-              <Download className="h-3.5 w-3.5" />
-              CSV İndir
-            </Button>
+            <>
+              <Button
+                variant="outline" size="sm"
+                className="rounded-full gap-1.5 text-xs"
+                onClick={() => csvIndir(hareketler.hareketler ?? [], `${hesap.bankaAdi}-${hesap.hesapAdi}`)}
+              >
+                <Download className="h-3.5 w-3.5" />CSV İndir
+              </Button>
+              <Button
+                variant="outline" size="sm"
+                className="rounded-full gap-1.5 text-xs"
+                onClick={() => excelIndir(id, `${hesap.bankaAdi}-${hesap.hesapAdi}`).catch(() => {})}
+              >
+                <Download className="h-3.5 w-3.5" />Excel İndir
+              </Button>
+              <Button
+                variant="outline" size="sm"
+                className="rounded-full gap-1.5 text-xs"
+                onClick={() => pdfIndir(id, `${hesap.bankaAdi}-${hesap.hesapAdi}`).catch(() => {})}
+              >
+                <Download className="h-3.5 w-3.5" />PDF İndir
+              </Button>
+            </>
           )}
           <div className="text-right">
             <p className="text-2xl font-display font-bold">{fmt(hesap.bakiye ?? 0, hesap.paraBirimi)}</p>

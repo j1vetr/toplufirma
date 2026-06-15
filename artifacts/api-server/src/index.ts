@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { otomatikFaturaUret } from "./lib/otomatikFaturaUret";
 
 const rawPort = process.env["PORT"];
 
@@ -23,3 +24,11 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 });
+
+const GUNLUK_INTERVAL = 24 * 60 * 60 * 1000;
+const schedulerCalistir = () =>
+  otomatikFaturaUret().catch((err) =>
+    logger.error({ err }, "Otomatik fatura uretimi basarisiz"),
+  );
+schedulerCalistir();
+setInterval(schedulerCalistir, GUNLUK_INTERVAL);

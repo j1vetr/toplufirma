@@ -179,6 +179,66 @@ paths:
               schema:
                 $ref: "#/components/schemas/FirmaEkstre"
 
+  /firmalar/{id}/ekstre/pdf:
+    get:
+      operationId: getFirmaEkstrePdf
+      tags: [firmalar]
+      summary: Firma ekstre PDF indir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: baslangicTarihi
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: bitisTarihi
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Ekstre PDF dosyası
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /firmalar/{id}/ekstre/excel:
+    get:
+      operationId: getFirmaEkstreExcel
+      tags: [firmalar]
+      summary: Firma ekstre Excel indir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: baslangicTarihi
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: bitisTarihi
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Ekstre Excel dosyası
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
   /firmalar/{id}/eposta-ayarlari:
     get:
       operationId: getFirmaEpostaAyarlari
@@ -429,6 +489,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BankaHareketleri"
+
+  /banka-hesaplari/{id}/hareketler/excel:
+    get:
+      operationId: getBankaHesabiHareketleriExcel
+      tags: [banka-hesaplari]
+      summary: Banka hareketleri Excel indir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Hareketler Excel dosyası
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /banka-hesaplari/{id}/hareketler/pdf:
+    get:
+      operationId: getBankaHesabiHareketleriPdf
+      tags: [banka-hesaplari]
+      summary: Banka hareketleri PDF indir
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Hareketler PDF dosyası
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
 
   # ── Faturalar ──────────────────────────────────────────────────────────────
   /faturalar:

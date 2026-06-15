@@ -236,6 +236,32 @@ export const GetFirmaEkstreResponse = zod.object({
 
 
 /**
+ * @summary Firma ekstre PDF indir
+ */
+export const GetFirmaEkstrePdfParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetFirmaEkstrePdfQueryParams = zod.object({
+  "baslangicTarihi": zod.date().optional(),
+  "bitisTarihi": zod.date().optional()
+})
+
+
+/**
+ * @summary Firma ekstre Excel indir
+ */
+export const GetFirmaEkstreExcelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetFirmaEkstreExcelQueryParams = zod.object({
+  "baslangicTarihi": zod.date().optional(),
+  "bitisTarihi": zod.date().optional()
+})
+
+
+/**
  * @summary Firma e-posta ayarlarını getir (çatı firmalar)
  */
 export const GetFirmaEpostaAyarlariParams = zod.object({
@@ -562,6 +588,22 @@ export const GetBankaHesabiHareketleriResponse = zod.object({
   "toplamGelen": zod.number(),
   "toplamGiden": zod.number(),
   "netBakiye": zod.number()
+})
+
+
+/**
+ * @summary Banka hareketleri Excel indir
+ */
+export const GetBankaHesabiHareketleriExcelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Banka hareketleri PDF indir
+ */
+export const GetBankaHesabiHareketleriPdfParams = zod.object({
+  "id": zod.coerce.number()
 })
 
 
