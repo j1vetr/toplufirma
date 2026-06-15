@@ -14,4 +14,5 @@ export interface BankaHesabiUpdate {
   subeAdi?: string;
   aciklama?: string;
   aktif?: boolean;
+  faturadaGoster?: boolean;
 }

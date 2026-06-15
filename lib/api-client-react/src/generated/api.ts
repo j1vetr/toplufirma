@@ -53,6 +53,7 @@ import type {
   GetAlacakYaslandirmaParams,
   GetAylikGelirParams,
   GetDashboardOzetParams,
+  GetFirmaEkstreParams,
   GetKdvOzetiParams,
   GetSonIslemlerParams,
   GetVadesiYaklasanFaturalarParams,
@@ -538,20 +539,29 @@ export const useDeleteFirma = <TError = ErrorType<unknown>,
       return useMutation(getDeleteFirmaMutationOptions(options));
     }
 
-export const getGetFirmaEkstreUrl = (id: number,) => {
+export const getGetFirmaEkstreUrl = (id: number,
+    params?: GetFirmaEkstreParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/firmalar/${id}/ekstre`
+  return stringifiedParams.length > 0 ? `/api/firmalar/${id}/ekstre?${stringifiedParams}` : `/api/firmalar/${id}/ekstre`
 }
 
 /**
  * @summary Firma ekstre (bağlı firmalar için)
  */
-export const getFirmaEkstre = async (id: number, options?: RequestInit): Promise<FirmaEkstre> => {
+export const getFirmaEkstre = async (id: number,
+    params?: GetFirmaEkstreParams, options?: RequestInit): Promise<FirmaEkstre> => {
 
-  return customFetch<FirmaEkstre>(getGetFirmaEkstreUrl(id),
+  return customFetch<FirmaEkstre>(getGetFirmaEkstreUrl(id,params),
   {
     ...options,
     method: 'GET'
@@ -564,23 +574,25 @@ export const getFirmaEkstre = async (id: number, options?: RequestInit): Promise
 
 
 
-export const getGetFirmaEkstreQueryKey = (id: number,) => {
+export const getGetFirmaEkstreQueryKey = (id: number,
+    params?: GetFirmaEkstreParams,) => {
     return [
-    `/api/firmalar/${id}/ekstre`
+    `/api/firmalar/${id}/ekstre`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetFirmaEkstreQueryOptions = <TData = Awaited<ReturnType<typeof getFirmaEkstre>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetFirmaEkstreQueryOptions = <TData = Awaited<ReturnType<typeof getFirmaEkstre>>, TError = ErrorType<unknown>>(id: number,
+    params?: GetFirmaEkstreParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetFirmaEkstreQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getGetFirmaEkstreQueryKey(id,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFirmaEkstre>>> = ({ signal }) => getFirmaEkstre(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFirmaEkstre>>> = ({ signal }) => getFirmaEkstre(id,params, { signal, ...requestOptions });
 
 
 
@@ -598,11 +610,12 @@ export type GetFirmaEkstreQueryError = ErrorType<unknown>
  */
 
 export function useGetFirmaEkstre<TData = Awaited<ReturnType<typeof getFirmaEkstre>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ id: number,
+    params?: GetFirmaEkstreParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaEkstre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetFirmaEkstreQueryOptions(id,options)
+  const queryOptions = getGetFirmaEkstreQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

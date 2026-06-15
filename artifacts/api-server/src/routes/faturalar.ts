@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri, bankaHesaplari, firmaEpostaAyarlari } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 import nodemailer from "nodemailer";
 import ExcelJS from "exceljs";
@@ -234,7 +234,7 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
     const kalemler = await db.select().from(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
     const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, id));
     const odenen = ods.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
-    const bankalar = await db.select().from(bankaHesaplari).where(eq(bankaHesaplari.catiFirmaId, row.f.catiFirmaId));
+    const bankalar = await db.select().from(bankaHesaplari).where(and(eq(bankaHesaplari.catiFirmaId, row.f.catiFirmaId), eq(bankaHesaplari.faturadaGoster, true)));
     const f = row.f;
 
     const durumEtiket = f.durum === "odendi" ? "ÖDENDİ" : f.durum === "acik" ? "ÖDENMEDİ" : "KISMİ ÖDENDİ";

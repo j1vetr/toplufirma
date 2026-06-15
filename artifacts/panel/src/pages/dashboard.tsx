@@ -88,14 +88,17 @@ export default function Dashboard() {
 
       {vadesiYaklasan.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {vadesiYaklasan.map((f) => (
-            <Link key={f.id} href={`/faturalar/${f.id}`}>
-              <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-full border cursor-pointer hover:opacity-80 ${(f.kalanGun ?? 0) <= 3 ? "bg-red-500/10 border-red-200 text-red-600" : "bg-amber-500/10 border-amber-200 text-amber-700"}`}>
-                <AlertTriangle className="h-4 w-4" />
-                <span><strong>{f.faturaNo}</strong> — {f.kalanGun ?? 0} gün kaldı</span>
-              </div>
-            </Link>
-          ))}
+          {vadesiYaklasan.map((f) => {
+            const kalanGun = Math.ceil((new Date(f.vadeTarihi).getTime() - Date.now()) / 86400000);
+            return (
+              <Link key={f.id} href={`/faturalar/${f.id}`}>
+                <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-full border cursor-pointer hover:opacity-80 ${kalanGun <= 3 ? "bg-red-500/10 border-red-200 text-red-600" : "bg-amber-500/10 border-amber-200 text-amber-700"}`}>
+                  <AlertTriangle className="h-4 w-4" />
+                  <span><strong>{f.faturaNo}</strong> — {kalanGun} gün kaldı</span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
 

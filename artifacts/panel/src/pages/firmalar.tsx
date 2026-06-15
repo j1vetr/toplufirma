@@ -3,8 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useListFirmalar, getListFirmalarQueryKey,
   useCreateFirma, useUpdateFirma, useDeleteFirma,
-  useGetFirmaEpostaAyarlari, useUpsertFirmaEpostaAyarlari,
-  useGetFirmaEkstre,
+  useGetFirmaEpostaAyarlari, getGetFirmaEpostaAyarlariQueryKey, useUpsertFirmaEpostaAyarlari,
+  useGetFirmaEkstre, getGetFirmaEkstreQueryKey,
 } from "@workspace/api-client-react";
 import type { Firma } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -77,14 +77,14 @@ export default function Firmalar() {
   );
 
   const { data: smtpData } = useGetFirmaEpostaAyarlari(smtpFirmaId!, {
-    query: { enabled: !!smtpFirmaId },
+    query: { enabled: !!smtpFirmaId, queryKey: getGetFirmaEpostaAyarlariQueryKey(smtpFirmaId!) },
   });
   const upsertSmtp = useUpsertFirmaEpostaAyarlari();
 
   const { data: ekstreData, isLoading: ekstreYukleniyor } = useGetFirmaEkstre(
     ekstreFirmaId!,
     { baslangicTarihi: ekstreBaslangic, bitisTarihi: ekstreBitis },
-    { query: { enabled: !!ekstreFirmaId } },
+    { query: { enabled: !!ekstreFirmaId, queryKey: getGetFirmaEkstreQueryKey(ekstreFirmaId!, { baslangicTarihi: ekstreBaslangic, bitisTarihi: ekstreBitis }) } },
   );
 
   const createFirma = useCreateFirma();

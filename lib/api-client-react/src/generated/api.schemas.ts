@@ -333,6 +333,7 @@ export interface BankaHesabi {
   /** @nullable */
   aciklama?: string | null;
   aktif?: boolean;
+  faturadaGoster?: boolean;
   bakiye?: number;
   olusturmaTarihi: string;
 }
@@ -346,6 +347,7 @@ export interface BankaHesabiInput {
   subeAdi?: string;
   aciklama?: string;
   aktif?: boolean;
+  faturadaGoster?: boolean;
 }
 
 export interface BankaHesabiUpdate {
@@ -356,6 +358,7 @@ export interface BankaHesabiUpdate {
   subeAdi?: string;
   aciklama?: string;
   aktif?: boolean;
+  faturadaGoster?: boolean;
 }
 
 export type BankaHareketiTip = typeof BankaHareketiTip[keyof typeof BankaHareketiTip];
@@ -714,6 +717,11 @@ export const ListFirmalarTip = {
   cati: 'cati',
   bagli: 'bagli',
 } as const;
+
+export type GetFirmaEkstreParams = {
+baslangicTarihi?: string;
+bitisTarihi?: string;
+};
 
 export type ListGemilerParams = {
 firmaId?: number;

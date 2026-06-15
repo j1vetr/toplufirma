@@ -93,6 +93,7 @@ export const bankaHesaplari = pgTable("banka_hesaplari", {
   subeAdi: text("sube_adi"),
   aciklama: text("aciklama"),
   aktif: boolean("aktif").notNull().default(true),
+  faturadaGoster: boolean("faturada_goster").notNull().default(true),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 

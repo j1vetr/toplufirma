@@ -46,6 +46,19 @@ const apiBase = () => {
 
 const PB_SIRALAMA = ["TRY", "USD", "EUR", "GBP"];
 
+async function pdfIndir(id: number, faturaNo: string) {
+  const token = localStorage.getItem("panel_token");
+  const resp = await fetch(`${apiBase()}/faturalar/${id}/pdf`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) throw new Error("PDF indirilemedi");
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `fatura-${faturaNo}.pdf`; a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function FaturaDetay() {
   const [, params] = useRoute("/faturalar/:id");
   const id = Number(params?.id);
@@ -62,13 +75,14 @@ export default function FaturaDetay() {
   const [aliciAdres, setAliciAdres] = useState("");
   const [aliciAd, setAliciAd] = useState("");
   const [gonderiyor, setGonderiyor] = useState(false);
+  const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
 
   const { data: fatura, isLoading } = useGetFatura(id, { query: { enabled: !!id, queryKey: getGetFaturaQueryKey(id) } });
   const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
   const createOdeme = useCreateOdeme();
   const updateFatura = useUpdateFatura();
 
-  const faturaHesaplari = bankaHesaplari.filter(b => b.catiFirmaId === fatura?.catiFirmaId);
+  const faturaHesaplari = bankaHesaplari.filter(b => b.catiFirmaId === fatura?.catiFirmaId && b.faturadaGoster !== false);
   const bankalarGruplu = faturaHesaplari.reduce<Record<string, typeof faturaHesaplari>>((acc, b) => {
     (acc[b.paraBirimi] ??= []).push(b);
     return acc;
@@ -110,7 +124,7 @@ export default function FaturaDetay() {
     if (!aliciAdres) return;
     setGonderiyor(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("panel_token");
       const resp = await fetch(`${apiBase()}/faturalar/${id}/gonder`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -130,9 +144,6 @@ export default function FaturaDetay() {
   if (isLoading) return <div className="animate-pulse space-y-4"><div className="h-32 bg-muted rounded-xl" /><div className="h-64 bg-muted rounded-xl" /></div>;
   if (!fatura) return <div className="text-center py-16 text-muted-foreground">Fatura bulunamadı.</div>;
 
-  const token = localStorage.getItem("token");
-  const pdfHref = `${apiBase()}/faturalar/${id}/pdf${token ? `?token=${token}` : ""}`;
-
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
@@ -145,9 +156,18 @@ export default function FaturaDetay() {
           <p className="text-sm text-muted-foreground">{fatura.bagliFirmaAd} {fatura.gemiAd ? `- ${fatura.gemiAd}` : ""}</p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
-          <a href={pdfHref} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="rounded-full"><Download className="mr-1 h-4 w-4" /> PDF</Button>
-          </a>
+          <Button
+            variant="outline" size="sm" className="rounded-full"
+            disabled={pdfIndiriyor}
+            onClick={async () => {
+              setPdfIndiriyor(true);
+              try { await pdfIndir(id, fatura.faturaNo); }
+              catch { toast({ title: "PDF indirilemedi", variant: "destructive" }); }
+              finally { setPdfIndiriyor(false); }
+            }}
+          >
+            <Download className="mr-1 h-4 w-4" /> {pdfIndiriyor ? "İndiriliyor..." : "PDF"}
+          </Button>
           <Button variant="outline" size="sm" className="rounded-full" onClick={() => setGonderModal(true)}>
             <Mail className="mr-1 h-4 w-4" /> E-posta
           </Button>
@@ -201,39 +221,40 @@ export default function FaturaDetay() {
               <span className="text-muted-foreground">KDV</span>
               <span className="w-32 text-right">{fmt(fatura.kdvTutari, fatura.paraBirimi)}</span>
             </div>
-            <div className="flex justify-end gap-8 text-base font-bold">
+            <div className="flex justify-end gap-8 pt-1 border-t font-semibold">
               <span>Genel Toplam</span>
               <span className="w-32 text-right">{fmt(fatura.genelToplam, fatura.paraBirimi)}</span>
             </div>
-            {(fatura.odenenTutar ?? 0) > 0 && <>
-              <div className="flex justify-end gap-8 text-green-600">
-                <span>Ödenen</span>
-                <span className="w-32 text-right">-{fmt(fatura.odenenTutar ?? 0, fatura.paraBirimi)}</span>
-              </div>
-              <div className="flex justify-end gap-8 font-bold text-orange-600">
-                <span>Kalan</span>
+            {(fatura.kalanTutar ?? 0) > 0 && fatura.durum !== "odendi" && (
+              <div className="flex justify-end gap-8 text-orange-600">
+                <span>Kalan Bakiye</span>
                 <span className="w-32 text-right">{fmt(fatura.kalanTutar ?? 0, fatura.paraBirimi)}</span>
               </div>
-            </>}
+            )}
           </div>
         </CardContent>
       </Card>
 
+      {fatura.notlar && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Notlar</CardTitle></CardHeader>
+          <CardContent><p className="text-sm text-muted-foreground whitespace-pre-wrap">{fatura.notlar}</p></CardContent>
+        </Card>
+      )}
+
       {bankaPb.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Ödeme Bilgileri</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Ödeme Bilgileri</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             {bankaPb.map(pb => (
               <div key={pb}>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{pb} Hesapları</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">— {pb} Hesapları —</p>
                 <div className="space-y-2">
                   {bankalarGruplu[pb].map(b => (
-                    <div key={b.id} className="flex items-start justify-between py-2 border-b last:border-0 text-sm">
-                      <div>
-                        <p className="font-medium">{b.bankaAdi} — {b.hesapAdi}</p>
-                        {b.iban && <p className="text-xs font-mono text-muted-foreground mt-0.5">{b.iban}</p>}
-                      </div>
-                      <span className="text-xs text-muted-foreground mt-1">{pb}</span>
+                    <div key={b.id} className="text-sm p-3 bg-muted/50 rounded-lg">
+                      <p className="font-medium">{b.bankaAdi}</p>
+                      <p className="text-muted-foreground">{b.hesapAdi}</p>
+                      {b.iban && <p className="font-mono text-xs mt-1">{b.iban}</p>}
                     </div>
                   ))}
                 </div>
@@ -243,62 +264,47 @@ export default function FaturaDetay() {
         </Card>
       )}
 
-      {fatura.odemeler && fatura.odemeler.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Ödeme Kayıtları</CardTitle></CardHeader>
-          <CardContent>
-            {fatura.odemeler.map(o => (
-              <div key={o.id} className="flex items-center justify-between py-3 border-b last:border-0 text-sm">
-                <div>
-                  <p className="font-medium">{YONTEM_ETIKET[o.odemeYontemi] ?? o.odemeYontemi}</p>
-                  <p className="text-xs text-muted-foreground">{o.tarih} {o.aciklama ? `- ${o.aciklama}` : ""}</p>
-                </div>
-                <span className="font-semibold text-green-600">+{fmt(o.tutar, o.paraBirimi)}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
       <Dialog open={odemeModal} onOpenChange={setOdemeModal}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Ödeme Kaydet</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Ödeme Kaydet — {fatura.faturaNo}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Tutar *</Label>
-              <Input type="number" value={odemeTutar} onChange={e => setOdemeTutar(e.target.value)} placeholder={String(fatura.kalanTutar)} step="0.01" data-testid="input-odeme-tutar" />
+              <Input type="number" value={odemeTutar} onChange={e => setOdemeTutar(e.target.value)} step="0.01" />
             </div>
             <div className="space-y-1.5">
               <Label>Tarih *</Label>
-              <Input type="date" value={odemeTarih} onChange={e => setOdemeTarih(e.target.value)} data-testid="input-odeme-tarih" />
+              <Input type="date" value={odemeTarih} onChange={e => setOdemeTarih(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>Ödeme Yöntemi</Label>
               <Select value={odemeYontemi} onValueChange={setOdemeYontemi}>
-                <SelectTrigger data-testid="select-odeme-yontemi"><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(YONTEM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>Banka Hesabı</Label>
-              <Select value={odemeBankaId} onValueChange={setOdemeBankaId}>
-                <SelectTrigger data-testid="select-odeme-banka"><SelectValue placeholder="Seçin (opsiyonel)" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Seçilmedi</SelectItem>
-                  {faturaHesaplari.map(h => <SelectItem key={h.id} value={String(h.id)}>{h.bankaAdi} - {h.hesapAdi} ({h.paraBirimi})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {faturaHesaplari.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Banka Hesabı</Label>
+                <Select value={odemeBankaId} onValueChange={setOdemeBankaId}>
+                  <SelectTrigger><SelectValue placeholder="Seçiniz (opsiyonel)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Belirtilmedi</SelectItem>
+                    {faturaHesaplari.map(b => <SelectItem key={b.id} value={String(b.id)}>{b.bankaAdi} — {b.hesapAdi}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Açıklama</Label>
-              <Input value={odemeAciklama} onChange={e => setOdemeAciklama(e.target.value)} data-testid="input-odeme-aciklama" />
+              <Input value={odemeAciklama} onChange={e => setOdemeAciklama(e.target.value)} placeholder="Opsiyonel" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOdemeModal(false)} className="rounded-full">İptal</Button>
-            <Button onClick={odemeKaydet} disabled={!odemeTutar || createOdeme.isPending} className="rounded-full" data-testid="button-odeme-kaydet">Kaydet</Button>
+            <Button onClick={odemeKaydet} disabled={!odemeTutar || createOdeme.isPending} className="rounded-full">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

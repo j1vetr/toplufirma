@@ -208,6 +208,11 @@ export const GetFirmaEkstreParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const GetFirmaEkstreQueryParams = zod.object({
+  "baslangicTarihi": zod.date().optional(),
+  "bitisTarihi": zod.date().optional()
+})
+
 export const GetFirmaEkstreResponse = zod.object({
   "firmaId": zod.number(),
   "firmaAd": zod.string(),
@@ -428,6 +433,8 @@ export const ListBankaHesaplariQueryParams = zod.object({
   "catiFirmaId": zod.coerce.number().optional()
 })
 
+export const listBankaHesaplariResponseFaturadaGosterDefault = true;
+
 export const ListBankaHesaplariResponseItem = zod.object({
   "id": zod.number(),
   "catiFirmaId": zod.number(),
@@ -439,6 +446,7 @@ export const ListBankaHesaplariResponseItem = zod.object({
   "subeAdi": zod.string().nullish(),
   "aciklama": zod.string().nullish(),
   "aktif": zod.boolean().optional(),
+  "faturadaGoster": zod.boolean().default(listBankaHesaplariResponseFaturadaGosterDefault),
   "bakiye": zod.number().optional(),
   "olusturmaTarihi": zod.coerce.date()
 })
@@ -456,7 +464,8 @@ export const CreateBankaHesabiBody = zod.object({
   "paraBirimi": zod.string(),
   "subeAdi": zod.string().optional(),
   "aciklama": zod.string().optional(),
-  "aktif": zod.boolean().optional()
+  "aktif": zod.boolean().optional(),
+  "faturadaGoster": zod.boolean().optional()
 })
 
 
@@ -466,6 +475,8 @@ export const CreateBankaHesabiBody = zod.object({
 export const GetBankaHesabiParams = zod.object({
   "id": zod.coerce.number()
 })
+
+export const getBankaHesabiResponseFaturadaGosterDefault = true;
 
 export const GetBankaHesabiResponse = zod.object({
   "id": zod.number(),
@@ -478,6 +489,7 @@ export const GetBankaHesabiResponse = zod.object({
   "subeAdi": zod.string().nullish(),
   "aciklama": zod.string().nullish(),
   "aktif": zod.boolean().optional(),
+  "faturadaGoster": zod.boolean().default(getBankaHesabiResponseFaturadaGosterDefault),
   "bakiye": zod.number().optional(),
   "olusturmaTarihi": zod.coerce.date()
 })
@@ -497,8 +509,11 @@ export const UpdateBankaHesabiBody = zod.object({
   "paraBirimi": zod.string().optional(),
   "subeAdi": zod.string().optional(),
   "aciklama": zod.string().optional(),
-  "aktif": zod.boolean().optional()
+  "aktif": zod.boolean().optional(),
+  "faturadaGoster": zod.boolean().optional()
 })
+
+export const updateBankaHesabiResponseFaturadaGosterDefault = true;
 
 export const UpdateBankaHesabiResponse = zod.object({
   "id": zod.number(),
@@ -511,6 +526,7 @@ export const UpdateBankaHesabiResponse = zod.object({
   "subeAdi": zod.string().nullish(),
   "aciklama": zod.string().nullish(),
   "aktif": zod.boolean().optional(),
+  "faturadaGoster": zod.boolean().default(updateBankaHesabiResponseFaturadaGosterDefault),
   "bakiye": zod.number().optional(),
   "olusturmaTarihi": zod.coerce.date()
 })

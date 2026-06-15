@@ -23,7 +23,7 @@ export default function BankaHesabiDetay() {
         <Link href="/banka-hesaplari"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-4 w-4" /></Button></Link>
         <div>
           <h2 className="text-xl font-display font-semibold">{hesap.bankaAdi} - {hesap.hesapAdi}</h2>
-          <p className="text-sm text-muted-foreground">{hesap.sirketAd}</p>
+          <p className="text-sm text-muted-foreground">{hesap.catiFirmaAd}</p>
         </div>
         <div className="ml-auto text-right">
           <p className="text-2xl font-display font-bold">{fmt(hesap.bakiye ?? 0, hesap.paraBirimi)}</p>

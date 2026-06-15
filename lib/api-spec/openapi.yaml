@@ -157,6 +157,16 @@ paths:
           required: true
           schema:
             type: integer
+        - name: baslangicTarihi
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: bitisTarihi
+          in: query
+          schema:
+            type: string
+            format: date
       responses:
         "200":
           description: Firma ekstre
@@ -1414,6 +1424,9 @@ components:
           type: ["string", "null"]
         aktif:
           type: boolean
+        faturadaGoster:
+          type: boolean
+          default: true
         bakiye:
           type: number
         olusturmaTarihi:
@@ -1440,6 +1453,8 @@ components:
           type: string
         aktif:
           type: boolean
+        faturadaGoster:
+          type: boolean
 
     BankaHesabiUpdate:
       type: object
@@ -1457,6 +1472,8 @@ components:
         aciklama:
           type: string
         aktif:
+          type: boolean
+        faturadaGoster:
           type: boolean
 
     BankaHareketleri:

@@ -30,12 +30,12 @@ router.get("/banka-hesaplari", async (req, res) => {
 
 router.post("/banka-hesaplari", requireYazma, async (req, res) => {
   try {
-    const { catiFirmaId, bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif } = req.body;
+    const { catiFirmaId, bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster } = req.body;
     if (!catiFirmaId || !bankaAdi || !hesapAdi) { res.status(400).json({ error: "catiFirmaId, bankaAdi ve hesapAdi zorunludur" }); return; }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     const [row] = await db.insert(bankaHesaplari).values({
       catiFirmaId, bankaAdi, hesapAdi, iban, paraBirimi: paraBirimi ?? "USD",
-      subeAdi, aciklama, aktif: aktif ?? true,
+      subeAdi, aciklama, aktif: aktif ?? true, faturadaGoster: faturadaGoster ?? true,
     }).returning();
     res.status(201).json(formatHesap(row, null, 0));
   } catch {
@@ -66,9 +66,9 @@ router.patch("/banka-hesaplari/:id", requireYazma, async (req, res) => {
     if (!existing) { res.status(404).json({ error: "Banka hesabı bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
-    const { bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif } = req.body;
+    const { bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster } = req.body;
     const [row] = await db.update(bankaHesaplari)
-      .set({ bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif })
+      .set({ bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster })
       .where(eq(bankaHesaplari.id, id)).returning();
     const bakiyeler = await hesaplaHesapBakiyeleri();
     res.json(formatHesap(row, null, bakiyeler[id] ?? 0));
@@ -129,7 +129,7 @@ function formatHesap(h: typeof bankaHesaplari.$inferSelect, catiFirmaAd: string 
     id: h.id, catiFirmaId: h.catiFirmaId, catiFirmaAd: catiFirmaAd ?? null,
     bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, iban: h.iban,
     paraBirimi: h.paraBirimi, subeAdi: h.subeAdi, aciklama: h.aciklama,
-    aktif: h.aktif, bakiye, olusturmaTarihi: h.olusturmaTarihi,
+    aktif: h.aktif, faturadaGoster: h.faturadaGoster, bakiye, olusturmaTarihi: h.olusturmaTarihi,
   };
 }
 

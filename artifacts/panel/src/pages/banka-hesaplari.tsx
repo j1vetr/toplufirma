@@ -23,7 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Landmark, ChevronRight, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Landmark, ChevronRight, TrendingUp, TrendingDown, FileText } from "lucide-react";
 
 interface HesapForm {
   catiFirmaId: string;
@@ -33,9 +33,10 @@ interface HesapForm {
   paraBirimi: string;
   subeAdi: string;
   aciklama: string;
+  faturadaGoster: boolean;
 }
 
-const BOSH: HesapForm = { catiFirmaId: "", bankaAdi: "", hesapAdi: "", iban: "", paraBirimi: "TRY", subeAdi: "", aciklama: "" };
+const BOSH: HesapForm = { catiFirmaId: "", bankaAdi: "", hesapAdi: "", iban: "", paraBirimi: "TRY", subeAdi: "", aciklama: "", faturadaGoster: true };
 
 const fmt = (n: number, pb = "TRY") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
@@ -61,7 +62,7 @@ export default function BankaHesaplari() {
     if (id) {
       const h = hesaplar.find(h => h.id === id);
       if (!h) return;
-      setForm({ catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, iban: h.iban ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "" });
+      setForm({ catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, iban: h.iban ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "", faturadaGoster: h.faturadaGoster ?? true });
       setDuzenleId(id);
     } else {
       setForm({ ...BOSH, catiFirmaId: catiFirmalar[0] ? String(catiFirmalar[0].id) : "" });
@@ -73,7 +74,7 @@ export default function BankaHesaplari() {
   function kapat() { setModalAcik(false); setDuzenleId(null); setForm(BOSH); }
 
   function kaydet() {
-    const data = { catiFirmaId: Number(form.catiFirmaId), bankaAdi: form.bankaAdi, hesapAdi: form.hesapAdi, iban: form.iban || undefined, paraBirimi: form.paraBirimi, subeAdi: form.subeAdi || undefined, aciklama: form.aciklama || undefined, aktif: true };
+    const data = { catiFirmaId: Number(form.catiFirmaId), bankaAdi: form.bankaAdi, hesapAdi: form.hesapAdi, iban: form.iban || undefined, paraBirimi: form.paraBirimi, subeAdi: form.subeAdi || undefined, aciklama: form.aciklama || undefined, aktif: true, faturadaGoster: form.faturadaGoster };
     if (duzenleId) {
       updateHesap.mutate({ id: duzenleId, data }, {
         onSuccess: () => { qc.invalidateQueries({ queryKey: getListBankaHesaplariQueryKey() }); kapat(); toast({ title: "Hesap güncellendi" }); },
@@ -136,8 +137,13 @@ export default function BankaHesaplari() {
                 <p className="text-xs text-muted-foreground mt-1">{h.catiFirmaAd}</p>
                 {h.iban && <p className="text-xs text-muted-foreground font-mono mt-0.5">{h.iban}</p>}
               </div>
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <Badge variant={h.aktif ? "default" : "secondary"}>{h.aktif ? "Aktif" : "Pasif"}</Badge>
+                {h.faturadaGoster !== false && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full">
+                    <FileText className="h-3 w-3" /> Faturada Göster
+                  </span>
+                )}
                 <Link href={`/banka-hesaplari/${h.id}`} className="ml-auto"><Button size="icon" variant="ghost" className="h-7 w-7"><ChevronRight className="h-4 w-4" /></Button></Link>
               </div>
             </CardContent>
@@ -184,6 +190,21 @@ export default function BankaHesaplari() {
             <div className="col-span-2 space-y-1.5">
               <Label>IBAN</Label>
               <Input value={form.iban} onChange={e => setForm(f => ({...f, iban: e.target.value.toUpperCase()}))} placeholder="TR00 0000 0000 0000 0000 0000 00" data-testid="input-hesap-iban" />
+            </div>
+            <div className="col-span-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.faturadaGoster}
+                  onChange={e => setForm(f => ({...f, faturadaGoster: e.target.checked}))}
+                  className="h-4 w-4 rounded"
+                  data-testid="checkbox-faturada-goster"
+                />
+                <div>
+                  <p className="text-sm font-medium">Faturada göster</p>
+                  <p className="text-xs text-muted-foreground">Bu hesap fatura PDF ve detay sayfasında ödeme bilgisi olarak görünür</p>
+                </div>
+              </label>
             </div>
           </div>
           <DialogFooter>

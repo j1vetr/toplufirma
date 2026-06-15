@@ -47,6 +47,19 @@ const apiBase = () => {
   return `${base}/api`;
 };
 
+async function pdfIndir(id: number, faturaNo: string) {
+  const token = localStorage.getItem("panel_token");
+  const resp = await fetch(`${apiBase()}/faturalar/${id}/pdf`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) throw new Error("PDF indirilemedi");
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `fatura-${faturaNo}.pdf`; a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Faturalar() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -65,6 +78,7 @@ export default function Faturalar() {
   const [aliciAdres, setAliciAdres] = useState("");
   const [aliciAd, setAliciAd] = useState("");
   const [gonderiyor, setGonderiyor] = useState(false);
+  const [pdfIndiriyor, setPdfIndiriyor] = useState<number | null>(null);
 
   const { data: faturalar = [], isLoading } = useListFaturalar(undefined, { query: { queryKey: getListFaturalarQueryKey() } });
   const deleteFatura = useDeleteFatura();
@@ -113,7 +127,7 @@ export default function Faturalar() {
     if (!gonderFaturaId || !aliciAdres) return;
     setGonderiyor(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("panel_token");
       const resp = await fetch(`${apiBase()}/faturalar/${gonderFaturaId}/gonder`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -160,8 +174,6 @@ export default function Faturalar() {
       <div className="space-y-2">
         {filtrelenmis.map(f => {
           const vadesiGecmis = f.vadeTarihi < bugun && (f.durum === "acik" || f.durum === "kismi_odendi");
-          const token = localStorage.getItem("token");
-          const pdfHref = `${apiBase()}/faturalar/${f.id}/pdf${token ? `?token=${token}` : ""}`;
           return (
             <Card key={f.id} className={`hover:shadow-sm transition-shadow ${vadesiGecmis ? "border-red-300" : ""}`} data-testid={`card-fatura-${f.id}`}>
               <CardContent className="p-4 flex items-center gap-4">
@@ -189,11 +201,18 @@ export default function Faturalar() {
                       <CreditCard className="h-3.5 w-3.5" />
                     </Button>
                   )}
-                  <a href={pdfHref} target="_blank" rel="noopener noreferrer">
-                    <Button size="icon" variant="ghost" className="h-8 w-8" title="PDF İndir">
-                      <Download className="h-3.5 w-3.5" />
-                    </Button>
-                  </a>
+                  <Button
+                    size="icon" variant="ghost" className="h-8 w-8" title="PDF İndir"
+                    disabled={pdfIndiriyor === f.id}
+                    onClick={async () => {
+                      setPdfIndiriyor(f.id);
+                      try { await pdfIndir(f.id, f.faturaNo); }
+                      catch { toast({ title: "PDF indirilemedi", variant: "destructive" }); }
+                      finally { setPdfIndiriyor(null); }
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
                   <Button size="icon" variant="ghost" className="h-8 w-8" title="E-posta Gönder" onClick={() => { setGonderFaturaId(f.id); setGonderModal(true); }}>
                     <Mail className="h-3.5 w-3.5" />
                   </Button>

@@ -21,6 +21,7 @@ export interface BankaHesabi {
   /** @nullable */
   aciklama?: string | null;
   aktif?: boolean;
+  faturadaGoster?: boolean;
   bakiye?: number;
   olusturmaTarihi: Date;
 }

@@ -33,7 +33,7 @@ router.post("/firmalar", requireYazma, async (req, res) => {
   try {
     const {
       tip, ustFirmaId, ad, vergiNo, vergiDairesi, adres, telefon, eposta,
-      yetkiliKisi, paraBirimi, notlar, seriOneki, logo, aktif,
+      yetkiliKisi, paraBirimi, notlar, seriOneki, logoUrl, aktif,
     } = req.body;
     if (!tip || !ad) { res.status(400).json({ error: "tip ve ad zorunludur" }); return; }
 
@@ -49,7 +49,7 @@ router.post("/firmalar", requireYazma, async (req, res) => {
     const [row] = await db.insert(firmalar).values({
       tip, ustFirmaId: ustFirmaId ?? null, ad, vergiNo, vergiDairesi, adres, telefon,
       eposta, yetkiliKisi, paraBirimi: paraBirimi ?? "USD", notlar,
-      seriOneki, logo, aktif: aktif ?? true,
+      seriOneki, logo: logoUrl, aktif: aktif ?? true,
     }).returning();
     res.status(201).json(formatFirma(row));
   } catch (err: unknown) {
@@ -89,9 +89,9 @@ router.patch("/firmalar/:id", requireYazma, async (req, res) => {
     const catiFirmaId = existing.tip === "cati" ? existing.id : existing.ustFirmaId;
     if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
-    const { ad, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, logo, aktif } = req.body;
+    const { ad, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, logoUrl, aktif } = req.body;
     const [row] = await db.update(firmalar)
-      .set({ ad, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, logo, aktif })
+      .set({ ad, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, logo: logoUrl, aktif })
       .where(eq(firmalar.id, id)).returning();
     res.json(formatFirma(row));
   } catch {
@@ -228,7 +228,7 @@ function formatFirma(f: typeof firmalar.$inferSelect) {
     ad: f.ad, vergiNo: f.vergiNo, vergiDairesi: f.vergiDairesi,
     adres: f.adres, telefon: f.telefon, eposta: f.eposta,
     yetkiliKisi: f.yetkiliKisi, paraBirimi: f.paraBirimi,
-    notlar: f.notlar, seriOneki: f.seriOneki, logo: f.logo,
+    notlar: f.notlar, seriOneki: f.seriOneki, logoUrl: f.logo,
     aktif: f.aktif, olusturmaTarihi: f.olusturmaTarihi,
   };
 }
