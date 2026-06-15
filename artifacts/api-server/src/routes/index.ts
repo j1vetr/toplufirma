@@ -10,6 +10,8 @@ import faturaSerileriRouter from "./faturaSerileri";
 import dashboardRouter from "./dashboard";
 import raporlarRouter from "./raporlar";
 import kullanicilarRouter from "./kullanicilar";
+import tekrarlayanFaturalarRouter from "./tekrarlayanFaturalar";
+import aramaRouter from "./arama";
 
 const router: IRouter = Router();
 
@@ -24,5 +26,7 @@ router.use(faturaSerileriRouter);
 router.use(dashboardRouter);
 router.use(raporlarRouter);
 router.use(kullanicilarRouter);
+router.use(tekrarlayanFaturalarRouter);
+router.use(aramaRouter);
 
 export default router;

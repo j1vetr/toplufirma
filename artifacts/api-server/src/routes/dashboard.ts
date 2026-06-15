@@ -181,4 +181,37 @@ router.get("/dashboard/aylik-gelir", async (req, res) => {
   }
 });
 
+router.get("/dashboard/firma-gelir", async (req, res) => {
+  try {
+    const { catiFirmaId, yil } = req.query as Record<string, string>;
+    const hedefYil = Number(yil) || new Date().getFullYear();
+    const prefix = String(hedefYil);
+
+    const allFats = await db.select().from(faturalar);
+    const allOds = await db.select().from(odemeler).where(eq(odemeler.tip, "tahsilat"));
+    const catiFirmaRows = await db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(eq(firmalar.tip, "cati"));
+
+    const fats = filtreleCatiFirma(allFats, req, catiFirmaId);
+    const ods = filtreleCatiFirma(allOds, req, catiFirmaId);
+    if (!fats || !ods) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+
+    const catiFirmaAdMap: Record<number, string> = {};
+    for (const f of catiFirmaRows) catiFirmaAdMap[f.id] = f.ad;
+
+    const map: Record<number, { catiFirmaId: number; catiFirmaAd: string; toplamFatura: number; toplamTahsilat: number }> = {};
+    for (const f of fats.filter(f => f.faturaTarihi.startsWith(prefix))) {
+      if (!map[f.catiFirmaId]) map[f.catiFirmaId] = { catiFirmaId: f.catiFirmaId, catiFirmaAd: catiFirmaAdMap[f.catiFirmaId] ?? String(f.catiFirmaId), toplamFatura: 0, toplamTahsilat: 0 };
+      map[f.catiFirmaId].toplamFatura += Number(f.genelToplam);
+    }
+    for (const o of ods.filter(o => o.tarih.startsWith(prefix))) {
+      if (!map[o.catiFirmaId]) map[o.catiFirmaId] = { catiFirmaId: o.catiFirmaId, catiFirmaAd: catiFirmaAdMap[o.catiFirmaId] ?? String(o.catiFirmaId), toplamFatura: 0, toplamTahsilat: 0 };
+      map[o.catiFirmaId].toplamTahsilat += Number(o.tutar);
+    }
+
+    res.json(Object.values(map).filter(r => r.toplamFatura > 0 || r.toplamTahsilat > 0));
+  } catch {
+    res.status(500).json({ error: "Firma gelir verisi alınamadı" });
+  }
+});
+
 export default router;

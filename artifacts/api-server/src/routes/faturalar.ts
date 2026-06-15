@@ -117,6 +117,29 @@ router.post("/faturalar", requireYazma, async (req, res) => {
   }
 });
 
+router.patch("/faturalar/toplu-durum", requireYazma, async (req, res) => {
+  try {
+    const { ids, durum } = req.body as { ids?: number[]; durum?: string };
+    if (!ids?.length || !durum) { res.status(400).json({ error: "ids ve durum zorunludur" }); return; }
+    const izinliDurumlar = ["acik", "kismi_odendi", "odendi", "iptal"];
+    if (!izinliDurumlar.includes(durum)) { res.status(400).json({ error: "Geçersiz durum" }); return; }
+
+    let guncellenen = 0;
+    for (const id of ids) {
+      const [existing] = await db.select().from(faturalar).where(eq(faturalar.id, id));
+      if (!existing) continue;
+      if (!sirketErisimKontrol(existing.catiFirmaId, req)) continue;
+      await db.update(faturalar)
+        .set({ durum: durum as typeof faturalar.$inferSelect["durum"] })
+        .where(eq(faturalar.id, id));
+      guncellenen++;
+    }
+    res.json({ guncellenen });
+  } catch {
+    res.status(500).json({ error: "Toplu güncelleme başarısız" });
+  }
+});
+
 router.get("/faturalar/excel", async (req, res) => {
   try {
     const { catiFirmaId } = req.query as Record<string, string>;

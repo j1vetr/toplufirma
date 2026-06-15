@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
@@ -13,10 +14,13 @@ import {
   LogOut,
   UserCog,
   ShieldCheck,
+  Search,
+  Repeat,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSirket } from "@/contexts/sirket-context";
-import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
+import { useListFirmalar, getListFirmalarQueryKey, useGlobalArama, getGlobalAramaQueryKey } from "@workspace/api-client-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +38,7 @@ const navigation = [
   { name: "Faturalar", href: "/faturalar", icon: FileText },
   { name: "Ödemeler", href: "/odemeler", icon: Wallet },
   { name: "Ekipmanlar", href: "/ekipmanlar", icon: HardDrive },
+  { name: "Tekrarlayan Faturalar", href: "/tekrarlayan-faturalar", icon: Repeat },
   { name: "Raporlar", href: "/raporlar", icon: PieChart },
   { name: "Tanımlar", href: "/tanimlar", icon: Settings },
 ];
@@ -42,6 +47,101 @@ interface LayoutProps {
   children: React.ReactNode;
   kullanici: KullaniciInfo | null;
   onLogout: () => void;
+}
+
+function GlobalArama() {
+  const [q, setQ] = useState("");
+  const [aramaQ, setAramaQ] = useState("");
+  const [acik, setAcik] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const kutuRef = useRef<HTMLDivElement>(null);
+  const [, navigate] = useLocation();
+
+  const aramaParams = { q: aramaQ };
+  const { data: sonuclar } = useGlobalArama(
+    aramaParams,
+    { query: { enabled: aramaQ.length >= 2, queryKey: getGlobalAramaQueryKey(aramaParams) } },
+  );
+
+  useEffect(() => {
+    const timer = setTimeout(() => { if (q.trim().length >= 2) setAramaQ(q.trim()); else setAramaQ(""); }, 300);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (kutuRef.current && !kutuRef.current.contains(e.target as Node)) setAcik(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toplam = (sonuclar?.firmalar?.length ?? 0) + (sonuclar?.gemiler?.length ?? 0) + (sonuclar?.faturalar?.length ?? 0);
+
+  return (
+    <div ref={kutuRef} className="relative">
+      <div className="relative flex items-center">
+        <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={q}
+          onChange={e => { setQ(e.target.value); setAcik(true); }}
+          onFocus={() => setAcik(true)}
+          placeholder="Ara..."
+          className="h-8 w-48 rounded-full border bg-background/60 pl-8 pr-7 text-sm outline-none ring-offset-background focus:ring-1 focus:ring-primary transition-all placeholder:text-muted-foreground"
+        />
+        {q && (
+          <button onClick={() => { setQ(""); setAramaQ(""); }} className="absolute right-2 text-muted-foreground hover:text-foreground">
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+      {acik && aramaQ.length >= 2 && (
+        <div className="absolute right-0 top-full mt-1 w-80 rounded-xl border bg-popover shadow-lg z-50 overflow-hidden">
+          {toplam === 0 ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">Sonuç bulunamadı.</p>
+          ) : (
+            <div className="max-h-96 overflow-y-auto">
+              {(sonuclar?.firmalar?.length ?? 0) > 0 && (
+                <div>
+                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">Firmalar</p>
+                  {sonuclar!.firmalar!.map(f => (
+                    <button key={f.id} className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => { navigate("/firmalar"); setAcik(false); setQ(""); }}>
+                      <p className="font-medium">{f.ad}</p>
+                      {f.vergiNo && <p className="text-xs text-muted-foreground">VKN: {f.vergiNo}</p>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {(sonuclar?.gemiler?.length ?? 0) > 0 && (
+                <div>
+                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">Gemiler</p>
+                  {sonuclar!.gemiler!.map(g => (
+                    <button key={g.id} className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => { navigate("/gemiler"); setAcik(false); setQ(""); }}>
+                      <p className="font-medium">{g.ad}</p>
+                      {g.imoNumarasi && <p className="text-xs text-muted-foreground">IMO: {g.imoNumarasi}</p>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {(sonuclar?.faturalar?.length ?? 0) > 0 && (
+                <div>
+                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">Faturalar</p>
+                  {sonuclar!.faturalar!.map(f => (
+                    <button key={f.id} className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => { navigate(`/faturalar/${f.id}`); setAcik(false); setQ(""); }}>
+                      <p className="font-medium">{f.faturaNo}</p>
+                      <p className="text-xs text-muted-foreground">{f.bagliFirmaAd} — {f.faturaTarihi}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Layout({ children, kullanici, onLogout }: LayoutProps) {
@@ -156,6 +256,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
             <p className="text-xs text-muted-foreground hidden md:block">{aktifSirketAd}</p>
           </div>
           <div className="flex items-center space-x-4">
+            <GlobalArama />
             <div className="md:hidden">
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-1 text-sm border rounded-full px-3 py-1.5">

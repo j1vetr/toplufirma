@@ -26,8 +26,32 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Pencil, Trash2, Building2, ChevronDown, ChevronRight,
-  Mail, FileBarChart, Users,
+  Mail, FileBarChart, Users, Download,
 } from "lucide-react";
+
+function ekstreCsvIndir(ekstreData: { kalemler?: Array<{ tarih: string; tip: string; aciklama?: string | null; referansNo?: string | null; borc?: number | null; alacak?: number | null; tutar?: number | null; paraBirimi?: string | null }> | null }, firmaAd: string) {
+  const kalemler = ekstreData.kalemler ?? [];
+  const satirlar = [
+    ["Tarih", "Tip", "Açıklama", "Referans No", "Borç", "Alacak", "Para Birimi"],
+    ...kalemler.map(k => [
+      k.tarih,
+      k.tip === "fatura" ? "Fatura" : "Ödeme",
+      k.aciklama ?? "",
+      k.referansNo ?? "",
+      k.tip === "fatura" ? String(k.borc ?? k.tutar ?? 0) : "",
+      k.tip !== "fatura" ? String(k.alacak ?? k.tutar ?? 0) : "",
+      k.paraBirimi ?? "",
+    ]),
+  ];
+  const csv = satirlar.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${firmaAd.replace(/\s+/g, "-")}-ekstre.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
@@ -416,7 +440,7 @@ export default function Firmalar() {
       <Dialog open={!!ekstreFirmaId} onOpenChange={o => !o && setEkstreFirmaId(null)}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{ekstreFirmaAd} — Cari Ekstre</DialogTitle></DialogHeader>
-          <div className="flex gap-3 items-end pb-2 border-b">
+          <div className="flex gap-3 items-end pb-2 border-b flex-wrap">
             <div className="space-y-1">
               <Label className="text-xs">Başlangıç</Label>
               <Input type="date" className="h-8 text-sm w-36" value={ekstreBaslangic} onChange={e => setEkstreBaslangic(e.target.value)} />
@@ -425,6 +449,17 @@ export default function Firmalar() {
               <Label className="text-xs">Bitiş</Label>
               <Input type="date" className="h-8 text-sm w-36" value={ekstreBitis} onChange={e => setEkstreBitis(e.target.value)} />
             </div>
+            {ekstreData && (ekstreData.kalemler ?? []).length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full gap-1.5 text-xs h-8 ml-auto"
+                onClick={() => ekstreCsvIndir(ekstreData, ekstreFirmaAd ?? "ekstre")}
+              >
+                <Download className="h-3.5 w-3.5" />
+                CSV İndir
+              </Button>
+            )}
           </div>
           {ekstreYukleniyor ? (
             <div className="animate-pulse space-y-2 mt-3">{[1,2,3].map(i => <div key={i} className="h-10 bg-muted rounded" />)}</div>

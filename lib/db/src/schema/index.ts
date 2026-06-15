@@ -180,6 +180,21 @@ export const ekipmanlar = pgTable("ekipmanlar", {
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 
+// ── Tekrarlayan Faturalar ─────────────────────────────────────────────────
+export const tekrarlayanFaturalar = pgTable("tekrarlayan_faturalar", {
+  id: serial("id").primaryKey(),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
+  bagliFirmaId: integer("bagli_firma_id").notNull().references(() => firmalar.id),
+  gemiId: integer("gemi_id").references(() => gemiler.id),
+  aciklama: text("aciklama").notNull(),
+  birimFiyat: numeric("birim_fiyat", { precision: 15, scale: 2 }).notNull(),
+  kdvOrani: numeric("kdv_orani", { precision: 5, scale: 2 }).notNull().default("0"),
+  paraBirimi: text("para_birimi").notNull().default("USD"),
+  sonrakiTarih: date("sonraki_tarih").notNull(),
+  aktif: boolean("aktif").notNull().default(true),
+  olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
+});
+
 // ── Kullanıcılar ──────────────────────────────────────────────────────────
 export const kullanicilar = pgTable("kullanicilar", {
   id: serial("id").primaryKey(),

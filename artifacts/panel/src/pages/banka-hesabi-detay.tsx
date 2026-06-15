@@ -3,10 +3,31 @@ import { Link } from "wouter";
 import { useGetBankaHesabi, getGetBankaHesabiQueryKey, useGetBankaHesabiHareketleri, getGetBankaHesabiHareketleriQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Download } from "lucide-react";
 
 const fmt = (n: number, pb = "TRY") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
+
+function csvIndir(hareketler: Array<{ id: number; tarih: string; tip: string; tutar: number; paraBirimi: string; aciklama?: string | null }>, hesapAdi: string) {
+  const satirlar = [
+    ["Tarih", "Tip", "Tutar", "Para Birimi", "Açıklama"],
+    ...hareketler.map(h => [
+      h.tarih,
+      h.tip === "tahsilat" ? "Gelen" : "Giden",
+      String(h.tutar),
+      h.paraBirimi,
+      h.aciklama ?? "",
+    ]),
+  ];
+  const csv = satirlar.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${hesapAdi.replace(/\s+/g, "-")}-hareketler.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function BankaHesabiDetay() {
   const [, params] = useRoute("/banka-hesaplari/:id");
@@ -25,9 +46,22 @@ export default function BankaHesabiDetay() {
           <h2 className="text-xl font-display font-semibold">{hesap.bankaAdi} - {hesap.hesapAdi}</h2>
           <p className="text-sm text-muted-foreground">{hesap.catiFirmaAd}</p>
         </div>
-        <div className="ml-auto text-right">
-          <p className="text-2xl font-display font-bold">{fmt(hesap.bakiye ?? 0, hesap.paraBirimi)}</p>
-          <p className="text-xs text-muted-foreground">Guncel Bakiye</p>
+        <div className="ml-auto flex items-center gap-3">
+          {hareketler && hareketler.hareketler && hareketler.hareketler.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full gap-1.5 text-xs"
+              onClick={() => csvIndir(hareketler.hareketler ?? [], `${hesap.bankaAdi}-${hesap.hesapAdi}`)}
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV İndir
+            </Button>
+          )}
+          <div className="text-right">
+            <p className="text-2xl font-display font-bold">{fmt(hesap.bakiye ?? 0, hesap.paraBirimi)}</p>
+            <p className="text-xs text-muted-foreground">Guncel Bakiye</p>
+          </div>
         </div>
       </div>
 

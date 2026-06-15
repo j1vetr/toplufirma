@@ -29,6 +29,10 @@ tags:
     description: Dashboard özet verileri
   - name: raporlar
     description: Raporlama ve dışa aktarma
+  - name: tekrarlayan-faturalar
+    description: Tekrarlayan fatura tanımları
+  - name: arama
+    description: Global arama
 
 paths:
   /healthz:
@@ -994,6 +998,30 @@ paths:
                 items:
                   $ref: "#/components/schemas/AylikGelirNoktasi"
 
+  /dashboard/firma-gelir:
+    get:
+      operationId: getFirmaGelir
+      tags: [dashboard]
+      summary: Firma bazlı gelir özeti
+      parameters:
+        - name: catiFirmaId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: yil
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Firma gelir listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FirmaGelirNoktasi"
+
   # ── Raporlar ───────────────────────────────────────────────────────────────
   /raporlar/kdv-ozeti:
     get:
@@ -1038,6 +1066,149 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AlacakYaslandirma"
+
+  # ── Arama ───────────────────────────────────────────────────────────────────
+  /arama:
+    get:
+      operationId: globalArama
+      tags: [arama]
+      summary: Global arama (firmalar, gemiler, faturalar)
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: catiFirmaId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Arama sonuçları
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AramaResult"
+
+  # ── Tekrarlayan Faturalar ────────────────────────────────────────────────────
+  /tekrarlayan-faturalar:
+    get:
+      operationId: listTekrarlayanFaturalar
+      tags: [tekrarlayan-faturalar]
+      summary: Tekrarlayan faturaları listele
+      parameters:
+        - name: catiFirmaId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tekrarlayan fatura listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TekrarlayanFatura"
+    post:
+      operationId: createTekrarlayanFatura
+      tags: [tekrarlayan-faturalar]
+      summary: Yeni tekrarlayan fatura oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TekrarlayanFaturaInput"
+      responses:
+        "201":
+          description: Oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TekrarlayanFatura"
+
+  /tekrarlayan-faturalar/{id}:
+    patch:
+      operationId: updateTekrarlayanFatura
+      tags: [tekrarlayan-faturalar]
+      summary: Tekrarlayan faturayı güncelle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TekrarlayanFaturaUpdate"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TekrarlayanFatura"
+    delete:
+      operationId: deleteTekrarlayanFatura
+      tags: [tekrarlayan-faturalar]
+      summary: Tekrarlayan faturayı sil
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Silindi
+
+  /tekrarlayan-faturalar/{id}/uret:
+    post:
+      operationId: uretTekrarlayanFatura
+      tags: [tekrarlayan-faturalar]
+      summary: Şimdi fatura üret ve sonraki tarihi ilerlet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Fatura oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fatura"
+
+  # ── Toplu Fatura İşlemleri ───────────────────────────────────────────────────
+  /faturalar/toplu-durum:
+    patch:
+      operationId: topluDurumGuncelle
+      tags: [faturalar]
+      summary: Seçili faturaların durumunu toplu güncelle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TopluDurumInput"
+      responses:
+        "200":
+          description: Güncellendi
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [guncellenen]
+                properties:
+                  guncellenen:
+                    type: integer
 
 components:
   schemas:
@@ -2111,3 +2282,129 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Fatura"
+
+    # ── Toplu Durum ───────────────────────────────────────────────────────────
+    TopluDurumInput:
+      type: object
+      required: [ids, durum]
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+        durum:
+          type: string
+          enum: [acik, kismi_odendi, odendi, iptal]
+
+    # ── Firma Gelir ───────────────────────────────────────────────────────────
+    FirmaGelirNoktasi:
+      type: object
+      required: [catiFirmaId, catiFirmaAd, toplamFatura, toplamTahsilat]
+      properties:
+        catiFirmaId:
+          type: integer
+        catiFirmaAd:
+          type: string
+        toplamFatura:
+          type: number
+        toplamTahsilat:
+          type: number
+
+    # ── Arama ────────────────────────────────────────────────────────────────
+    AramaResult:
+      type: object
+      required: [firmalar, gemiler, faturalar]
+      properties:
+        firmalar:
+          type: array
+          items:
+            $ref: "#/components/schemas/Firma"
+        gemiler:
+          type: array
+          items:
+            $ref: "#/components/schemas/Gemi"
+        faturalar:
+          type: array
+          items:
+            $ref: "#/components/schemas/Fatura"
+
+    # ── Tekrarlayan Fatura ────────────────────────────────────────────────────
+    TekrarlayanFatura:
+      type: object
+      required: [id, catiFirmaId, bagliFirmaId, aciklama, birimFiyat, kdvOrani, paraBirimi, sonrakiTarih, aktif, olusturmaTarihi]
+      properties:
+        id:
+          type: integer
+        catiFirmaId:
+          type: integer
+        catiFirmaAd:
+          type: ["string", "null"]
+        bagliFirmaId:
+          type: integer
+        bagliFirmaAd:
+          type: ["string", "null"]
+        gemiId:
+          type: ["integer", "null"]
+        gemiAd:
+          type: ["string", "null"]
+        aciklama:
+          type: string
+        birimFiyat:
+          type: number
+        kdvOrani:
+          type: number
+        paraBirimi:
+          type: string
+        sonrakiTarih:
+          type: string
+          format: date
+        aktif:
+          type: boolean
+        olusturmaTarihi:
+          type: string
+          format: date-time
+
+    TekrarlayanFaturaInput:
+      type: object
+      required: [catiFirmaId, bagliFirmaId, aciklama, birimFiyat, kdvOrani, paraBirimi, sonrakiTarih]
+      properties:
+        catiFirmaId:
+          type: integer
+        bagliFirmaId:
+          type: integer
+        gemiId:
+          type: ["integer", "null"]
+        aciklama:
+          type: string
+        birimFiyat:
+          type: number
+        kdvOrani:
+          type: number
+        paraBirimi:
+          type: string
+        sonrakiTarih:
+          type: string
+          format: date
+        aktif:
+          type: boolean
+
+    TekrarlayanFaturaUpdate:
+      type: object
+      properties:
+        bagliFirmaId:
+          type: integer
+        gemiId:
+          type: ["integer", "null"]
+        aciklama:
+          type: string
+        birimFiyat:
+          type: number
+        kdvOrani:
+          type: number
+        paraBirimi:
+          type: string
+        sonrakiTarih:
+          type: string
+          format: date
+        aktif:
+          type: boolean

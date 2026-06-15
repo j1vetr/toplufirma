@@ -1222,6 +1222,23 @@ export const GetAylikGelirResponse = zod.array(GetAylikGelirResponseItem)
 
 
 /**
+ * @summary Firma bazlı gelir özeti
+ */
+export const GetFirmaGelirQueryParams = zod.object({
+  "catiFirmaId": zod.coerce.number().nullish(),
+  "yil": zod.coerce.number().optional()
+})
+
+export const GetFirmaGelirResponseItem = zod.object({
+  "catiFirmaId": zod.number(),
+  "catiFirmaAd": zod.string(),
+  "toplamFatura": zod.number(),
+  "toplamTahsilat": zod.number()
+})
+export const GetFirmaGelirResponse = zod.array(GetFirmaGelirResponseItem)
+
+
+/**
  * @summary KDV özet raporu
  */
 export const GetKdvOzetiQueryParams = zod.object({
@@ -1285,6 +1302,177 @@ export const GetAlacakYaslandirmaResponse = zod.object({
   "olusturmaTarihi": zod.coerce.date()
 })).optional()
 }))
+})
+
+
+/**
+ * @summary Global arama (firmalar, gemiler, faturalar)
+ */
+export const GlobalAramaQueryParams = zod.object({
+  "q": zod.coerce.string(),
+  "catiFirmaId": zod.coerce.number().optional()
+})
+
+export const globalAramaResponseFirmalarItemAktifDefault = true;
+
+export const GlobalAramaResponse = zod.object({
+  "firmalar": zod.array(zod.object({
+  "id": zod.number(),
+  "tip": zod.enum(['cati', 'bagli']),
+  "ustFirmaId": zod.number().nullish(),
+  "ad": zod.string(),
+  "vergiNo": zod.string().nullish(),
+  "vergiDairesi": zod.string().nullish(),
+  "adres": zod.string().nullish(),
+  "telefon": zod.string().nullish(),
+  "eposta": zod.string().nullish(),
+  "seriOneki": zod.string().nullish(),
+  "logoUrl": zod.string().nullish(),
+  "aktif": zod.boolean().default(globalAramaResponseFirmalarItemAktifDefault),
+  "olusturmaTarihi": zod.coerce.date()
+})),
+  "gemiler": zod.array(zod.object({
+  "id": zod.number(),
+  "firmaId": zod.number(),
+  "firmaAd": zod.string().nullish(),
+  "catiFirmaId": zod.number().nullish(),
+  "ad": zod.string(),
+  "imoNumarasi": zod.string().nullish(),
+  "bayrakDevleti": zod.string().nullish(),
+  "notlar": zod.string().nullish(),
+  "aktif": zod.boolean().optional(),
+  "aktifPlan": zod.string().nullish(),
+  "olusturmaTarihi": zod.coerce.date()
+})),
+  "faturalar": zod.array(zod.object({
+  "id": zod.number(),
+  "catiFirmaId": zod.number(),
+  "catiFirmaAd": zod.string().nullish(),
+  "bagliFirmaId": zod.number(),
+  "bagliFirmaAd": zod.string().nullish(),
+  "gemiId": zod.number().nullish(),
+  "gemiAd": zod.string().nullish(),
+  "faturaNo": zod.string(),
+  "faturaTarihi": zod.coerce.date(),
+  "vadeTarihi": zod.coerce.date(),
+  "paraBirimi": zod.string(),
+  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal']),
+  "toplamTutar": zod.number(),
+  "kdvTutari": zod.number(),
+  "genelToplam": zod.number(),
+  "odenenTutar": zod.number().optional(),
+  "kalanTutar": zod.number().optional(),
+  "notlar": zod.string().nullish(),
+  "aciklama": zod.string().nullish(),
+  "olusturmaTarihi": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Tekrarlayan faturaları listele
+ */
+export const ListTekrarlayanFaturalarQueryParams = zod.object({
+  "catiFirmaId": zod.coerce.number().optional()
+})
+
+export const ListTekrarlayanFaturalarResponseItem = zod.object({
+  "id": zod.number(),
+  "catiFirmaId": zod.number(),
+  "catiFirmaAd": zod.string().nullish(),
+  "bagliFirmaId": zod.number(),
+  "bagliFirmaAd": zod.string().nullish(),
+  "gemiId": zod.number().nullish(),
+  "gemiAd": zod.string().nullish(),
+  "aciklama": zod.string(),
+  "birimFiyat": zod.number(),
+  "kdvOrani": zod.number(),
+  "paraBirimi": zod.string(),
+  "sonrakiTarih": zod.coerce.date(),
+  "aktif": zod.boolean(),
+  "olusturmaTarihi": zod.coerce.date()
+})
+export const ListTekrarlayanFaturalarResponse = zod.array(ListTekrarlayanFaturalarResponseItem)
+
+
+/**
+ * @summary Yeni tekrarlayan fatura oluştur
+ */
+export const CreateTekrarlayanFaturaBody = zod.object({
+  "catiFirmaId": zod.number(),
+  "bagliFirmaId": zod.number(),
+  "gemiId": zod.number().nullish(),
+  "aciklama": zod.string(),
+  "birimFiyat": zod.number(),
+  "kdvOrani": zod.number(),
+  "paraBirimi": zod.string(),
+  "sonrakiTarih": zod.coerce.date(),
+  "aktif": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Tekrarlayan faturayı güncelle
+ */
+export const UpdateTekrarlayanFaturaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateTekrarlayanFaturaBody = zod.object({
+  "bagliFirmaId": zod.number().optional(),
+  "gemiId": zod.number().nullish(),
+  "aciklama": zod.string().optional(),
+  "birimFiyat": zod.number().optional(),
+  "kdvOrani": zod.number().optional(),
+  "paraBirimi": zod.string().optional(),
+  "sonrakiTarih": zod.coerce.date().optional(),
+  "aktif": zod.boolean().optional()
+})
+
+export const UpdateTekrarlayanFaturaResponse = zod.object({
+  "id": zod.number(),
+  "catiFirmaId": zod.number(),
+  "catiFirmaAd": zod.string().nullish(),
+  "bagliFirmaId": zod.number(),
+  "bagliFirmaAd": zod.string().nullish(),
+  "gemiId": zod.number().nullish(),
+  "gemiAd": zod.string().nullish(),
+  "aciklama": zod.string(),
+  "birimFiyat": zod.number(),
+  "kdvOrani": zod.number(),
+  "paraBirimi": zod.string(),
+  "sonrakiTarih": zod.coerce.date(),
+  "aktif": zod.boolean(),
+  "olusturmaTarihi": zod.coerce.date()
+})
+
+
+/**
+ * @summary Tekrarlayan faturayı sil
+ */
+export const DeleteTekrarlayanFaturaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Şimdi fatura üret ve sonraki tarihi ilerlet
+ */
+export const UretTekrarlayanFaturaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Seçili faturaların durumunu toplu güncelle
+ */
+export const TopluDurumGuncelleBody = zod.object({
+  "ids": zod.array(zod.number()),
+  "durum": zod.enum(['acik', 'kismi_odendi', 'odendi', 'iptal'])
+})
+
+export const TopluDurumGuncelleResponse = zod.object({
+  "guncellenen": zod.number()
 })
 
 

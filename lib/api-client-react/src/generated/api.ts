@@ -21,6 +21,7 @@ import type {
 
 import type {
   AlacakYaslandirma,
+  AramaResult,
   AylikGelirNoktasi,
   BankaHareketleri,
   BankaHesabi,
@@ -44,6 +45,7 @@ import type {
   FirmaEkstre,
   FirmaEpostaAyarlari,
   FirmaEpostaAyarlariInput,
+  FirmaGelirNoktasi,
   FirmaInput,
   FirmaUpdate,
   Gemi,
@@ -54,9 +56,11 @@ import type {
   GetAylikGelirParams,
   GetDashboardOzetParams,
   GetFirmaEkstreParams,
+  GetFirmaGelirParams,
   GetKdvOzetiParams,
   GetSonIslemlerParams,
   GetVadesiYaklasanFaturalarParams,
+  GlobalAramaParams,
   HealthStatus,
   KdvOrani,
   KdvOraniInput,
@@ -70,10 +74,16 @@ import type {
   ListGemilerParams,
   ListKdvOranlariParams,
   ListOdemelerParams,
+  ListTekrarlayanFaturalarParams,
   Odeme,
   OdemeInput,
   OdemeUpdate,
-  SonIslemler
+  SonIslemler,
+  TekrarlayanFatura,
+  TekrarlayanFaturaInput,
+  TekrarlayanFaturaUpdate,
+  TopluDurumGuncelle200,
+  TopluDurumInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -3649,6 +3659,90 @@ export function useGetAylikGelir<TData = Awaited<ReturnType<typeof getAylikGelir
 
 
 
+export const getGetFirmaGelirUrl = (params?: GetFirmaGelirParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/dashboard/firma-gelir?${stringifiedParams}` : `/api/dashboard/firma-gelir`
+}
+
+/**
+ * @summary Firma bazlı gelir özeti
+ */
+export const getFirmaGelir = async (params?: GetFirmaGelirParams, options?: RequestInit): Promise<FirmaGelirNoktasi[]> => {
+
+  return customFetch<FirmaGelirNoktasi[]>(getGetFirmaGelirUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFirmaGelirQueryKey = (params?: GetFirmaGelirParams,) => {
+    return [
+    `/api/dashboard/firma-gelir`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFirmaGelirQueryOptions = <TData = Awaited<ReturnType<typeof getFirmaGelir>>, TError = ErrorType<unknown>>(params?: GetFirmaGelirParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaGelir>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFirmaGelirQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFirmaGelir>>> = ({ signal }) => getFirmaGelir(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFirmaGelir>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFirmaGelirQueryResult = NonNullable<Awaited<ReturnType<typeof getFirmaGelir>>>
+export type GetFirmaGelirQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Firma bazlı gelir özeti
+ */
+
+export function useGetFirmaGelir<TData = Awaited<ReturnType<typeof getFirmaGelir>>, TError = ErrorType<unknown>>(
+ params?: GetFirmaGelirParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaGelir>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFirmaGelirQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getGetKdvOzetiUrl = (params?: GetKdvOzetiParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -3816,4 +3910,526 @@ export function useGetAlacakYaslandirma<TData = Awaited<ReturnType<typeof getAla
 
 
 
+
+export const getGlobalAramaUrl = (params: GlobalAramaParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/arama?${stringifiedParams}` : `/api/arama`
+}
+
+/**
+ * @summary Global arama (firmalar, gemiler, faturalar)
+ */
+export const globalArama = async (params: GlobalAramaParams, options?: RequestInit): Promise<AramaResult> => {
+
+  return customFetch<AramaResult>(getGlobalAramaUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGlobalAramaQueryKey = (params?: GlobalAramaParams,) => {
+    return [
+    `/api/arama`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGlobalAramaQueryOptions = <TData = Awaited<ReturnType<typeof globalArama>>, TError = ErrorType<unknown>>(params: GlobalAramaParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof globalArama>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGlobalAramaQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof globalArama>>> = ({ signal }) => globalArama(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof globalArama>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GlobalAramaQueryResult = NonNullable<Awaited<ReturnType<typeof globalArama>>>
+export type GlobalAramaQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Global arama (firmalar, gemiler, faturalar)
+ */
+
+export function useGlobalArama<TData = Awaited<ReturnType<typeof globalArama>>, TError = ErrorType<unknown>>(
+ params: GlobalAramaParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof globalArama>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGlobalAramaQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListTekrarlayanFaturalarUrl = (params?: ListTekrarlayanFaturalarParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tekrarlayan-faturalar?${stringifiedParams}` : `/api/tekrarlayan-faturalar`
+}
+
+/**
+ * @summary Tekrarlayan faturaları listele
+ */
+export const listTekrarlayanFaturalar = async (params?: ListTekrarlayanFaturalarParams, options?: RequestInit): Promise<TekrarlayanFatura[]> => {
+
+  return customFetch<TekrarlayanFatura[]>(getListTekrarlayanFaturalarUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTekrarlayanFaturalarQueryKey = (params?: ListTekrarlayanFaturalarParams,) => {
+    return [
+    `/api/tekrarlayan-faturalar`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTekrarlayanFaturalarQueryOptions = <TData = Awaited<ReturnType<typeof listTekrarlayanFaturalar>>, TError = ErrorType<unknown>>(params?: ListTekrarlayanFaturalarParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTekrarlayanFaturalar>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTekrarlayanFaturalarQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTekrarlayanFaturalar>>> = ({ signal }) => listTekrarlayanFaturalar(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTekrarlayanFaturalar>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTekrarlayanFaturalarQueryResult = NonNullable<Awaited<ReturnType<typeof listTekrarlayanFaturalar>>>
+export type ListTekrarlayanFaturalarQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Tekrarlayan faturaları listele
+ */
+
+export function useListTekrarlayanFaturalar<TData = Awaited<ReturnType<typeof listTekrarlayanFaturalar>>, TError = ErrorType<unknown>>(
+ params?: ListTekrarlayanFaturalarParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTekrarlayanFaturalar>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTekrarlayanFaturalarQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateTekrarlayanFaturaUrl = () => {
+
+
+
+
+  return `/api/tekrarlayan-faturalar`
+}
+
+/**
+ * @summary Yeni tekrarlayan fatura oluştur
+ */
+export const createTekrarlayanFatura = async (tekrarlayanFaturaInput: TekrarlayanFaturaInput, options?: RequestInit): Promise<TekrarlayanFatura> => {
+
+  return customFetch<TekrarlayanFatura>(getCreateTekrarlayanFaturaUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      tekrarlayanFaturaInput,)
+  }
+);}
+
+
+
+
+export const getCreateTekrarlayanFaturaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTekrarlayanFatura>>, TError,{data: BodyType<TekrarlayanFaturaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTekrarlayanFatura>>, TError,{data: BodyType<TekrarlayanFaturaInput>}, TContext> => {
+
+const mutationKey = ['createTekrarlayanFatura'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTekrarlayanFatura>>, {data: BodyType<TekrarlayanFaturaInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTekrarlayanFatura(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTekrarlayanFaturaMutationResult = NonNullable<Awaited<ReturnType<typeof createTekrarlayanFatura>>>
+    export type CreateTekrarlayanFaturaMutationBody = BodyType<TekrarlayanFaturaInput>
+    export type CreateTekrarlayanFaturaMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Yeni tekrarlayan fatura oluştur
+ */
+export const useCreateTekrarlayanFatura = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTekrarlayanFatura>>, TError,{data: BodyType<TekrarlayanFaturaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTekrarlayanFatura>>,
+        TError,
+        {data: BodyType<TekrarlayanFaturaInput>},
+        TContext
+      > => {
+      return useMutation(getCreateTekrarlayanFaturaMutationOptions(options));
+    }
+
+export const getUpdateTekrarlayanFaturaUrl = (id: number,) => {
+
+
+
+
+  return `/api/tekrarlayan-faturalar/${id}`
+}
+
+/**
+ * @summary Tekrarlayan faturayı güncelle
+ */
+export const updateTekrarlayanFatura = async (id: number,
+    tekrarlayanFaturaUpdate: TekrarlayanFaturaUpdate, options?: RequestInit): Promise<TekrarlayanFatura> => {
+
+  return customFetch<TekrarlayanFatura>(getUpdateTekrarlayanFaturaUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      tekrarlayanFaturaUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateTekrarlayanFaturaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTekrarlayanFatura>>, TError,{id: number;data: BodyType<TekrarlayanFaturaUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTekrarlayanFatura>>, TError,{id: number;data: BodyType<TekrarlayanFaturaUpdate>}, TContext> => {
+
+const mutationKey = ['updateTekrarlayanFatura'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTekrarlayanFatura>>, {id: number;data: BodyType<TekrarlayanFaturaUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateTekrarlayanFatura(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTekrarlayanFaturaMutationResult = NonNullable<Awaited<ReturnType<typeof updateTekrarlayanFatura>>>
+    export type UpdateTekrarlayanFaturaMutationBody = BodyType<TekrarlayanFaturaUpdate>
+    export type UpdateTekrarlayanFaturaMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Tekrarlayan faturayı güncelle
+ */
+export const useUpdateTekrarlayanFatura = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTekrarlayanFatura>>, TError,{id: number;data: BodyType<TekrarlayanFaturaUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTekrarlayanFatura>>,
+        TError,
+        {id: number;data: BodyType<TekrarlayanFaturaUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateTekrarlayanFaturaMutationOptions(options));
+    }
+
+export const getDeleteTekrarlayanFaturaUrl = (id: number,) => {
+
+
+
+
+  return `/api/tekrarlayan-faturalar/${id}`
+}
+
+/**
+ * @summary Tekrarlayan faturayı sil
+ */
+export const deleteTekrarlayanFatura = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteTekrarlayanFaturaUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteTekrarlayanFaturaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTekrarlayanFatura>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTekrarlayanFatura>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteTekrarlayanFatura'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTekrarlayanFatura>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteTekrarlayanFatura(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTekrarlayanFaturaMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTekrarlayanFatura>>>
+
+    export type DeleteTekrarlayanFaturaMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Tekrarlayan faturayı sil
+ */
+export const useDeleteTekrarlayanFatura = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTekrarlayanFatura>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTekrarlayanFatura>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteTekrarlayanFaturaMutationOptions(options));
+    }
+
+export const getUretTekrarlayanFaturaUrl = (id: number,) => {
+
+
+
+
+  return `/api/tekrarlayan-faturalar/${id}/uret`
+}
+
+/**
+ * @summary Şimdi fatura üret ve sonraki tarihi ilerlet
+ */
+export const uretTekrarlayanFatura = async (id: number, options?: RequestInit): Promise<Fatura> => {
+
+  return customFetch<Fatura>(getUretTekrarlayanFaturaUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getUretTekrarlayanFaturaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uretTekrarlayanFatura>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uretTekrarlayanFatura>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['uretTekrarlayanFatura'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uretTekrarlayanFatura>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  uretTekrarlayanFatura(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UretTekrarlayanFaturaMutationResult = NonNullable<Awaited<ReturnType<typeof uretTekrarlayanFatura>>>
+
+    export type UretTekrarlayanFaturaMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Şimdi fatura üret ve sonraki tarihi ilerlet
+ */
+export const useUretTekrarlayanFatura = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uretTekrarlayanFatura>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uretTekrarlayanFatura>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getUretTekrarlayanFaturaMutationOptions(options));
+    }
+
+export const getTopluDurumGuncelleUrl = () => {
+
+
+
+
+  return `/api/faturalar/toplu-durum`
+}
+
+/**
+ * @summary Seçili faturaların durumunu toplu güncelle
+ */
+export const topluDurumGuncelle = async (topluDurumInput: TopluDurumInput, options?: RequestInit): Promise<TopluDurumGuncelle200> => {
+
+  return customFetch<TopluDurumGuncelle200>(getTopluDurumGuncelleUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      topluDurumInput,)
+  }
+);}
+
+
+
+
+export const getTopluDurumGuncelleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof topluDurumGuncelle>>, TError,{data: BodyType<TopluDurumInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof topluDurumGuncelle>>, TError,{data: BodyType<TopluDurumInput>}, TContext> => {
+
+const mutationKey = ['topluDurumGuncelle'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof topluDurumGuncelle>>, {data: BodyType<TopluDurumInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  topluDurumGuncelle(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TopluDurumGuncelleMutationResult = NonNullable<Awaited<ReturnType<typeof topluDurumGuncelle>>>
+    export type TopluDurumGuncelleMutationBody = BodyType<TopluDurumInput>
+    export type TopluDurumGuncelleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Seçili faturaların durumunu toplu güncelle
+ */
+export const useTopluDurumGuncelle = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof topluDurumGuncelle>>, TError,{data: BodyType<TopluDurumInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof topluDurumGuncelle>>,
+        TError,
+        {data: BodyType<TopluDurumInput>},
+        TContext
+      > => {
+      return useMutation(getTopluDurumGuncelleMutationOptions(options));
+    }
 

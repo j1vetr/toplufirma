@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useListFaturalar, getListFaturalarQueryKey,
   useDeleteFatura, useCreateOdeme, getListOdemelerQueryKey,
+  useTopluDurumGuncelle,
 } from "@workspace/api-client-react";
 import type { Fatura } from "@workspace/api-client-react";
 import { useSirket } from "@/contexts/sirket-context";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -23,7 +25,7 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, FileText, Search, ChevronRight, AlertCircle, Download, Mail, CreditCard } from "lucide-react";
+import { Plus, Trash2, FileText, Search, ChevronRight, AlertCircle, Download, Mail, CreditCard, CheckSquare, SquarePen } from "lucide-react";
 
 const DURUM_RENK: Record<string, string> = {
   acik: "bg-orange-500/10 text-orange-600",
@@ -82,6 +84,11 @@ export default function Faturalar() {
   const [gonderiyor, setGonderiyor] = useState(false);
   const [pdfIndiriyor, setPdfIndiriyor] = useState<number | null>(null);
 
+  const [secilenler, setSecilenler] = useState<Set<number>>(new Set());
+  const [topluDurumModal, setTopluDurumModal] = useState(false);
+  const [topluDurum, setTopluDurum] = useState("odendi");
+  const [topluPdfIndiriyor, setTopluPdfIndiriyor] = useState(false);
+
   const faturalarParams = aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined;
   const { data: faturalar = [], isLoading } = useListFaturalar(
     faturalarParams,
@@ -89,6 +96,7 @@ export default function Faturalar() {
   );
   const deleteFatura = useDeleteFatura();
   const createOdeme = useCreateOdeme();
+  const topluDurumGuncelle = useTopluDurumGuncelle();
 
   const bugun = new Date().toISOString().split("T")[0];
   const filtrelenmis = faturalar.filter(f => {
@@ -96,6 +104,34 @@ export default function Faturalar() {
     const durumUyum = durumFiltre === "tumu" || f.durum === durumFiltre;
     return aramaUyum && durumUyum;
   });
+
+  function secToggle(id: number) {
+    setSecilenler(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function hepsiniSec() {
+    if (secilenler.size === filtrelenmis.length) setSecilenler(new Set());
+    else setSecilenler(new Set(filtrelenmis.map(f => f.id)));
+  }
+
+  async function topluPdfIndir() {
+    if (secilenler.size === 0) return;
+    setTopluPdfIndiriyor(true);
+    const ids = Array.from(secilenler);
+    let basarili = 0;
+    for (const id of ids) {
+      const f = faturalar.find(x => x.id === id);
+      if (!f) continue;
+      try { await pdfIndir(id, f.faturaNo); basarili++; }
+      catch { /* devam */ }
+    }
+    setTopluPdfIndiriyor(false);
+    toast({ title: `${basarili}/${ids.length} fatura PDF indirildi` });
+  }
 
   function acOdemeModal(f: Fatura) {
     setSecilenFatura(f);
@@ -151,6 +187,22 @@ export default function Faturalar() {
     }
   }
 
+  function topluDurumKaydet() {
+    const ids = Array.from(secilenler);
+    topluDurumGuncelle.mutate(
+      { data: { ids, durum: topluDurum as import("@workspace/api-client-react").TopluDurumInputDurum } },
+      {
+        onSuccess: (res) => {
+          qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() });
+          setTopluDurumModal(false);
+          setSecilenler(new Set());
+          toast({ title: `${res.guncellenen} fatura güncellendi` });
+        },
+        onError: () => toast({ title: "Güncelleme başarısız", variant: "destructive" }),
+      }
+    );
+  }
+
   const gruplu = aktifSirketId === null
     ? Object.entries(
         filtrelenmis.reduce<Record<string, Fatura[]>>((acc, f) => {
@@ -163,9 +215,15 @@ export default function Faturalar() {
 
   function faturaSatiri(f: Fatura) {
     const vadesiGecmis = f.vadeTarihi < bugun && (f.durum === "acik" || f.durum === "kismi_odendi");
+    const secili = secilenler.has(f.id);
     return (
-      <Card key={f.id} className={`hover:shadow-sm transition-shadow ${vadesiGecmis ? "border-red-300" : ""}`} data-testid={`card-fatura-${f.id}`}>
-        <CardContent className="p-4 flex items-center gap-4">
+      <Card key={f.id} className={`hover:shadow-sm transition-shadow ${vadesiGecmis ? "border-red-300" : ""} ${secili ? "ring-1 ring-primary" : ""}`} data-testid={`card-fatura-${f.id}`}>
+        <CardContent className="p-4 flex items-center gap-3">
+          <Checkbox
+            checked={secili}
+            onCheckedChange={() => secToggle(f.id)}
+            className="shrink-0"
+          />
           <div className={`p-2 rounded-full ${vadesiGecmis ? "bg-red-500/10" : "bg-orange-500/10"}`}>
             {vadesiGecmis ? <AlertCircle className="h-4 w-4 text-red-500" /> : <FileText className="h-4 w-4 text-orange-500" />}
           </div>
@@ -243,7 +301,34 @@ export default function Faturalar() {
           </Button>
         </Link>
       </div>
-      <p className="text-sm text-muted-foreground">{filtrelenmis.length} fatura</p>
+
+      <div className="flex items-center gap-2">
+        <button onClick={hepsiniSec} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <CheckSquare className="h-3.5 w-3.5" />
+          {secilenler.size === filtrelenmis.length && filtrelenmis.length > 0 ? "Seçimi Kaldır" : "Tümünü Seç"}
+        </button>
+        <span className="text-sm text-muted-foreground ml-2">{filtrelenmis.length} fatura</span>
+        {secilenler.size > 0 && (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-sm font-medium text-primary">{secilenler.size} seçildi</span>
+            <Button
+              size="sm" variant="outline" className="h-7 text-xs rounded-full gap-1"
+              disabled={topluPdfIndiriyor}
+              onClick={topluPdfIndir}
+            >
+              <Download className="h-3 w-3" />
+              {topluPdfIndiriyor ? "İndiriliyor..." : "Toplu PDF"}
+            </Button>
+            <Button
+              size="sm" variant="outline" className="h-7 text-xs rounded-full gap-1"
+              onClick={() => setTopluDurumModal(true)}
+            >
+              <SquarePen className="h-3 w-3" />
+              Durum Değiştir
+            </Button>
+          </div>
+        )}
+      </div>
 
       {gruplu ? (
         <div className="space-y-6">
@@ -320,6 +405,28 @@ export default function Faturalar() {
             <Button onClick={gonderFatura} disabled={!aliciAdres || gonderiyor} className="rounded-full">
               {gonderiyor ? "Gönderiliyor..." : "Gönder"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={topluDurumModal} onOpenChange={setTopluDurumModal}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{secilenler.size} Faturanın Durumunu Değiştir</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Yeni Durum</Label>
+              <Select value={topluDurum} onValueChange={setTopluDurum}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(DURUM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">Seçili {secilenler.size} faturanın durumu "{DURUM_ETIKET[topluDurum]}" olarak güncellenir.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTopluDurumModal(false)} className="rounded-full">İptal</Button>
+            <Button onClick={topluDurumKaydet} disabled={topluDurumGuncelle.isPending} className="rounded-full">Uygula</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

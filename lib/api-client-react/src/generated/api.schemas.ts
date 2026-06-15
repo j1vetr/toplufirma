@@ -706,6 +706,80 @@ export interface AlacakYaslandirma {
   dilimler: YaslandirmaDilimi[];
 }
 
+export type TopluDurumInputDurum = typeof TopluDurumInputDurum[keyof typeof TopluDurumInputDurum];
+
+
+export const TopluDurumInputDurum = {
+  acik: 'acik',
+  kismi_odendi: 'kismi_odendi',
+  odendi: 'odendi',
+  iptal: 'iptal',
+} as const;
+
+export interface TopluDurumInput {
+  ids: number[];
+  durum: TopluDurumInputDurum;
+}
+
+export interface FirmaGelirNoktasi {
+  catiFirmaId: number;
+  catiFirmaAd: string;
+  toplamFatura: number;
+  toplamTahsilat: number;
+}
+
+export interface AramaResult {
+  firmalar: Firma[];
+  gemiler: Gemi[];
+  faturalar: Fatura[];
+}
+
+export interface TekrarlayanFatura {
+  id: number;
+  catiFirmaId: number;
+  /** @nullable */
+  catiFirmaAd?: string | null;
+  bagliFirmaId: number;
+  /** @nullable */
+  bagliFirmaAd?: string | null;
+  /** @nullable */
+  gemiId?: number | null;
+  /** @nullable */
+  gemiAd?: string | null;
+  aciklama: string;
+  birimFiyat: number;
+  kdvOrani: number;
+  paraBirimi: string;
+  sonrakiTarih: string;
+  aktif: boolean;
+  olusturmaTarihi: string;
+}
+
+export interface TekrarlayanFaturaInput {
+  catiFirmaId: number;
+  bagliFirmaId: number;
+  /** @nullable */
+  gemiId?: number | null;
+  aciklama: string;
+  birimFiyat: number;
+  kdvOrani: number;
+  paraBirimi: string;
+  sonrakiTarih: string;
+  aktif?: boolean;
+}
+
+export interface TekrarlayanFaturaUpdate {
+  bagliFirmaId?: number;
+  /** @nullable */
+  gemiId?: number | null;
+  aciklama?: string;
+  birimFiyat?: number;
+  kdvOrani?: number;
+  paraBirimi?: string;
+  sonrakiTarih?: string;
+  aktif?: boolean;
+}
+
 export type ListFirmalarParams = {
 tip?: ListFirmalarTip;
 ustFirmaId?: number;
@@ -794,6 +868,14 @@ catiFirmaId?: number | null;
 yil?: number;
 };
 
+export type GetFirmaGelirParams = {
+/**
+ * @nullable
+ */
+catiFirmaId?: number | null;
+yil?: number;
+};
+
 export type GetKdvOzetiParams = {
 /**
  * @nullable
@@ -808,5 +890,18 @@ export type GetAlacakYaslandirmaParams = {
  * @nullable
  */
 catiFirmaId?: number | null;
+};
+
+export type GlobalAramaParams = {
+q: string;
+catiFirmaId?: number;
+};
+
+export type ListTekrarlayanFaturalarParams = {
+catiFirmaId?: number;
+};
+
+export type TopluDurumGuncelle200 = {
+  guncellenen: number;
 };
 

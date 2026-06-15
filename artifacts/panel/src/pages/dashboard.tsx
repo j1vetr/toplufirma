@@ -5,8 +5,10 @@ import {
   useGetSonIslemler, getGetSonIslemlerQueryKey,
   useGetAylikGelir, getGetAylikGelirQueryKey,
   useGetVadesiYaklasanFaturalar, getGetVadesiYaklasanFaturalarQueryKey,
+  useGetFirmaGelir, getGetFirmaGelirQueryKey,
+  useGetAlacakYaslandirma, getGetAlacakYaslandirmaQueryKey,
 } from "@workspace/api-client-react";
-import { FileText, Wallet, AlertCircle, TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
+import { FileText, Wallet, AlertCircle, TrendingUp, TrendingDown, AlertTriangle, Clock } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -25,9 +27,17 @@ const DURUM_ETK: Record<string, string> = {
   acik: "Açık", kismi_odendi: "Kısmi", odendi: "Ödendi", iptal: "İptal",
 };
 
+const DILIM_RENK: Record<string, string> = {
+  "0-30 gün": "text-green-600",
+  "31-60 gün": "text-yellow-600",
+  "61-90 gün": "text-orange-600",
+  "90+ gün": "text-red-600",
+};
+
 export default function Dashboard() {
   const { aktifSirketId } = useSirket();
   const firmaParam = aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined;
+  const yil = new Date().getFullYear();
 
   const { data: ozet, isLoading } = useGetDashboardOzet(
     firmaParam,
@@ -37,6 +47,10 @@ export default function Dashboard() {
     firmaParam,
     { query: { queryKey: [...getGetAylikGelirQueryKey(firmaParam), aktifSirketId] } },
   );
+  const { data: firmaGelirVeriler = [] } = useGetFirmaGelir(
+    { ...firmaParam, yil },
+    { query: { queryKey: [...getGetFirmaGelirQueryKey({ ...firmaParam, yil }), aktifSirketId, yil] } },
+  );
   const { data: sonIslemler } = useGetSonIslemler(
     firmaParam,
     { query: { queryKey: [...getGetSonIslemlerQueryKey(firmaParam), aktifSirketId] } },
@@ -44,6 +58,10 @@ export default function Dashboard() {
   const { data: vadesiYaklasan = [] } = useGetVadesiYaklasanFaturalar(
     { ...firmaParam, gun: 14 },
     { query: { queryKey: [...getGetVadesiYaklasanFaturalarQueryKey({ ...firmaParam, gun: 14 }), aktifSirketId] } },
+  );
+  const { data: agingData } = useGetAlacakYaslandirma(
+    firmaParam,
+    { query: { queryKey: [...getGetAlacakYaslandirmaQueryKey(firmaParam), aktifSirketId] } },
   );
 
   if (isLoading) {
@@ -67,6 +85,8 @@ export default function Dashboard() {
   const aktifAylar = (aylikVeriler as { toplamFatura?: number; toplamTahsilat?: number }[]).filter(
     a => (a.toplamFatura ?? 0) > 0 || (a.toplamTahsilat ?? 0) > 0
   );
+
+  const aktifFirmaGelir = firmaGelirVeriler.filter(f => f.toplamFatura > 0 || f.toplamTahsilat > 0);
 
   return (
     <div className="space-y-6">
@@ -105,25 +125,49 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="col-span-2 shadow-sm">
           <CardHeader>
-            <CardTitle className="font-display text-base">Aylık Fatura & Tahsilat ({new Date().getFullYear()})</CardTitle>
+            <CardTitle className="font-display text-base">
+              {aktifSirketId === null
+                ? `Firma Bazlı Gelir & Tahsilat (${yil})`
+                : `Aylık Fatura & Tahsilat (${yil})`}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {aktifAylar.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={aylikVeriler as object[]} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="ayAd" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${(v/1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number, n: string) => [fmt(Number(v)), n === "toplamFatura" ? "Fatura" : "Tahsilat"]} />
-                  <Legend formatter={(v: string) => v === "toplamFatura" ? "Fatura" : "Tahsilat"} />
-                  <Bar dataKey="toplamFatura" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} opacity={0.7} />
-                  <Bar dataKey="toplamTahsilat" fill="#22c55e" radius={[4, 4, 0, 0]} opacity={0.9} />
-                </BarChart>
-              </ResponsiveContainer>
+            {aktifSirketId === null ? (
+              aktifFirmaGelir.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={aktifFirmaGelir} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="catiFirmaAd" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${(v/1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: number, n: string) => [fmt(Number(v)), n === "toplamFatura" ? "Fatura" : "Tahsilat"]} />
+                    <Legend formatter={(v: string) => v === "toplamFatura" ? "Fatura" : "Tahsilat"} />
+                    <Bar dataKey="toplamFatura" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} opacity={0.7} />
+                    <Bar dataKey="toplamTahsilat" fill="#22c55e" radius={[4, 4, 0, 0]} opacity={0.9} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">
+                  Bu yıl için henüz firma bazlı veri yok.
+                </div>
+              )
             ) : (
-              <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">
-                Bu yıl için henüz veri yok.
-              </div>
+              aktifAylar.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={aylikVeriler as object[]} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="ayAd" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${(v/1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: number, n: string) => [fmt(Number(v)), n === "toplamFatura" ? "Fatura" : "Tahsilat"]} />
+                    <Legend formatter={(v: string) => v === "toplamFatura" ? "Fatura" : "Tahsilat"} />
+                    <Bar dataKey="toplamFatura" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} opacity={0.7} />
+                    <Bar dataKey="toplamTahsilat" fill="#22c55e" radius={[4, 4, 0, 0]} opacity={0.9} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">
+                  Bu yıl için henüz veri yok.
+                </div>
+              )
             )}
           </CardContent>
         </Card>
@@ -155,6 +199,30 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {agingData && (agingData.dilimler ?? []).some(d => d.toplamTutar > 0) && (
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="font-display text-base flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Alacak Yaşlandırma
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {(agingData.dilimler ?? []).map((d, i) => (
+                <div key={i} className="space-y-1 text-center p-3 rounded-xl bg-muted/40">
+                  <p className="text-xs text-muted-foreground font-medium">{d.etiket}</p>
+                  <p className={`text-lg font-display font-bold ${DILIM_RENK[d.etiket] ?? "text-foreground"}`}>
+                    {fmt(d.toplamTutar)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{d.faturaSayisi} fatura</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {sonIslemler && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

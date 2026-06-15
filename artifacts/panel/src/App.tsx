@@ -20,6 +20,7 @@ import Ekipmanlar from "@/pages/ekipmanlar";
 import Tanimlar from "@/pages/tanimlar";
 import Raporlar from "@/pages/raporlar";
 import Kullanicilar from "@/pages/kullanicilar";
+import TekrarlayanFaturalar from "@/pages/tekrarlayan-faturalar";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -138,6 +139,11 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
       <Route path="/kullanicilar">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
           <Kullanicilar kullanici={kullanici} />
+        </AuthGuard>
+      </Route>
+      <Route path="/tekrarlayan-faturalar">
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <TekrarlayanFaturalar />
         </AuthGuard>
       </Route>
       <Route component={NotFound} />
