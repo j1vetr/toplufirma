@@ -287,7 +287,7 @@ export default function Firmalar() {
           <Plus className="mr-2 h-4 w-4" /> Çatı Firma Ekle
         </Button>
         <Button onClick={() => acFirmaModal("cati")} className="rounded-full" data-testid="button-cati-firma-ekle">
-          <Plus className="mr-2 h-4 w-4" /> Kendi Firmamız Ekle
+          <Plus className="mr-2 h-4 w-4" /> Firmanız Ekle
         </Button>
       </div>
 
@@ -354,7 +354,7 @@ export default function Firmalar() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-base">{cati.ad}</h3>
-                      <Badge variant="outline" className="text-xs">Kendi Firmamız</Badge>
+                      <Badge variant="outline" className="text-xs">Firmanız</Badge>
                       {!cati.aktif && <Badge variant="secondary">Pasif</Badge>}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
@@ -431,7 +431,7 @@ export default function Firmalar() {
       <Dialog open={firmaModal} onOpenChange={setFirmaModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{duzenleId ? "Firmayı Düzenle" : modalTip === "cati" ? "Yeni Kendi Firmamız" : modalTip === "grup" ? "Yeni Çatı Firma" : "Yeni Bağlı Firma"}</DialogTitle>
+            <DialogTitle>{duzenleId ? "Firmayı Düzenle" : modalTip === "cati" ? "Yeni Firmanız" : modalTip === "grup" ? "Yeni Çatı Firma" : "Yeni Bağlı Firma"}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
