@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import {
-  cariler, sirketler, gemiler, faturalar, odemeler
-} from "@workspace/db/schema";
-import { eq, and, sql, ilike, or } from "drizzle-orm";
+import { cariler, sirketler, gemiler, faturalar, odemeler } from "@workspace/db/schema";
+import { eq, and, sql, or } from "drizzle-orm";
+import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
 
 const router = Router();
 
@@ -12,22 +11,25 @@ router.get("/cariler", async (req, res) => {
     const { sirketId, tip, arama } = req.query as Record<string, string>;
 
     const conditions: ReturnType<typeof eq>[] = [];
-    if (sirketId) conditions.push(eq(cariler.sirketId, Number(sirketId)));
     if (tip) conditions.push(eq(cariler.tip, tip as typeof cariler.tip.enumValues[number]));
 
     let rows = await db
-      .select({
-        c: cariler,
-        sirketAd: sirketler.ad,
-      })
+      .select({ c: cariler, sirketAd: sirketler.ad })
       .from(cariler)
       .leftJoin(sirketler, eq(cariler.sirketId, sirketler.id))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(cariler.ad);
 
+    const { rows: filtered, yetkisiz } = sirketlerFiltrele(
+      rows.map(r => ({ ...r, sirketId: r.c.sirketId })),
+      req, sirketId
+    );
+    if (yetkisiz) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+
+    let result = rows.filter(r => filtered.some(f => f.c.id === r.c.id));
     if (arama) {
       const q = arama.toLowerCase();
-      rows = rows.filter(r =>
+      result = result.filter(r =>
         r.c.ad.toLowerCase().includes(q) ||
         (r.c.vergiNo ?? "").toLowerCase().includes(q) ||
         (r.c.eposta ?? "").toLowerCase().includes(q)
@@ -35,16 +37,18 @@ router.get("/cariler", async (req, res) => {
     }
 
     const bakiyeler = await getBakiyeler();
-    res.json(rows.map(r => formatCari(r.c, r.sirketAd, bakiyeler[r.c.id])));
-  } catch (err) {
+    res.json(result.map(r => formatCari(r.c, r.sirketAd, bakiyeler[r.c.id])));
+  } catch {
     res.status(500).json({ error: "Cariler listelenemedi" });
   }
 });
 
-router.post("/cariler", async (req, res) => {
+router.post("/cariler", requireYazma, async (req, res) => {
   try {
     const { sirketId, ad, tip, vergiNo, vergiDairesi, telefon, eposta, adres, yetkiliKisi, paraBirimi, notlar, aktif } = req.body;
     if (!sirketId || !ad || !tip) return res.status(400).json({ error: "sirketId, ad ve tip zorunludur" });
+    if (!sirketErisimKontrol(Number(sirketId), req)) return res.status(403).json({ error: "Bu şirkete erişim izniniz yok" });
+
     const [row] = await db.insert(cariler).values({
       sirketId, ad, tip, vergiNo, vergiDairesi, telefon, eposta,
       adres, yetkiliKisi, paraBirimi: paraBirimi ?? "USD",
@@ -52,7 +56,7 @@ router.post("/cariler", async (req, res) => {
     }).returning();
     const bakiyeler = await getBakiyeler();
     res.status(201).json(formatCari(row, null, bakiyeler[row.id]));
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Cari oluşturulamadı" });
   }
 });
@@ -66,6 +70,7 @@ router.get("/cariler/:id", async (req, res) => {
       .leftJoin(sirketler, eq(cariler.sirketId, sirketler.id))
       .where(eq(cariler.id, id));
     if (!row) return res.status(404).json({ error: "Cari bulunamadı" });
+    if (!sirketErisimKontrol(row.c.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
 
     const bakiyeler = await getBakiyeler();
     const bagliGemiler = await db.select().from(gemiler).where(eq(gemiler.cariId, id));
@@ -82,32 +87,39 @@ router.get("/cariler/:id", async (req, res) => {
       })),
       sonIslemler: [],
     });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Cari getirilemedi" });
   }
 });
 
-router.patch("/cariler/:id", async (req, res) => {
+router.patch("/cariler/:id", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const [existing] = await db.select().from(cariler).where(eq(cariler.id, id));
+    if (!existing) return res.status(404).json({ error: "Cari bulunamadı" });
+    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+
     const { ad, tip, vergiNo, vergiDairesi, telefon, eposta, adres, yetkiliKisi, paraBirimi, notlar, aktif } = req.body;
     const [row] = await db.update(cariler)
       .set({ ad, tip, vergiNo, vergiDairesi, telefon, eposta, adres, yetkiliKisi, paraBirimi, notlar, aktif })
       .where(eq(cariler.id, id))
       .returning();
-    if (!row) return res.status(404).json({ error: "Cari bulunamadı" });
     const bakiyeler = await getBakiyeler();
     res.json(formatCari(row, null, bakiyeler[row.id]));
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Cari güncellenemedi" });
   }
 });
 
-router.delete("/cariler/:id", async (req, res) => {
+router.delete("/cariler/:id", requireYazma, async (req, res) => {
   try {
-    await db.delete(cariler).where(eq(cariler.id, Number(req.params.id)));
+    const id = Number(req.params.id);
+    const [existing] = await db.select().from(cariler).where(eq(cariler.id, id));
+    if (!existing) return res.status(404).json({ error: "Cari bulunamadı" });
+    if (!sirketErisimKontrol(existing.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
+    await db.delete(cariler).where(eq(cariler.id, id));
     res.status(204).send();
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Cari silinemedi" });
   }
 });
@@ -117,6 +129,7 @@ router.get("/cariler/:id/ekstre", async (req, res) => {
     const id = Number(req.params.id);
     const [cari] = await db.select().from(cariler).where(eq(cariler.id, id));
     if (!cari) return res.status(404).json({ error: "Cari bulunamadı" });
+    if (!sirketErisimKontrol(cari.sirketId, req)) return res.status(403).json({ error: "Bu kayda erişim izniniz yok" });
 
     const fats = await db.select().from(faturalar).where(eq(faturalar.cariId, id)).orderBy(faturalar.faturaTarihi);
     const ods = await db.select().from(odemeler).where(eq(odemeler.cariId, id)).orderBy(odemeler.tarih);
@@ -125,29 +138,22 @@ router.get("/cariler/:id/ekstre", async (req, res) => {
     for (const f of fats) {
       kalemler.push({
         id: f.id, tip: "fatura", tarih: f.faturaTarihi,
-        aciklama: f.aciklama ?? `Fatura ${f.faturaNo}`,
-        referansNo: f.faturaNo,
-        borc: Number(f.genelToplam), alacak: null,
-        tutar: Number(f.genelToplam), paraBirimi: f.paraBirimi,
-        bakiye: 0,
+        aciklama: f.aciklama ?? `Fatura ${f.faturaNo}`, referansNo: f.faturaNo,
+        borc: Number(f.genelToplam), alacak: null, tutar: Number(f.genelToplam),
+        paraBirimi: f.paraBirimi, bakiye: 0,
       });
     }
     for (const o of ods) {
       kalemler.push({
-        id: o.id, tip: o.tip, tarih: o.tarih,
-        aciklama: o.aciklama, referansNo: null,
+        id: o.id, tip: o.tip, tarih: o.tarih, aciklama: o.aciklama, referansNo: null,
         borc: o.tip === "odeme" ? Number(o.tutar) : null,
         alacak: o.tip === "tahsilat" ? Number(o.tutar) : null,
-        tutar: Number(o.tutar), paraBirimi: o.paraBirimi,
-        bakiye: 0,
+        tutar: Number(o.tutar), paraBirimi: o.paraBirimi, bakiye: 0,
       });
     }
-
     kalemler.sort((a, b) => String(a.tarih).localeCompare(String(b.tarih)));
 
-    let bakiye = 0;
-    let toplamBorc = 0;
-    let toplamAlacak = 0;
+    let bakiye = 0, toplamBorc = 0, toplamAlacak = 0;
     for (const k of kalemler) {
       if (k.borc) { bakiye += k.borc as number; toplamBorc += k.borc as number; }
       if (k.alacak) { bakiye -= k.alacak as number; toplamAlacak += k.alacak as number; }
@@ -155,7 +161,7 @@ router.get("/cariler/:id/ekstre", async (req, res) => {
     }
 
     res.json({ cariId: id, cariAd: cari.ad, kalemler, toplamBorc, toplamAlacak, kalanBakiye: bakiye });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Ekstre getirilemedi" });
   }
 });
@@ -166,18 +172,11 @@ async function getBakiyeler(): Promise<Record<number, { toplamBorc: number; topl
     .from(faturalar)
     .where(or(eq(faturalar.durum, "acik"), eq(faturalar.durum, "kismi_odendi")))
     .groupBy(faturalar.cariId);
-
   const odRows = await db
-    .select({
-      cariId: odemeler.cariId,
-      tip: odemeler.tip,
-      toplam: sql<string>`sum(${odemeler.tutar})`,
-    })
+    .select({ cariId: odemeler.cariId, tip: odemeler.tip, toplam: sql<string>`sum(${odemeler.tutar})` })
     .from(odemeler)
     .groupBy(odemeler.cariId, odemeler.tip);
-
   const result: Record<number, { toplamBorc: number; toplamAlacak: number; kalanBakiye: number }> = {};
-
   for (const r of fatRows) {
     if (!result[r.cariId]) result[r.cariId] = { toplamBorc: 0, toplamAlacak: 0, kalanBakiye: 0 };
     result[r.cariId].toplamBorc = Number(r.genel ?? 0);
@@ -199,49 +198,24 @@ function formatCari(
   bakiye?: { toplamBorc: number; toplamAlacak: number; kalanBakiye: number }
 ) {
   return {
-    id: r.id,
-    sirketId: r.sirketId,
-    sirketAd: sirketAd ?? null,
-    ad: r.ad,
-    tip: r.tip,
-    vergiNo: r.vergiNo,
-    vergiDairesi: r.vergiDairesi,
-    telefon: r.telefon,
-    eposta: r.eposta,
-    adres: r.adres,
-    yetkiliKisi: r.yetkiliKisi,
-    paraBirimi: r.paraBirimi,
-    notlar: r.notlar,
-    aktif: r.aktif,
-    toplamBorc: bakiye?.toplamBorc ?? 0,
-    toplamAlacak: bakiye?.toplamAlacak ?? 0,
-    kalanBakiye: bakiye?.kalanBakiye ?? 0,
-    olusturmaTarihi: r.olusturmaTarihi,
+    id: r.id, sirketId: r.sirketId, sirketAd: sirketAd ?? null,
+    ad: r.ad, tip: r.tip, vergiNo: r.vergiNo, vergiDairesi: r.vergiDairesi,
+    telefon: r.telefon, eposta: r.eposta, adres: r.adres,
+    yetkiliKisi: r.yetkiliKisi, paraBirimi: r.paraBirimi, notlar: r.notlar, aktif: r.aktif,
+    toplamBorc: bakiye?.toplamBorc ?? 0, toplamAlacak: bakiye?.toplamAlacak ?? 0,
+    kalanBakiye: bakiye?.kalanBakiye ?? 0, olusturmaTarihi: r.olusturmaTarihi,
   };
 }
 
 function formatFaturaBasic(f: typeof faturalar.$inferSelect) {
   return {
-    id: f.id,
-    sirketId: f.sirketId,
-    sirketAd: null,
-    cariId: f.cariId,
-    cariAd: null,
-    gemiId: f.gemiId,
-    gemiAd: null,
-    faturaNo: f.faturaNo,
-    faturaTarihi: f.faturaTarihi,
-    vadeTarihi: f.vadeTarihi,
-    paraBirimi: f.paraBirimi,
-    durum: f.durum,
-    toplamTutar: Number(f.toplamTutar),
-    kdvTutari: Number(f.kdvTutari),
-    genelToplam: Number(f.genelToplam),
-    odenenTutar: 0,
-    kalanTutar: Number(f.genelToplam),
-    notlar: f.notlar,
-    aciklama: f.aciklama,
-    olusturmaTarihi: f.olusturmaTarihi,
+    id: f.id, sirketId: f.sirketId, sirketAd: null, cariId: f.cariId, cariAd: null,
+    gemiId: f.gemiId, gemiAd: null, faturaNo: f.faturaNo,
+    faturaTarihi: f.faturaTarihi, vadeTarihi: f.vadeTarihi,
+    paraBirimi: f.paraBirimi, durum: f.durum,
+    toplamTutar: Number(f.toplamTutar), kdvTutari: Number(f.kdvTutari),
+    genelToplam: Number(f.genelToplam), odenenTutar: 0, kalanTutar: Number(f.genelToplam),
+    notlar: f.notlar, aciklama: f.aciklama, olusturmaTarihi: f.olusturmaTarihi,
   };
 }
 
