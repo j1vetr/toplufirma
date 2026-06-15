@@ -171,7 +171,6 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
       <div className="w-64 border-r bg-sidebar hidden md:flex flex-col">
         <div className="h-16 flex items-center px-6 border-b shrink-0">
           <img src={toovLogo} alt="TOOV" className="w-8 h-8 object-contain mr-3" />
-          <span className="font-display font-bold text-lg tracking-wide">Çoklu Firma Yönetim Sistemi</span>
         </div>
 
         <div className="px-3 py-3 border-b shrink-0">

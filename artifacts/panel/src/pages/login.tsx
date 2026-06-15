@@ -46,7 +46,6 @@ export default function Login({ onLogin }: Props) {
             <img src={toovLogo} alt="TOOV" className="h-16 w-auto object-contain" />
           </div>
           <h1 className="text-2xl font-display font-semibold">Çoklu Firma Yönetim Sistemi</h1>
-          <p className="text-sm text-muted-foreground mt-1">Çoklu Firma Yönetimi</p>
         </div>
 
         <Card className="shadow-sm border-none">
