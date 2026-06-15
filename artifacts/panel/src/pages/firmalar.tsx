@@ -284,10 +284,10 @@ export default function Firmalar() {
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
         <Button onClick={() => acFirmaModal("grup")} variant="outline" className="rounded-full" data-testid="button-grup-firma-ekle">
-          <Plus className="mr-2 h-4 w-4" /> Çatı Firma Ekle
+          <Plus className="mr-2 h-4 w-4" /> Grup Firma Ekle
         </Button>
         <Button onClick={() => acFirmaModal("cati")} className="rounded-full" data-testid="button-cati-firma-ekle">
-          <Plus className="mr-2 h-4 w-4" /> Firmanız Ekle
+          <Plus className="mr-2 h-4 w-4" /> Çatı Firma Ekle
         </Button>
       </div>
 
@@ -295,7 +295,7 @@ export default function Firmalar() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-amber-600" /> Çatı / Grup Firmalar
+              <Building2 className="h-4 w-4 text-amber-600" /> Grup Firmalar
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0 border-t">
@@ -312,7 +312,7 @@ export default function Firmalar() {
                       {g.eposta && <span>{g.eposta}</span>}
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-xs">Çatı</Badge>
+                  <Badge variant="outline" className="text-xs">Grup</Badge>
                   {!g.aktif && <Badge variant="secondary" className="text-xs">Pasif</Badge>}
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => acFirmaModal("grup", undefined, g.id)}>
@@ -354,7 +354,7 @@ export default function Firmalar() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-base">{cati.ad}</h3>
-                      <Badge variant="outline" className="text-xs">Firmanız</Badge>
+                      <Badge variant="outline" className="text-xs">Çatı Firma</Badge>
                       {!cati.aktif && <Badge variant="secondary">Pasif</Badge>}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
@@ -431,7 +431,7 @@ export default function Firmalar() {
       <Dialog open={firmaModal} onOpenChange={setFirmaModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{duzenleId ? "Firmayı Düzenle" : modalTip === "cati" ? "Yeni Firmanız" : modalTip === "grup" ? "Yeni Çatı Firma" : "Yeni Bağlı Firma"}</DialogTitle>
+            <DialogTitle>{duzenleId ? "Firmayı Düzenle" : modalTip === "cati" ? "Yeni Çatı Firma" : modalTip === "grup" ? "Yeni Grup Firma" : "Yeni Bağlı Firma"}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
