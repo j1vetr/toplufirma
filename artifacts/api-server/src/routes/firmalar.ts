@@ -58,10 +58,11 @@ router.post("/firmalar", requireYazma, async (req, res) => {
     if (!tip || !ad) { res.status(400).json({ error: "tip ve ad zorunludur" }); return; }
 
     if (tip === "bagli") {
-      if (!ustFirmaId) { res.status(400).json({ error: "Bağlı firma için ustFirmaId zorunludur" }); return; }
-      if (!sirketErisimKontrol(Number(ustFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
-      const [catiFirma] = await db.select().from(firmalar).where(eq(firmalar.id, Number(ustFirmaId)));
-      if (!catiFirma || catiFirma.tip !== "cati") { res.status(400).json({ error: "ustFirmaId geçerli bir firma değil" }); return; }
+      if (ustFirmaId) {
+        if (!sirketErisimKontrol(Number(ustFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+        const [catiFirma] = await db.select().from(firmalar).where(eq(firmalar.id, Number(ustFirmaId)));
+        if (!catiFirma || catiFirma.tip !== "cati") { res.status(400).json({ error: "ustFirmaId geçerli bir firma değil" }); return; }
+      }
       if (grupFirmaId) {
         const [grup] = await db.select().from(firmalar).where(eq(firmalar.id, Number(grupFirmaId)));
         if (!grup || grup.tip !== "grup") { res.status(400).json({ error: "grupFirmaId geçerli bir çatı firma değil" }); return; }
