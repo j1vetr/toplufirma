@@ -64,6 +64,17 @@ router.post("/faturalar", requireYazma, async (req, res) => {
     }
     if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
+    {
+      const [cari] = await db.select({ sid: cariler.sirketId }).from(cariler).where(eq(cariler.id, Number(cariId)));
+      if (!cari || cari.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen cari bu şirkete ait değil" }); return; }
+    }
+    if (gemiId) {
+      const [gemiCari] = await db.select({ sid: cariler.sirketId }).from(gemiler)
+        .innerJoin(cariler, eq(gemiler.cariId, cariler.id))
+        .where(eq(gemiler.id, Number(gemiId)));
+      if (!gemiCari || gemiCari.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen gemi bu şirkete ait değil" }); return; }
+    }
+
     let faturaNo = "";
     if (faturaSerisiId) {
       const [seri] = await db.select().from(faturaSerileri).where(eq(faturaSerileri.id, faturaSerisiId));

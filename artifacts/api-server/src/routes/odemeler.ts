@@ -42,6 +42,19 @@ router.post("/odemeler", requireYazma, async (req, res) => {
     }
     if (!sirketErisimKontrol(Number(sirketId), req)) { res.status(403).json({ error: "Bu şirkete erişim izniniz yok" }); return; }
 
+    if (cariId) {
+      const [cari] = await db.select({ sid: cariler.sirketId }).from(cariler).where(eq(cariler.id, Number(cariId)));
+      if (!cari || cari.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen cari bu şirkete ait değil" }); return; }
+    }
+    if (faturaId) {
+      const [fat] = await db.select({ sid: faturalar.sirketId }).from(faturalar).where(eq(faturalar.id, Number(faturaId)));
+      if (!fat || fat.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen fatura bu şirkete ait değil" }); return; }
+    }
+    if (bankaHesabiId) {
+      const [bh] = await db.select({ sid: bankaHesaplari.sirketId }).from(bankaHesaplari).where(eq(bankaHesaplari.id, Number(bankaHesabiId)));
+      if (!bh || bh.sid !== Number(sirketId)) { res.status(400).json({ error: "Belirtilen banka hesabı bu şirkete ait değil" }); return; }
+    }
+
     const [row] = await db.insert(odemeler).values({
       sirketId, cariId, gemiId: gemiId ?? null, bankaHesabiId: bankaHesabiId ?? null,
       faturaId: faturaId ?? null, tip, tarih, tutar: String(tutar),

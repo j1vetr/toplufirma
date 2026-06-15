@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
 import sirketlerRouter from "./sirketler";
 import carilerRouter from "./cariler";
 import gemilerRouter from "./gemiler";
@@ -16,7 +15,6 @@ import kullanicilarRouter from "./kullanicilar";
 
 const router: IRouter = Router();
 
-router.use(healthRouter);
 router.use(sirketlerRouter);
 router.use(carilerRouter);
 router.use(gemilerRouter);
