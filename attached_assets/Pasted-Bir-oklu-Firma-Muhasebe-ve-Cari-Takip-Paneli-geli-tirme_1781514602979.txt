@@ -1,0 +1,269 @@
+Bir “Çoklu Firma Muhasebe ve Cari Takip Paneli” geliştirmek istiyorum.
+
+Bu sistem, birden fazla şirketi olan bir işletmenin tüm firma, banka hesabı, fatura, ödeme, cari hesap, KDV ve e-posta süreçlerini tek panelden yönetebilmesini sağlamalı.
+
+Mevcut sistemde temel olarak şirket seçimi, genel bakış, firma/cari tanımı, fatura oluşturma, ödeme ekleme, cari ekstre ve aylık döküm ekranları var. Ancak ben bunun daha modern, daha profesyonel, daha kullanışlı ve gerçek hayatta kullanılabilir seviyede olmasını istiyorum. Tasarım mevcut sistemin aynısı olmayacak; daha premium, sade, hızlı ve kurumsal bir arayüz olacak.
+
+Sistem %100 PostgreSQL veritabanı kullanmalı. Tarayıcı local storage gibi geçici veri saklama mantığı olmamalı. Tüm veriler güvenli şekilde PostgreSQL üzerinde tutulmalı.
+
+Panelin genel mantığı şu şekilde olacak:
+
+1. Çoklu Şirket Yönetimi
+
+Sistemde birden fazla ana şirket tanımlanabilmeli.
+
+Örneğin:
+- Lacivert Teknoloji
+- Ade Globa Space Marshall
+- Ade Globa Space London
+- Başka şirketler
+
+Her şirketin kendi ayrı finansal yapısı olmalı.
+
+Her şirket için ayrı ayrı:
+- Firma bilgileri
+- Banka hesapları
+- Fatura serileri
+- KDV oranları
+- Para birimleri
+- Cari hesaplar
+- Tahsilatlar
+- Ödemeler
+- Gelir/gider kayıtları
+- E-posta ayarları
+- Vergi/fatura bilgileri
+
+tanımlanabilmeli.
+
+Kullanıcı panelde üst kısımdan aktif şirketi seçebilmeli. Aktif şirket değiştiğinde tüm ekranlar o şirkete göre filtrelenmeli.
+
+2. Ana Dashboard / Genel Bakış
+
+Girişte modern bir dashboard olmalı.
+
+Dashboard’da aktif şirket veya tüm şirketler için özet görülebilmeli.
+
+Gösterilecek bilgiler:
+- Toplam alacak
+- Toplam tahsilat
+- Toplam kalan bakiye
+- Toplam fatura sayısı
+- Toplam ödeme sayısı
+- Toplam cari/firma sayısı
+- Vadesi yaklaşan faturalar
+- Vadesi geçmiş faturalar
+- Son kesilen faturalar
+- Son yapılan ödemeler
+- Para birimine göre özetler: TL, USD, EUR, GBP
+- Aylık gelir grafiği
+- Aylık tahsilat grafiği
+- Şirket bazlı bakiye karşılaştırması
+- KDV özeti
+- Banka hesap bakiyeleri
+
+Dashboard tasarımı çok net, şık ve anlaşılır olmalı. Gereksiz kalabalık olmamalı ama işletme sahibinin tek bakışta finansal durumu anlamasını sağlamalı.
+
+3. Firma / Cari Yönetimi
+
+Sistemde müşteriler, tedarikçiler, bağlı firmalar ve gemiler tanımlanabilmeli.
+
+Firma türleri:
+- Ana firma
+- Bağlı firma
+- Müşteri
+- Tedarikçi
+- Gemi sahibi firma
+- Diğer
+
+Her cari/firma için şu bilgiler girilebilmeli:
+- Firma adı
+- Firma türü
+- Bağlı olduğu ana firma
+- Vergi no
+- Vergi dairesi
+- Telefon
+- E-posta
+- Adres
+- Yetkili kişi
+- Para birimi tercihi
+- Özel notlar
+
+Gemi bazlı takip olmalı.
+
+Bir firmaya birden fazla gemi bağlanabilmeli.
+
+Gemi bilgilerinde:
+- Gemi adı
+- IMO numarası
+- Bağlı firma
+- Notlar
+- Aktif/pasif durumu
+
+olmalı.
+
+Cari ekranında her firmanın:
+- Toplam borcu
+- Toplam alacağı
+- Tahsil edilen tutarı
+- Kalan bakiyesi
+- Açık faturaları
+- Bağlı gemileri
+- Son işlemleri
+
+görülebilmeli.
+
+4. Banka Hesapları Yönetimi
+
+Her şirketin birden fazla banka hesabı olabilir.
+
+Her banka hesabı için:
+- Banka adı
+- Hesap adı
+- IBAN
+- Para birimi
+- Şube bilgisi
+- Hesap açıklaması
+- Aktif/pasif durumu
+
+tanımlanabilmeli.
+
+Fatura tahsilatı veya ödeme eklenirken hangi banka hesabına işlendiği seçilebilmeli.
+
+Banka hesap hareketleri ayrı ekranda görüntülenebilmeli.
+
+Banka hesaplarına göre:
+- Gelen tahsilatlar
+- Yapılan ödemeler
+- Net bakiye
+- Para birimi bazlı toplam
+
+görülebilmeli.
+
+5. Fatura Oluşturma
+
+Fatura oluşturma ekranı gelişmiş olmalı.
+
+Fatura oluştururken:
+- Aktif şirket
+- Firma/cari
+- Bağlı gemi
+- Fatura tarihi
+- Vade tarihi
+- Para birimi
+- KDV oranı
+- Fatura serisi
+- Fatura numarası
+- Hizmet kalemleri
+- Açıklama
+- Notlar
+
+seçilebilmeli.
+
+Hizmet kalemleri dinamik olmalı.
+
+Her hizmet satırında:
+- Hizmet açıklaması
+- Miktar
+- Birim fiyat
+- KDV oranı
+- Ara toplam
+- Genel toplam
+
+olmalı.
+
+Bir faturada birden fazla hizmet kalemi eklenebilmeli.
+
+Fatura numarası şirket bazlı otomatik üretilebilmeli. Her şirket için farklı fatura seri numarası tanımlanabilmeli.
+
+Örneğin:
+- LAC000001
+- MAR000001
+- LON000001
+
+Kullanıcı isterse fatura seri başlangıcını değiştirebilmeli.
+
+Fatura kesildikten sonra:
+- PDF olarak görüntülenebilmeli
+- PDF indirilebilmeli
+- E-posta ile gönderilebilmeli
+- Cari hesaba otomatik borç olarak işlenmeli
+- Vade takibine düşmeli
+
+6. KDV Yönetimi
+
+Her şirketin KDV oranları farklı olabilir.
+
+Sistemde KDV oranları şirket bazlı tanımlanabilmeli.
+
+Örneğin:
+- %0
+- %1
+- %10
+- %20
+- Özel oran
+
+Fatura oluştururken KDV oranı seçilebilmeli.
+
+Aylık KDV özeti ekranı olmalı.
+
+Bu ekranda:
+- Kesilen faturaların KDV toplamı
+- KDV hariç toplam
+- KDV dahil toplam
+- Para birimi bazlı KDV dökümü
+- Şirket bazlı KDV dökümü
+
+görülebilmeli.
+
+7. Ödeme / Tahsilat Ekleme
+
+Ödeme ekleme ekranı daha gelişmiş olmalı.
+
+Tahsilat veya ödeme eklenirken:
+- Şirket
+- Cari/firma
+- Gemi
+- Banka hesabı
+- Tarih
+- Para birimi
+- Tutar
+- Açıklama
+- İlgili fatura
+- Ödeme yöntemi
+
+seçilebilmeli.
+
+Ödeme türleri:
+- Banka havalesi
+- EFT
+- Nakit
+- Kredi kartı
+- Wise
+- PayPal
+- Diğer
+
+Tahsilat girildiğinde ilgili carinin bakiyesi otomatik güncellenmeli.
+
+İstenirse ödeme doğrudan bir faturaya bağlanabilmeli.
+
+Kısmi ödeme desteklenmeli.
+
+Örneğin 10.000 USD faturaya 4.000 USD ödeme girilirse fatura “Kısmi Ödendi” durumuna düşmeli. Kalan bakiye 6.000 USD görünmeli.
+
+Fatura tamamen ödenirse “Ödendi” durumuna geçmeli.
+
+8. Cari Ekstre
+
+Cari ekstre ekranı çok güçlü olmalı.
+
+Bir firma seçildiğinde o firmaya ait tüm hareketler listelenmeli.
+
+Ekstrede:
+- Fatura kayıtları
+- Tahsilatlar
+- Ödemeler
+- Borç
+- Alacak
+- Kalan bakiye
+- Para birimi
+- Gemi bilg
