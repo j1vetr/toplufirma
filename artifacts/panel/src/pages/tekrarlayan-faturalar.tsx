@@ -26,7 +26,7 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, RefreshCw, Pencil, Repeat } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Pencil, Repeat, ChevronDown, ChevronUp } from "lucide-react";
 
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
@@ -70,6 +70,15 @@ export default function TekrarlayanFaturalar() {
   const [duzenleId, setDuzenleId] = useState<number | null>(null);
   const [silId, setSilId] = useState<number | null>(null);
   const [form, setForm] = useState(BOSH_FORM);
+  const [acikKalemler, setAcikKalemler] = useState<Set<number>>(new Set());
+
+  function kalemToggle(id: number) {
+    setAcikKalemler(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   const params = aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined;
   const { data: liste = [], isLoading } = useListTekrarlayanFaturalar(
@@ -240,49 +249,92 @@ export default function TekrarlayanFaturalar() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtreli.map(tr => (
-            <Card key={tr.id} className={`hover:shadow-sm transition-shadow ${!tr.aktif ? "opacity-50" : ""}`}>
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <RefreshCw className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-sm">{tr.aciklama}</p>
-                    {!tr.aktif && <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Pasif</span>}
+          {filtreli.map(tr => {
+            const expanded = acikKalemler.has(tr.id);
+            const kalemler = tr.kalemler && tr.kalemler.length
+              ? tr.kalemler
+              : [{ aciklama: tr.aciklama, miktar: 1, birimFiyat: tr.birimFiyat, kdvOrani: tr.kdvOrani }];
+            return (
+              <Card key={tr.id} className={`hover:shadow-sm transition-shadow ${!tr.aktif ? "opacity-50" : ""}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <RefreshCw className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm">{tr.aciklama}</p>
+                        {!tr.aktif && <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Pasif</span>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {tr.catiFirmaAd ?? `Firma #${tr.catiFirmaId}`} → {tr.bagliFirmaAd ?? `Firma #${tr.bagliFirmaId}`}
+                        {tr.gemiAd ? ` (${tr.gemiAd})` : ""}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Sonraki: {tr.sonrakiTarih}
+                        {kalemler.length > 1 ? ` · ${kalemler.length} kalem` : ""}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold text-sm">{fmt(trToplam(tr), tr.paraBirimi)}</p>
+                      <p className="text-xs text-muted-foreground">KDV dahil</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        size="icon" variant="ghost" className="h-8 w-8 text-green-600"
+                        title="Şimdi Fatura Üret"
+                        disabled={!tr.aktif || uret.isPending}
+                        onClick={() => uretFatura(tr.id)}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" title="Düzenle" onClick={() => acModal(tr)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Sil" onClick={() => setSilId(tr.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground"
+                        title={expanded ? "Kalemleri Gizle" : "Kalemleri Göster"}
+                        onClick={() => kalemToggle(tr.id)}
+                      >
+                        {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {tr.catiFirmaAd ?? `Firma #${tr.catiFirmaId}`} → {tr.bagliFirmaAd ?? `Firma #${tr.bagliFirmaId}`}
-                    {tr.gemiAd ? ` (${tr.gemiAd})` : ""}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Sonraki: {tr.sonrakiTarih}
-                    {tr.kalemler && tr.kalemler.length > 1 ? ` · ${tr.kalemler.length} kalem` : ""}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-semibold text-sm">{fmt(trToplam(tr), tr.paraBirimi)}</p>
-                  <p className="text-xs text-muted-foreground">KDV dahil</p>
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <Button
-                    size="icon" variant="ghost" className="h-8 w-8 text-green-600"
-                    title="Şimdi Fatura Üret"
-                    disabled={!tr.aktif || uret.isPending}
-                    onClick={() => uretFatura(tr.id)}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" title="Düzenle" onClick={() => acModal(tr)}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Sil" onClick={() => setSilId(tr.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+
+                  {expanded && (
+                    <div className="mt-3 pt-3 border-t">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Kalemler</p>
+                      <div className="grid grid-cols-12 gap-1.5 text-[10px] text-muted-foreground mb-1 px-1">
+                        <span className="col-span-5">Açıklama</span>
+                        <span className="col-span-2 text-right">Miktar</span>
+                        <span className="col-span-2 text-right">Birim Fiyat</span>
+                        <span className="col-span-1 text-right">KDV %</span>
+                        <span className="col-span-2 text-right">Toplam</span>
+                      </div>
+                      <div className="space-y-1">
+                        {kalemler.map((k, i) => (
+                          <div key={i} className="grid grid-cols-12 gap-1.5 text-xs px-1 py-1 rounded bg-muted/40">
+                            <span className="col-span-5 truncate">{k.aciklama}</span>
+                            <span className="col-span-2 text-right">{k.miktar}</span>
+                            <span className="col-span-2 text-right">{fmt(k.birimFiyat, tr.paraBirimi)}</span>
+                            <span className="col-span-1 text-right">%{k.kdvOrani}</span>
+                            <span className="col-span-2 text-right font-medium">{fmt(kalemGenelToplam(k), tr.paraBirimi)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-end mt-2 text-xs font-semibold">
+                        <span className="text-muted-foreground mr-2">Genel Toplam:</span>
+                        <span>{fmt(trToplam(tr), tr.paraBirimi)}</span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

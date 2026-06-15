@@ -100,6 +100,7 @@ export default function Faturalar() {
   const topluDurumGuncelle = useTopluDurumGuncelle();
 
   const bugun = new Date().toISOString().split("T")[0];
+  const taslakSayisi = faturalar.filter(f => f.durum === "taslak").length;
   const filtrelenmis = faturalar.filter(f => {
     const aramaUyum = !arama || f.faturaNo?.toLowerCase().includes(arama.toLowerCase()) || f.bagliFirmaAd?.toLowerCase().includes(arama.toLowerCase());
     const durumUyum = durumFiltre === "tumu" || f.durum === durumFiltre;
@@ -296,6 +297,24 @@ export default function Faturalar() {
             {Object.entries(DURUM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
           </SelectContent>
         </Select>
+        {taslakSayisi > 0 && (
+          <button
+            onClick={() => setDurumFiltre(durumFiltre === "taslak" ? "tumu" : "taslak")}
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors shrink-0 ${
+              durumFiltre === "taslak"
+                ? "bg-slate-600 text-white border-slate-600"
+                : "bg-slate-500/10 text-slate-600 border-slate-300 hover:bg-slate-500/20"
+            }`}
+            title="Bekleyen taslak faturaları filtrele"
+          >
+            <span className={`inline-flex items-center justify-center rounded-full text-[10px] font-bold h-4 min-w-4 px-1 ${
+              durumFiltre === "taslak" ? "bg-white/20 text-white" : "bg-slate-500/20 text-slate-700"
+            }`}>
+              {taslakSayisi}
+            </span>
+            Bekleyen Taslak
+          </button>
+        )}
         <Link href="/faturalar/yeni">
           <Button className="rounded-full" data-testid="button-fatura-yeni">
             <Plus className="mr-2 h-4 w-4" /> Yeni Fatura
