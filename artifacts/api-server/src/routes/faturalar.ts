@@ -293,7 +293,8 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
     const [bagliFirmaRow] = row.f.bagliFirmaId ? await db.select({ ad: firmalar.ad, adres: firmalar.adres }).from(firmalar).where(eq(firmalar.id, row.f.bagliFirmaId)) : [undefined];
     const bagliFirmaAd = bagliFirmaRow?.ad ?? null;
     const bagliFirmaAdres = bagliFirmaRow?.adres ?? null;
-    const gemiAdImo = row.gemiAd ? `${row.gemiAd}${row.gemiImo ? ` (${row.gemiImo})` : ""}` : null;
+    const gemiAd = row.gemiAd ?? null;
+    const gemiImo = row.gemiImo ?? null;
     const kalemler = await db.select().from(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
     const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, id));
     const odenen = ods.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
@@ -325,17 +326,23 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
       content: [
         {
           columns: [
+            catiFirmaRow?.logo
+              ? { image: catiFirmaRow.logo, width: 180, marginBottom: 4 }
+              : {
+                  stack: [
+                    { text: catiFirmaRow?.ad ?? row.catiFirmaAd ?? "", style: "sirketAd" },
+                    ...(catiFirmaRow?.adres ? [{ text: catiFirmaRow.adres, color: "#555", fontSize: 9, marginTop: 2 }] : []),
+                    ...((catiFirmaRow?.telefon || catiFirmaRow?.eposta) ? [{ text: [catiFirmaRow?.telefon, catiFirmaRow?.eposta].filter(Boolean).join("  |  "), color: "#555", fontSize: 9, marginTop: 1 }] : []),
+                  ],
+                },
             {
               stack: [
-                ...(catiFirmaRow?.logo ? [{ image: catiFirmaRow.logo, width: 80, marginBottom: 4 }] : []),
-                { text: catiFirmaRow?.ad ?? row.catiFirmaAd ?? "", style: "sirketAd" },
-                ...(catiFirmaRow?.adres ? [{ text: catiFirmaRow.adres, color: "#555", fontSize: 9, marginTop: 2 }] : []),
-                ...((catiFirmaRow?.telefon || catiFirmaRow?.eposta) ? [{ text: [catiFirmaRow?.telefon, catiFirmaRow?.eposta].filter(Boolean).join("  |  "), color: "#555", fontSize: 9, marginTop: 1 }] : []),
-                ...(catiFirmaRow?.vergiNo ? [{ text: `Tax No: ${catiFirmaRow.vergiNo}${catiFirmaRow.vergiDairesi ? ` — ${catiFirmaRow.vergiDairesi}` : ""}`, color: "#555", fontSize: 9, marginTop: 1 }] : []),
+                { text: catiFirmaRow?.ad ?? row.catiFirmaAd ?? "", style: "sirketAd", alignment: "right" },
+                ...((catiFirmaRow?.telefon || catiFirmaRow?.eposta) ? [{ text: [catiFirmaRow?.telefon, catiFirmaRow?.eposta].filter(Boolean).join("  |  "), color: "#555", fontSize: 9, marginTop: 1, alignment: "right" }] : []),
+                ...(catiFirmaRow?.vergiNo ? [{ text: `Tax No: ${catiFirmaRow.vergiNo}${catiFirmaRow.vergiDairesi ? ` — ${catiFirmaRow.vergiDairesi}` : ""}`, color: "#555", fontSize: 9, marginTop: 1, alignment: "right" }] : []),
               ],
               width: "*",
             },
-            { text: ["INVOICE\n", { text: f.faturaNo, fontSize: 14, bold: true }], style: "faturaBaslik", alignment: "right", width: "auto" },
           ],
           marginBottom: 16,
         },
@@ -347,8 +354,9 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
               stack: [
                 { text: "BILL TO", style: "bolumBaslik" },
                 { text: bagliFirmaAd ?? "-", bold: true, marginTop: 4 },
-                ...(bagliFirmaAdres ? [{ text: bagliFirmaAdres, color: "#555", marginTop: 2 }] : []),
-                ...(f.faturaAdi ? [{ text: f.faturaAdi, color: "#555", marginTop: 2 }] : []),
+                ...(bagliFirmaAdres ? [{ text: bagliFirmaAdres, color: "#555", fontSize: 9, marginTop: 2 }] : []),
+                ...(f.faturaAdi ? [{ text: f.faturaAdi, color: "#555", fontSize: 9, marginTop: 2 }] : []),
+                { text: `INVOICE  ${f.faturaNo}`, fontSize: 8, bold: true, color: "#0070d1", marginTop: 8, characterSpacing: 0.5 },
               ],
             },
             {
@@ -356,10 +364,10 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
               stack: [
                 { text: "INVOICE DETAILS", style: "bolumBaslik" },
                 { text: `Invoice Date: ${f.faturaTarihi}`, marginTop: 4 },
-                ...(gemiAdImo ? [{ text: `Ship Name: ${gemiAdImo}` }] : []),
+                ...(gemiAd ? [{ text: `Ship Name: ${gemiAd}` }] : []),
+                ...(gemiImo ? [{ text: `Ship IMO: ${gemiImo}` }] : []),
                 { text: `Due Date: ${f.vadeTarihi}`, marginTop: 2 },
                 { text: `Currency: ${f.paraBirimi}`, marginTop: 2 },
-                { text: `Status: ${durumEtiket}`, marginTop: 4, bold: true, color: f.durum === "odendi" ? "#16a34a" : f.durum === "acik" ? "#dc2626" : "#d97706" },
               ],
               alignment: "right",
             },
