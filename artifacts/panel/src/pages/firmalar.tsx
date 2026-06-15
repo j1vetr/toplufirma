@@ -34,9 +34,9 @@ const fmt = (n: number, pb = "USD") =>
 
 interface FirmaForm {
   ad: string; vergiNo: string; vergiDairesi: string;
-  adres: string; telefon: string; eposta: string; seriOneki: string;
+  adres: string; telefon: string; eposta: string; seriOneki: string; logoUrl: string;
 }
-const BOSH_FORMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", eposta: "", seriOneki: "" };
+const BOSH_FORMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", eposta: "", seriOneki: "", logoUrl: "" };
 
 interface SmtpForm {
   smtpHost: string; smtpPort: string; smtpGuvenlik: string;
@@ -98,7 +98,7 @@ export default function Firmalar() {
       const tum = [...catiFirmalar, ...bagliFirmalar];
       const f = tum.find(x => x.id === id);
       if (!f) return;
-      setForm({ ad: f.ad, vergiNo: f.vergiNo ?? "", vergiDairesi: f.vergiDairesi ?? "", adres: f.adres ?? "", telefon: f.telefon ?? "", eposta: f.eposta ?? "", seriOneki: f.seriOneki ?? "" });
+      setForm({ ad: f.ad, vergiNo: f.vergiNo ?? "", vergiDairesi: f.vergiDairesi ?? "", adres: f.adres ?? "", telefon: f.telefon ?? "", eposta: f.eposta ?? "", seriOneki: f.seriOneki ?? "", logoUrl: (f as unknown as Record<string, unknown>).logoUrl as string ?? "" });
       setDuzenleId(id);
     } else {
       setForm(BOSH_FORMA);
@@ -119,6 +119,7 @@ export default function Firmalar() {
       ...(form.telefon && { telefon: form.telefon }),
       ...(form.eposta && { eposta: form.eposta }),
       ...(form.seriOneki && { seriOneki: form.seriOneki }),
+      ...(form.logoUrl && { logoUrl: form.logoUrl }),
       aktif: true,
     };
     if (duzenleId) {
@@ -227,9 +228,6 @@ export default function Firmalar() {
                   <Button size="icon" variant="ghost" className="h-8 w-8" title="SMTP Ayarları" onClick={() => acSmtpModal(cati)}>
                     <Mail className="h-4 w-4" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" title="Ekstre" onClick={() => { setEkstreFirmaId(cati.id); setEkstreFirmaAd(cati.ad); }}>
-                    <FileBarChart className="h-4 w-4" />
-                  </Button>
                   <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => acFirmaModal("cati", undefined, cati.id)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -324,6 +322,12 @@ export default function Firmalar() {
                 <Input value={form.seriOneki} onChange={e => setForm(f => ({ ...f, seriOneki: e.target.value.toUpperCase() }))} maxLength={6} placeholder="LAC" data-testid="input-firma-seri" />
               </div>
             )}
+            {modalTip === "cati" && (
+              <div className="col-span-2 space-y-1.5">
+                <Label>Logo URL <span className="text-xs text-muted-foreground">(faturada görünür)</span></Label>
+                <Input value={form.logoUrl} onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value }))} placeholder="https://..." data-testid="input-firma-logo" />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFirmaModal(false)} className="rounded-full">İptal</Button>
@@ -414,17 +418,17 @@ export default function Firmalar() {
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Toplam Borç</p><p className="font-bold text-red-500">{fmt(ekstreData.toplamBorc)}</p></CardContent></Card>
                 <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Toplam Alacak</p><p className="font-bold text-green-600">{fmt(ekstreData.toplamAlacak)}</p></CardContent></Card>
-                <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Kalan Bakiye</p><p className={`font-bold ${ekstreData.kalanBakiye < 0 ? "text-red-500" : "text-blue-600"}`}>{fmt(ekstreData.kalanBakiye)}</p></CardContent></Card>
+                <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Kalan Bakiye</p><p className={`font-bold ${ekstreData.kalanBakiye > 0 ? "text-red-500" : "text-blue-600"}`}>{fmt(ekstreData.kalanBakiye)}</p></CardContent></Card>
               </div>
               <div className="space-y-1">
                 {(ekstreData.kalemler ?? []).map((k, i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
                     <div>
-                      <p className="font-medium">{k.aciklama}</p>
-                      <p className="text-xs text-muted-foreground">{k.tarih}</p>
+                      <p className="font-medium">{k.aciklama ?? k.referansNo ?? "-"}</p>
+                      <p className="text-xs text-muted-foreground">{k.tarih} {k.referansNo && k.aciklama ? `• ${k.referansNo}` : ""}</p>
                     </div>
-                    <span className={`font-semibold ${k.tip === "borc" ? "text-red-500" : "text-green-600"}`}>
-                      {k.tip === "borc" ? "-" : "+"}{fmt(k.tutar, k.paraBirimi)}
+                    <span className={`font-semibold ${k.tip === "fatura" ? "text-red-500" : "text-green-600"}`}>
+                      {k.tip === "fatura" ? "-" : "+"}{fmt(k.borc ?? k.alacak ?? k.tutar, k.paraBirimi)}
                     </span>
                   </div>
                 ))}

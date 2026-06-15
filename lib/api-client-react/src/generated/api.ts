@@ -32,6 +32,8 @@ import type {
   EkipmanUpdate,
   Fatura,
   FaturaDetay,
+  FaturaGonderInput,
+  FaturaGonderSonuc,
   FaturaInput,
   FaturaSeri,
   FaturaSeriInput,
@@ -1959,6 +1961,78 @@ export const useDeleteFatura = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteFaturaMutationOptions(options));
+    }
+
+export const getGonderFaturaUrl = (id: number,) => {
+
+
+
+
+  return `/api/faturalar/${id}/gonder`
+}
+
+/**
+ * @summary Faturayı e-posta ile gönder
+ */
+export const gonderFatura = async (id: number,
+    faturaGonderInput: FaturaGonderInput, options?: RequestInit): Promise<FaturaGonderSonuc> => {
+
+  return customFetch<FaturaGonderSonuc>(getGonderFaturaUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      faturaGonderInput,)
+  }
+);}
+
+
+
+
+export const getGonderFaturaMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof gonderFatura>>, TError,{id: number;data: BodyType<FaturaGonderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof gonderFatura>>, TError,{id: number;data: BodyType<FaturaGonderInput>}, TContext> => {
+
+const mutationKey = ['gonderFatura'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof gonderFatura>>, {id: number;data: BodyType<FaturaGonderInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  gonderFatura(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GonderFaturaMutationResult = NonNullable<Awaited<ReturnType<typeof gonderFatura>>>
+    export type GonderFaturaMutationBody = BodyType<FaturaGonderInput>
+    export type GonderFaturaMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Faturayı e-posta ile gönder
+ */
+export const useGonderFatura = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof gonderFatura>>, TError,{id: number;data: BodyType<FaturaGonderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof gonderFatura>>,
+        TError,
+        {id: number;data: BodyType<FaturaGonderInput>},
+        TContext
+      > => {
+      return useMutation(getGonderFaturaMutationOptions(options));
     }
 
 export const getListOdemelerUrl = (params?: ListOdemelerParams,) => {

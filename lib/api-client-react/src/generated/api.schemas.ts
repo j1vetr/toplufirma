@@ -210,6 +210,16 @@ export interface FirmaEkstre {
   kalanBakiye: number;
 }
 
+export interface FaturaGonderInput {
+  aliciAdres: string;
+  aliciAd?: string;
+  konu?: string;
+}
+
+export interface FaturaGonderSonuc {
+  mesaj?: string;
+}
+
 export type FirmaEpostaAyarlariSmtpGuvenlik = typeof FirmaEpostaAyarlariSmtpGuvenlik[keyof typeof FirmaEpostaAyarlariSmtpGuvenlik];
 
 

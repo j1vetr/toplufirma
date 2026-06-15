@@ -118,6 +118,7 @@ router.delete("/firmalar/:id", requireYonetici, async (req, res) => {
 router.get("/firmalar/:id/ekstre", async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const { baslangicTarihi, bitisTarihi } = req.query as Record<string, string>;
     const [firma] = await db.select().from(firmalar).where(eq(firmalar.id, id));
     if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
     if (firma.tip !== "bagli") { res.status(400).json({ error: "Ekstre yalnızca bağlı firmalar için mevcuttur" }); return; }
@@ -130,33 +131,46 @@ router.get("/firmalar/:id/ekstre", async (req, res) => {
     const odemelerRows = await db.select().from(odemeler)
       .where(and(eq(odemeler.catiFirmaId, catiFirmaId), eq(odemeler.bagliFirmaId, id)));
 
-    const toplamBorc = faturalarRows.reduce((s, f) => s + Number(f.genelToplam), 0);
-    const toplamOdenen = odemelerRows.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
-    const netBakiye = toplamBorc - toplamOdenen;
+    const fatFilt = faturalarRows.filter(f =>
+      (!baslangicTarihi || f.faturaTarihi >= baslangicTarihi) &&
+      (!bitisTarihi || f.faturaTarihi <= bitisTarihi)
+    );
+    const odFilt = odemelerRows.filter(o =>
+      (!baslangicTarihi || o.tarih >= baslangicTarihi) &&
+      (!bitisTarihi || o.tarih <= bitisTarihi)
+    );
 
-    const paraBirimleri = new Set([...faturalarRows.map(f => f.paraBirimi), ...odemelerRows.map(o => o.paraBirimi)]);
-    const paraBirimiOzetleri = Array.from(paraBirimleri).map(pb => {
-      const fatPb = faturalarRows.filter(f => f.paraBirimi === pb);
-      const odPb = odemelerRows.filter(o => o.paraBirimi === pb && o.tip === "tahsilat");
-      const borc = fatPb.reduce((s, f) => s + Number(f.genelToplam), 0);
-      const odenen = odPb.reduce((s, o) => s + Number(o.tutar), 0);
-      return { paraBirimi: pb, toplamBorc: borc, toplamOdenen: odenen, netBakiye: borc - odenen };
-    });
+    const fatKalemler = fatFilt.map(f => ({
+      id: f.id,
+      tip: "fatura" as const,
+      tarih: f.faturaTarihi,
+      aciklama: f.aciklama ?? f.faturaNo,
+      referansNo: f.faturaNo,
+      gemiAd: null as string | null,
+      borc: Number(f.genelToplam),
+      alacak: null as number | null,
+      tutar: Number(f.genelToplam),
+      paraBirimi: f.paraBirimi,
+    }));
+    const odKalemler = odFilt.map(o => ({
+      id: o.id,
+      tip: o.tip as "odeme" | "tahsilat",
+      tarih: o.tarih,
+      aciklama: o.aciklama ?? null,
+      referansNo: null as string | null,
+      gemiAd: null as string | null,
+      borc: null as number | null,
+      alacak: Number(o.tutar),
+      tutar: Number(o.tutar),
+      paraBirimi: o.paraBirimi,
+    }));
 
-    res.json({
-      firmaId: id, firmaAd: firma.ad, catiFirmaId,
-      toplamBorc, toplamOdenen, netBakiye,
-      paraBirimiOzetleri,
-      faturalar: faturalarRows.map(f => ({
-        id: f.id, faturaNo: f.faturaNo, faturaTarihi: f.faturaTarihi,
-        vadeTarihi: f.vadeTarihi, paraBirimi: f.paraBirimi, durum: f.durum,
-        genelToplam: Number(f.genelToplam), aciklama: f.aciklama,
-      })),
-      odemeler: odemelerRows.map(o => ({
-        id: o.id, tip: o.tip, tarih: o.tarih, tutar: Number(o.tutar),
-        paraBirimi: o.paraBirimi, odemeYontemi: o.odemeYontemi, aciklama: o.aciklama,
-      })),
-    });
+    const kalemler = [...fatKalemler, ...odKalemler].sort((a, b) => a.tarih.localeCompare(b.tarih));
+    const toplamBorc = fatKalemler.reduce((s, k) => s + k.tutar, 0);
+    const toplamAlacak = odKalemler.filter(k => k.tip === "tahsilat").reduce((s, k) => s + k.tutar, 0);
+    const kalanBakiye = toplamBorc - toplamAlacak;
+
+    res.json({ firmaId: id, firmaAd: firma.ad, kalemler, toplamBorc, toplamAlacak, kalanBakiye });
   } catch {
     res.status(500).json({ error: "Ekstre getirilemedi" });
   }

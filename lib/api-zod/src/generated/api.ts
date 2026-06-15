@@ -717,6 +717,24 @@ export const DeleteFaturaParams = zod.object({
 
 
 /**
+ * @summary Faturayı e-posta ile gönder
+ */
+export const GonderFaturaParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GonderFaturaBody = zod.object({
+  "aliciAdres": zod.string(),
+  "aliciAd": zod.string().optional(),
+  "konu": zod.string().optional()
+})
+
+export const GonderFaturaResponse = zod.object({
+  "mesaj": zod.string().optional()
+})
+
+
+/**
  * @summary Ödemeleri listele
  */
 export const ListOdemelerQueryParams = zod.object({

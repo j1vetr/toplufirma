@@ -24,6 +24,8 @@ export * from './ekstreKalemiTip';
 export * from './fatura';
 export * from './faturaDetay';
 export * from './faturaDurum';
+export * from './faturaGonderInput';
+export * from './faturaGonderSonuc';
 export * from './faturaInput';
 export * from './faturaKalemi';
 export * from './faturaKalemiInput';

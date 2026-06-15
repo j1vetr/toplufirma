@@ -531,6 +531,31 @@ paths:
         "204":
           description: Silindi
 
+  /faturalar/{id}/gonder:
+    post:
+      operationId: gonderFatura
+      tags: [faturalar]
+      summary: Faturayı e-posta ile gönder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FaturaGonderInput"
+      responses:
+        "200":
+          description: E-posta gönderildi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FaturaGonderSonuc"
+
   # ── Ödemeler ───────────────────────────────────────────────────────────────
   /odemeler:
     get:
@@ -1172,6 +1197,23 @@ components:
           type: number
         kalanBakiye:
           type: number
+
+    FaturaGonderInput:
+      type: object
+      required: [aliciAdres]
+      properties:
+        aliciAdres:
+          type: string
+        aliciAd:
+          type: string
+        konu:
+          type: string
+
+    FaturaGonderSonuc:
+      type: object
+      properties:
+        mesaj:
+          type: string
 
     FirmaEpostaAyarlari:
       type: object

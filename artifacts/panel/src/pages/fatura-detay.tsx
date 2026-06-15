@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -20,7 +19,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Printer } from "lucide-react";
+import { ArrowLeft, Plus, Download, Mail } from "lucide-react";
 
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
@@ -40,6 +39,13 @@ const YONTEM_ETIKET: Record<string, string> = {
   kredi_karti: "Kredi Kartı", wise: "Wise", paypal: "PayPal", diger: "Diğer",
 };
 
+const apiBase = () => {
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  return `${base}/api`;
+};
+
+const PB_SIRALAMA = ["TRY", "USD", "EUR", "GBP"];
+
 export default function FaturaDetay() {
   const [, params] = useRoute("/faturalar/:id");
   const id = Number(params?.id);
@@ -52,10 +58,25 @@ export default function FaturaDetay() {
   const [odemeBankaId, setOdemeBankaId] = useState("");
   const [odemeAciklama, setOdemeAciklama] = useState("");
 
+  const [gonderModal, setGonderModal] = useState(false);
+  const [aliciAdres, setAliciAdres] = useState("");
+  const [aliciAd, setAliciAd] = useState("");
+  const [gonderiyor, setGonderiyor] = useState(false);
+
   const { data: fatura, isLoading } = useGetFatura(id, { query: { enabled: !!id, queryKey: getGetFaturaQueryKey(id) } });
   const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
   const createOdeme = useCreateOdeme();
   const updateFatura = useUpdateFatura();
+
+  const faturaHesaplari = bankaHesaplari.filter(b => b.catiFirmaId === fatura?.catiFirmaId);
+  const bankalarGruplu = faturaHesaplari.reduce<Record<string, typeof faturaHesaplari>>((acc, b) => {
+    (acc[b.paraBirimi] ??= []).push(b);
+    return acc;
+  }, {});
+  const bankaPb = [
+    ...PB_SIRALAMA.filter(pb => bankalarGruplu[pb]),
+    ...Object.keys(bankalarGruplu).filter(pb => !PB_SIRALAMA.includes(pb)),
+  ];
 
   function odemeKaydet() {
     if (!fatura || !odemeTutar || !odemeTarih) return;
@@ -85,8 +106,32 @@ export default function FaturaDetay() {
     });
   }
 
+  async function gonderFatura() {
+    if (!aliciAdres) return;
+    setGonderiyor(true);
+    try {
+      const token = localStorage.getItem("token");
+      const resp = await fetch(`${apiBase()}/faturalar/${id}/gonder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ aliciAdres, aliciAd: aliciAd || undefined }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error ?? "Gönderim başarısız");
+      setGonderModal(false); setAliciAdres(""); setAliciAd("");
+      toast({ title: data.mesaj ?? "E-posta gönderildi" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Hata", variant: "destructive" });
+    } finally {
+      setGonderiyor(false);
+    }
+  }
+
   if (isLoading) return <div className="animate-pulse space-y-4"><div className="h-32 bg-muted rounded-xl" /><div className="h-64 bg-muted rounded-xl" /></div>;
   if (!fatura) return <div className="text-center py-16 text-muted-foreground">Fatura bulunamadı.</div>;
+
+  const token = localStorage.getItem("token");
+  const pdfHref = `${apiBase()}/faturalar/${id}/pdf${token ? `?token=${token}` : ""}`;
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -99,8 +144,13 @@ export default function FaturaDetay() {
           </div>
           <p className="text-sm text-muted-foreground">{fatura.bagliFirmaAd} {fatura.gemiAd ? `- ${fatura.gemiAd}` : ""}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="rounded-full" onClick={() => window.print()}><Printer className="mr-1 h-4 w-4" /> Yazdır</Button>
+        <div className="flex gap-2 flex-wrap justify-end">
+          <a href={pdfHref} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm" className="rounded-full"><Download className="mr-1 h-4 w-4" /> PDF</Button>
+          </a>
+          <Button variant="outline" size="sm" className="rounded-full" onClick={() => setGonderModal(true)}>
+            <Mail className="mr-1 h-4 w-4" /> E-posta
+          </Button>
           {(fatura.durum === "acik" || fatura.durum === "kismi_odendi") && (
             <Button size="sm" className="rounded-full" onClick={() => setOdemeModal(true)} data-testid="button-odeme-ekle">
               <Plus className="mr-1 h-4 w-4" /> Ödeme Kaydet
@@ -123,6 +173,12 @@ export default function FaturaDetay() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-base">Fatura Kalemleri</CardTitle>
+          <Select value={fatura.durum} onValueChange={durumGuncelle}>
+            <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(DURUM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -162,6 +218,30 @@ export default function FaturaDetay() {
           </div>
         </CardContent>
       </Card>
+
+      {bankaPb.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Ödeme Bilgileri</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            {bankaPb.map(pb => (
+              <div key={pb}>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{pb} Hesapları</p>
+                <div className="space-y-2">
+                  {bankalarGruplu[pb].map(b => (
+                    <div key={b.id} className="flex items-start justify-between py-2 border-b last:border-0 text-sm">
+                      <div>
+                        <p className="font-medium">{b.bankaAdi} — {b.hesapAdi}</p>
+                        {b.iban && <p className="text-xs font-mono text-muted-foreground mt-0.5">{b.iban}</p>}
+                      </div>
+                      <span className="text-xs text-muted-foreground mt-1">{pb}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {fatura.odemeler && fatura.odemeler.length > 0 && (
         <Card>
@@ -207,7 +287,7 @@ export default function FaturaDetay() {
                 <SelectTrigger data-testid="select-odeme-banka"><SelectValue placeholder="Seçin (opsiyonel)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Seçilmedi</SelectItem>
-                  {bankaHesaplari.map(h => <SelectItem key={h.id} value={String(h.id)}>{h.bankaAdi} - {h.hesapAdi}</SelectItem>)}
+                  {faturaHesaplari.map(h => <SelectItem key={h.id} value={String(h.id)}>{h.bankaAdi} - {h.hesapAdi} ({h.paraBirimi})</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -219,6 +299,29 @@ export default function FaturaDetay() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOdemeModal(false)} className="rounded-full">İptal</Button>
             <Button onClick={odemeKaydet} disabled={!odemeTutar || createOdeme.isPending} className="rounded-full" data-testid="button-odeme-kaydet">Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={gonderModal} onOpenChange={o => { setGonderModal(o); if (!o) { setAliciAdres(""); setAliciAd(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Faturayı E-posta ile Gönder</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Alıcı E-posta *</Label>
+              <Input type="email" value={aliciAdres} onChange={e => setAliciAdres(e.target.value)} placeholder="musteri@firma.com" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Alıcı Ad</Label>
+              <Input value={aliciAd} onChange={e => setAliciAd(e.target.value)} placeholder="Firma / Kişi adı (opsiyonel)" />
+            </div>
+            <p className="text-xs text-muted-foreground">Fatura PDF eki ile çatı firmanın SMTP ayarları üzerinden gönderilir.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGonderModal(false)} className="rounded-full">İptal</Button>
+            <Button onClick={gonderFatura} disabled={!aliciAdres || gonderiyor} className="rounded-full">
+              {gonderiyor ? "Gönderiliyor..." : "Gönder"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

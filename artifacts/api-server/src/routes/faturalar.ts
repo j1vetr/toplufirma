@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri, bankaHesaplari } from "@workspace/db";
+import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri, bankaHesaplari, firmaEpostaAyarlari } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
+import nodemailer from "nodemailer";
 import ExcelJS from "exceljs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -239,8 +240,19 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
     const durumEtiket = f.durum === "odendi" ? "ÖDENDİ" : f.durum === "acik" ? "ÖDENMEDİ" : "KISMİ ÖDENDİ";
     const kalan = Math.max(0, Number(f.genelToplam) - odenen);
 
-    const bankaBilgileri = bankalar.map(b =>
-      `${b.paraBirimi} — ${b.bankaAdi}: ${b.hesapAdi}${b.iban ? `\nIBAN: ${b.iban}` : ""}`
+    const paraBirimiSiralama = ["TRY", "USD", "EUR", "GBP"];
+    const bankalarGruplu = bankalar.reduce<Record<string, typeof bankalar>>((acc, b) => {
+      (acc[b.paraBirimi] ??= []).push(b);
+      return acc;
+    }, {});
+    const paraBirimleri = [
+      ...paraBirimiSiralama.filter(pb => bankalarGruplu[pb]),
+      ...Object.keys(bankalarGruplu).filter(pb => !paraBirimiSiralama.includes(pb)),
+    ];
+    const bankaBilgileri = paraBirimleri.map(pb =>
+      `— ${pb} HESAPLARI —\n` + bankalarGruplu[pb].map(b =>
+        `${b.bankaAdi}: ${b.hesapAdi}${b.iban ? `\nIBAN: ${b.iban}` : ""}`
+      ).join("\n")
     ).join("\n\n");
 
     const docDefinition: TDocumentDefinitions = {
@@ -251,6 +263,7 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
           columns: [
             {
               stack: [
+                ...(catiFirmaRow?.logo ? [{ image: catiFirmaRow.logo, width: 80, marginBottom: 4 }] : []),
                 { text: catiFirmaRow?.ad ?? row.catiFirmaAd ?? "", style: "sirketAd" },
                 ...(catiFirmaRow?.adres ? [{ text: catiFirmaRow.adres, color: "#555", fontSize: 9, marginTop: 2 }] : []),
                 ...(catiFirmaRow?.vergiNo ? [{ text: `Vergi No: ${catiFirmaRow.vergiNo}${catiFirmaRow.vergiDairesi ? ` — ${catiFirmaRow.vergiDairesi}` : ""}`, color: "#555", fontSize: 9, marginTop: 1 }] : []),
@@ -398,6 +411,59 @@ router.delete("/faturalar/:id", requireYazma, async (req, res) => {
     res.status(204).send();
   } catch {
     res.status(500).json({ error: "Fatura silinemedi" });
+  }
+});
+
+router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { aliciAdres, aliciAd, konu } = req.body as { aliciAdres?: string; aliciAd?: string; konu?: string };
+    if (!aliciAdres) { res.status(400).json({ error: "aliciAdres zorunludur" }); return; }
+
+    const [row] = await db
+      .select({ f: faturalar, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
+      .from(faturalar)
+      .leftJoin(firmalar, eq(faturalar.catiFirmaId, firmalar.id))
+      .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
+      .where(eq(faturalar.id, id));
+    if (!row) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
+    if (!sirketErisimKontrol(row.f.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+
+    const [ayarlar] = await db.select().from(firmaEpostaAyarlari)
+      .where(eq(firmaEpostaAyarlari.firmaId, row.f.catiFirmaId));
+    if (!ayarlar || !ayarlar.aktif || !ayarlar.smtpSifre) {
+      res.status(422).json({ error: "Bu firma için aktif SMTP ayarları yapılandırılmamış" }); return;
+    }
+
+    const pdfUrl = `http://localhost:${process.env.PORT ?? 3001}/api/faturalar/${id}/pdf`;
+    const pdfResp = await fetch(pdfUrl, {
+      headers: { authorization: req.headers.authorization ?? "" },
+    });
+    if (!pdfResp.ok) { res.status(500).json({ error: "PDF oluşturulamadı" }); return; }
+    const pdfBuffer = Buffer.from(await pdfResp.arrayBuffer());
+
+    const guvenlik = ayarlar.smtpGuvenlik ?? "starttls";
+    const transporter = nodemailer.createTransport({
+      host: ayarlar.smtpHost,
+      port: ayarlar.smtpPort ?? 587,
+      secure: guvenlik === "ssl",
+      requireTLS: guvenlik === "starttls",
+      auth: { user: ayarlar.smtpKullanici, pass: ayarlar.smtpSifre },
+    });
+
+    const faturaNo = row.f.faturaNo;
+    await transporter.sendMail({
+      from: `"${ayarlar.gonderenAd}" <${ayarlar.gonderenAdres}>`,
+      to: aliciAd ? `"${aliciAd}" <${aliciAdres}>` : aliciAdres,
+      subject: konu ?? `Fatura ${faturaNo}`,
+      text: `Sayın ${aliciAd ?? aliciAdres},\n\nEkte ${faturaNo} numaralı faturanızı bulabilirsiniz.\n\nSaygılarımızla,\n${ayarlar.gonderenAd}`,
+      attachments: [{ filename: `fatura-${faturaNo}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
+    });
+
+    res.json({ mesaj: `Fatura ${faturaNo} adresine gönderildi: ${aliciAdres}` });
+  } catch (err) {
+    console.error("[gonder] error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "E-posta gönderilemedi" });
   }
 });
 
