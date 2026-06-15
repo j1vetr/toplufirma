@@ -411,10 +411,10 @@ export default function TekrarlayanFaturalar() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Gemi (opsiyonel)</Label>
-              <Select value={form.gemiId} onValueChange={v => setForm(f => ({ ...f, gemiId: v }))}>
+              <Select value={form.gemiId || "none"} onValueChange={v => setForm(f => ({ ...f, gemiId: v === "none" ? "" : v }))}>
                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">—</SelectItem>
+                  <SelectItem value="none">—</SelectItem>
                   {gemilerData.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
                 </SelectContent>
               </Select>
