@@ -1,0 +1,61 @@
+root@162-55-4-35:/var/www/toplufirma# pnpm --filter @workspace/api-zod run build 2>/dev/null || true
+ ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT  None of the selected packages has a "build" script
+root@162-55-4-35:/var/www/toplufirma# cd /var/www/toplufirma
+root@162-55-4-35:/var/www/toplufirma# set -a && source .env.production && set +a
+pnpm --filter @workspace/api-server run build
+
+> @workspace/api-server@0.0.0 build /var/www/toplufirma/artifacts/api-server
+> node ./build.mjs
+
+
+  dist/index.mjs                       4.0mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.1kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                   7.0mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           204.0kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 609ms
+root@162-55-4-35:/var/www/toplufirma# cd /var/www/toplufirma
+BASE_PATH=/ PORT=2934 NODE_ENV=production \
+  pnpm --filter @workspace/panel run build
+
+> @workspace/panel@0.0.0 build /var/www/toplufirma/artifacts/panel
+> vite build --config vite.config.ts
+
+vite v7.3.3 building client environment for production...
+src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/label.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/dropdown-menu.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/select.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+✓ 2471 modules transformed.
+dist/public/index.html                                1.44 kB │ gzip:   0.56 kB
+dist/public/assets/TOOV_1781531572101-D9IkwfjJ.png   20.39 kB
+dist/public/assets/index-CUClWiW-.css               102.06 kB │ gzip:  16.66 kB
+dist/public/assets/index-DnaCMCEO.js                975.47 kB │ gzip: 274.25 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 9.64s
+root@162-55-4-35:/var/www/toplufirma# cd /var/www/toplufirma
+set -a && source .env.production && set +a
+pnpm dlx drizzle-kit push --config=lib/db/drizzle.config.ts
+ WARN  2 deprecated subdependencies found: @esbuild-kit/core-utils@3.3.2, @esbuild-kit/esm-loader@2.6.5
+Packages: +16
+++++++++++++++++
+Progress: resolved 88, reused 7, downloaded 9, added 16, done
+╭ Warning ───────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                            │
+│   Ignored build scripts: esbuild@0.18.20, esbuild@0.25.12, esbuild@0.28.1.                 │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.   │
+│                                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────╯
+Reading config file '/var/www/toplufirma/lib/db/drizzle.config.ts'
+Error please install required packages: 'drizzle-orm'
+root@162-55-4-35:/var/www/toplufirma#
