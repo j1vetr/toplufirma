@@ -1,0 +1,68 @@
+root@162-55-4-35:/var/www/toplufirma# cat > /tmp/genhash.cjs << 'EOF'
+const bcrypt = require('bcryptjs');
+const hash = bcrypt.hashSync('Admin123!', 12);
+process.stdout.write(hash);
+EOF
+
+HASH=$(NODE_PATH=/var/www/toplufirma/node_modules node /tmp/genhash.cjs)
+echo "Hash uzunlugu: ${#HASH}"
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module 'bcryptjs'
+Require stack:
+- /tmp/genhash.cjs
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/tmp/genhash.cjs:1:16)
+    at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/tmp/genhash.cjs' ]
+}
+
+Node.js v22.22.2
+Hash uzunlugu: 0
+root@162-55-4-35:/var/www/toplufirma# cat > /var/www/toplufirma/genhash.cjs << 'EOF'
+const bcrypt = require('bcryptjs');
+process.stdout.write(bcrypt.hashSync('Admin123!', 12));
+EOF
+
+HASH=$(cd /var/www/toplufirma && node genhash.cjs)
+echo "Hash uzunlugu: ${#HASH}"
+
+sudo -u postgres psql toplufirmadb -c \
+  "UPDATE kullanicilar SET parola='$HASH' WHERE email='admin@adegloba.space';"
+
+rm /var/www/toplufirma/genhash.cjs
+node:internal/modules/cjs/loader:1386
+  throw err;
+  ^
+
+Error: Cannot find module 'bcryptjs'
+Require stack:
+- /var/www/toplufirma/genhash.cjs
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/var/www/toplufirma/genhash.cjs:1:16)
+    at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/var/www/toplufirma/genhash.cjs' ]
+}
+
+Node.js v22.22.2
+Hash uzunlugu: 0
+UPDATE 1
+root@162-55-4-35:/var/www/toplufirma#
