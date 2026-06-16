@@ -87,10 +87,6 @@ export default function Login({ onLogin }: Props) {
             </form>
           </CardContent>
         </Card>
-
-        <p className="text-xs text-center text-muted-foreground">
-          Demo: admin@panel.local / Admin123!
-        </p>
       </div>
     </div>
   );
