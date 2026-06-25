@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
@@ -53,6 +54,7 @@ import {
   Ship,
   Calendar,
   DollarSign,
+  Receipt,
 } from "lucide-react";
 import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 
@@ -131,6 +133,7 @@ export default function Teklifler() {
   const { canWrite } = useYetki();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [, navigate] = useLocation();
 
   const [durumFiltre, setDurumFiltre] = useState<string>("tumu");
   const [modalAcik, setModalAcik] = useState(false);
@@ -138,6 +141,8 @@ export default function Teklifler() {
   const [silOnay, setSilOnay] = useState<number | null>(null);
   const [durumDegistirTeklif, setDurumDegistirTeklif] = useState<Teklif | null>(null);
   const [pdfYukleniyor, setPdfYukleniyor] = useState<number | null>(null);
+  const [donusturTeklif, setDonusturTeklif] = useState<Teklif | null>(null);
+  const [donusturBagliFirmaId, setDonusturBagliFirmaId] = useState<string>("");
 
   const [form, setForm] = useState({
     catiFirmaId: "" as string | number,
@@ -162,6 +167,11 @@ export default function Teklifler() {
   const { data: firmalar = [] } = useListFirmalar(
     { tip: "cati" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
+  );
+
+  const { data: bagliFirmalar = [] } = useListFirmalar(
+    { tip: "bagli" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
   );
 
   const { data: gemiler = [] } = useQuery<Gemi[]>({
@@ -259,6 +269,19 @@ export default function Teklifler() {
       qc.invalidateQueries({ queryKey: ["teklifler"] });
       toast({ title: "Durum güncellendi" });
       setDurumDegistirTeklif(null);
+    },
+    onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
+  const donusturMutasyon = useMutation({
+    mutationFn: ({ id, bagliFirmaId }: { id: number; bagliFirmaId: number }) =>
+      apiFetch(`/teklifler/${id}/faturaya-donustur`, { method: "POST", body: JSON.stringify({ bagliFirmaId }) }),
+    onSuccess: (data: { faturaId: number; faturaNo: string }) => {
+      qc.invalidateQueries({ queryKey: ["teklifler"] });
+      toast({ title: "Fatura oluşturuldu", description: `${data.faturaNo} numaralı fatura oluşturuldu` });
+      setDonusturTeklif(null);
+      setDonusturBagliFirmaId("");
+      navigate(`/faturalar/${data.faturaId}`);
     },
     onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
@@ -431,6 +454,18 @@ export default function Teklifler() {
                   </Button>
                   {canWrite && (
                     <div className="flex items-center gap-1">
+                      {t.durum === "onaylandi" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-green-700 hover:text-green-800 hover:bg-green-100 gap-1 text-xs font-medium"
+                          title="Faturaya Dönüştür"
+                          onClick={() => { setDonusturTeklif(t); setDonusturBagliFirmaId(""); }}
+                        >
+                          <Receipt className="h-3.5 w-3.5" />
+                          Faturaya Dönüştür
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-7 w-7" title="Durum Değiştir" onClick={() => setDurumDegistirTeklif(t)}>
                         <CheckCircle2 className="h-3.5 w-3.5" />
                       </Button>
@@ -665,6 +700,52 @@ export default function Teklifler() {
               </Button>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Faturaya Dönüştür Dialog ── */}
+      <Dialog open={!!donusturTeklif} onOpenChange={o => !o && setDonusturTeklif(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Faturaya Dönüştür — {donusturTeklif?.teklifNo}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{donusturTeklif?.aliciAd}</span> için hangi kayıtlı müşteri firmasına fatura kesilecek?
+            </p>
+            <div className="space-y-1.5">
+              <Label>Müşteri (Bağlı Firma) <span className="text-destructive">*</span></Label>
+              <Select
+                value={donusturBagliFirmaId}
+                onValueChange={setDonusturBagliFirmaId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Müşteri seçin…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bagliFirmalar
+                    .filter(f => !donusturTeklif || f.ustFirmaId === donusturTeklif.catiFirmaId)
+                    .map(f => (
+                      <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Teklif kalemleri (zorunlular) taslak fatura olarak oluşturulur. KDV oranlarını ve vadeyi fatura detayında düzenleyebilirsiniz.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDonusturTeklif(null)}>İptal</Button>
+            <Button
+              disabled={!donusturBagliFirmaId || donusturMutasyon.isPending}
+              onClick={() => donusturTeklif && donusturMutasyon.mutate({ id: donusturTeklif.id, bagliFirmaId: Number(donusturBagliFirmaId) })}
+            >
+              <Receipt className="mr-2 h-4 w-4" />
+              {donusturMutasyon.isPending ? "Oluşturuluyor…" : "Fatura Oluştur"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

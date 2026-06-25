@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { teklifler, teklifKalemleri, firmalar, gemiler, bankaHesaplari } from "@workspace/db";
+import { teklifler, teklifKalemleri, firmalar, gemiler, bankaHesaplari, faturalar, faturaKalemleri, faturaSerileri } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import { createRequire } from "node:module";
@@ -249,6 +249,87 @@ router.delete("/teklifler/:id", requireYazma, async (req, res) => {
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Teklif silinemedi" });
+  }
+});
+
+// ── FATURAYA DÖNÜŞTÜR ────────────────────────────────────────────────────
+router.post("/teklifler/:id/faturaya-donustur", requireYazma, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { bagliFirmaId } = req.body as { bagliFirmaId?: number };
+
+    if (!bagliFirmaId) {
+      res.status(400).json({ error: "bagliFirmaId zorunludur" }); return;
+    }
+
+    const [teklif] = await db.select().from(teklifler).where(eq(teklifler.id, id));
+    if (!teklif) { res.status(404).json({ error: "Teklif bulunamadı" }); return; }
+    if (!sirketErisimKontrol(teklif.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(teklif.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
+    if (teklif.durum !== "onaylandi") { res.status(400).json({ error: "Yalnızca onaylanan teklifler faturaya dönüştürülebilir" }); return; }
+
+    const [bagliFirma] = await db.select({ uid: firmalar.ustFirmaId }).from(firmalar).where(eq(firmalar.id, Number(bagliFirmaId)));
+    if (!bagliFirma || bagliFirma.uid !== teklif.catiFirmaId) {
+      res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return;
+    }
+
+    const kalemler = await db.select().from(teklifKalemleri)
+      .where(and(eq(teklifKalemleri.teklifId, id), eq(teklifKalemleri.opsiyonel, false)))
+      .orderBy(teklifKalemleri.sira);
+
+    if (!kalemler.length) { res.status(400).json({ error: "Faturaya dönüştürmek için en az bir zorunlu kalem gereklidir" }); return; }
+
+    let faturaNo = "";
+    const [varsayilanSeri] = await db.select().from(faturaSerileri)
+      .where(and(eq(faturaSerileri.catiFirmaId, teklif.catiFirmaId), eq(faturaSerileri.varsayilan, true)));
+    if (varsayilanSeri) {
+      faturaNo = `${varsayilanSeri.onek}${String(varsayilanSeri.sonrakiNo).padStart(6, "0")}`;
+      await db.update(faturaSerileri).set({ sonrakiNo: varsayilanSeri.sonrakiNo + 1 }).where(eq(faturaSerileri.id, varsayilanSeri.id));
+    } else {
+      const [catiFirma] = await db.select({ seriOneki: firmalar.seriOneki }).from(firmalar).where(eq(firmalar.id, teklif.catiFirmaId));
+      const prefix = catiFirma?.seriOneki ?? "FAT";
+      const [count] = await db.select({ n: sql<number>`count(*)` }).from(faturalar).where(eq(faturalar.catiFirmaId, teklif.catiFirmaId));
+      faturaNo = `${prefix}${String(Number(count?.n ?? 0) + 1).padStart(6, "0")}`;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const vade = new Date();
+    vade.setDate(vade.getDate() + 30);
+    const vadeTarihi = vade.toISOString().split("T")[0];
+
+    let toplamTutar = 0;
+    const faturaKalemRows = kalemler.map(k => {
+      const ara = Number(k.miktar) * Number(k.birimFiyat);
+      toplamTutar += ara;
+      return { aciklama: k.aciklama, miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: "0", araToplam: String(ara), kdvTutari: "0", genelToplam: String(ara) };
+    });
+
+    const [fatura] = await db.insert(faturalar).values({
+      catiFirmaId: teklif.catiFirmaId,
+      bagliFirmaId: Number(bagliFirmaId),
+      gemiId: teklif.gemiId ?? null,
+      faturaSerisiId: varsayilanSeri?.id ?? null,
+      faturaNo,
+      faturaAdi: `Teklif ${teklif.teklifNo}`,
+      faturaTarihi: today,
+      vadeTarihi,
+      paraBirimi: teklif.paraBirimi,
+      durum: "taslak",
+      toplamTutar: String(toplamTutar),
+      kdvTutari: "0",
+      genelToplam: String(toplamTutar),
+      notlar: teklif.notlar ?? null,
+      aciklama: teklif.kosullar ?? null,
+    }).returning();
+
+    for (const k of faturaKalemRows) {
+      await db.insert(faturaKalemleri).values({ faturaId: fatura.id, ...k });
+    }
+
+    res.status(201).json({ faturaId: fatura.id, faturaNo: fatura.faturaNo });
+  } catch (err) {
+    console.error("[faturaya-donustur] error:", err);
+    res.status(500).json({ error: "Faturaya dönüştürme başarısız" });
   }
 });
 
