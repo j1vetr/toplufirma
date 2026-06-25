@@ -26,6 +26,7 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useYetki } from "@/hooks/use-yetki";
 import { Plus, Trash2, RefreshCw, Pencil, Repeat, ChevronDown, ChevronUp } from "lucide-react";
 
 const fmt = (n: number, pb = "USD") =>
@@ -65,6 +66,7 @@ export default function TekrarlayanFaturalar() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { aktifSirketId } = useSirket();
+  const { canWrite } = useYetki();
 
   const [modal, setModal] = useState(false);
   const [duzenleId, setDuzenleId] = useState<number | null>(null);
@@ -237,9 +239,11 @@ export default function TekrarlayanFaturalar() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">{filtreli.length} kayıt</p>
-        <Button className="rounded-full" onClick={() => acModal()}>
-          <Plus className="mr-2 h-4 w-4" /> Yeni Tanım
-        </Button>
+        {canWrite && (
+          <Button className="rounded-full" onClick={() => acModal()} data-testid="button-tekrar-yeni">
+            <Plus className="mr-2 h-4 w-4" /> Yeni Tanım
+          </Button>
+        )}
       </div>
 
       {filtreli.length === 0 ? (
@@ -280,20 +284,26 @@ export default function TekrarlayanFaturalar() {
                       <p className="text-xs text-muted-foreground">KDV dahil</p>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <Button
-                        size="icon" variant="ghost" className="h-8 w-8 text-green-600"
-                        title="Şimdi Fatura Üret"
-                        disabled={!tr.aktif || uret.isPending}
-                        onClick={() => uretFatura(tr.id)}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" title="Düzenle" onClick={() => acModal(tr)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Sil" onClick={() => setSilId(tr.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {canWrite && (
+                        <Button
+                          size="icon" variant="ghost" className="h-8 w-8 text-green-600"
+                          title="Şimdi Fatura Üret"
+                          disabled={!tr.aktif || uret.isPending}
+                          onClick={() => uretFatura(tr.id)}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canWrite && (
+                        <Button size="icon" variant="ghost" className="h-8 w-8" title="Düzenle" onClick={() => acModal(tr)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canWrite && (
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Sil" onClick={() => setSilId(tr.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button
                         size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground"
                         title={expanded ? "Kalemleri Gizle" : "Kalemleri Göster"}
