@@ -229,7 +229,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem
                 onClick={() => setAktifSirketId(null)}
-                className={cn("cursor-pointer", aktifSirketId === null && "font-bold text-primary")}
+                className={cn("cursor-pointer", aktifSirketId === null && "font-bold")}
                 data-testid="sirket-secici-tum"
               >
                 Tüm Firmalar
@@ -239,7 +239,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
                 <DropdownMenuItem
                   key={f.id}
                   onClick={() => setAktifSirketId(f.id)}
-                  className={cn("cursor-pointer flex items-center justify-between gap-2", aktifSirketId === f.id && "font-bold text-primary")}
+                  className={cn("cursor-pointer flex items-center justify-between gap-2", aktifSirketId === f.id && "font-bold")}
                   data-testid={`sirket-secici-${f.id}`}
                 >
                   <span className="truncate">{f.ad}</span>

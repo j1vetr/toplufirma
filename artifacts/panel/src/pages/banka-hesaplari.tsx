@@ -176,7 +176,16 @@ export default function BankaHesaplari() {
               <Label>Çatı Firma *</Label>
               <Select value={form.catiFirmaId} onValueChange={v => setForm(f => ({...f, catiFirmaId: v}))}>
                 <SelectTrigger data-testid="select-hesap-sirket"><SelectValue placeholder="Firma seçin" /></SelectTrigger>
-                <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
+                <SelectContent>{catiFirmalar.map(f => (
+                  <SelectItem key={f.id} value={String(f.id)}>
+                    <span className="flex items-center gap-2">
+                      <span>{f.ad}</span>
+                      {(f as unknown as Record<string, unknown>).etiket && (
+                        <span className="text-[10px] font-bold bg-[#ffed00] text-black px-1.5 py-0.5 leading-none">{String((f as unknown as Record<string, unknown>).etiket)}</span>
+                      )}
+                    </span>
+                  </SelectItem>
+                ))}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
