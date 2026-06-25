@@ -23,6 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useYetki } from "@/hooks/use-yetki";
 import { Plus, Pencil, Trash2, Ship, ChevronRight, Search } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
 
@@ -38,6 +39,7 @@ const BOSH: GemiForm = { firmaId: "", ad: "", imoNumarasi: "", bayrakDevleti: ""
 
 export default function Gemiler() {
   const { aktifSirketId } = useSirket();
+  const { canWrite } = useYetki();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [arama, setArama] = useState("");
@@ -101,9 +103,11 @@ export default function Gemiler() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Gemi ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-gemi-ara" />
         </div>
-        <Button onClick={() => ac()} className="rounded-full" data-testid="button-gemi-ekle">
-          <Plus className="mr-2 h-4 w-4" /> Yeni Gemi
-        </Button>
+        {canWrite && (
+          <Button onClick={() => ac()} className="rounded-full" data-testid="button-gemi-ekle">
+            <Plus className="mr-2 h-4 w-4" /> Yeni Gemi
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -121,8 +125,8 @@ export default function Gemiler() {
                   </div>
                 </div>
                 <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => ac(g.id)}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(g.id)}><Trash2 className="h-4 w-4" /></Button>
+                  {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => ac(g.id)}><Pencil className="h-4 w-4" /></Button>}
+                  {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(g.id)}><Trash2 className="h-4 w-4" /></Button>}
                 </div>
               </div>
               <div className="mt-3 text-sm text-muted-foreground space-y-1">

@@ -63,9 +63,18 @@ export function requireYazma(req: Request, res: Response, next: NextFunction): v
     res.status(401).json({ error: "Kimlik doğrulama gerekli" });
     return;
   }
+  if (req.kullanici.rol === "yonetici") { next(); return; }
   if (req.kullanici.rol === "salt_okunur") {
     res.status(403).json({ error: "Salt okunur kullanıcılar yazma işlemi yapamaz" });
     return;
+  }
+  const catiFirmaId = Number(req.body?.catiFirmaId ?? req.query?.catiFirmaId) || null;
+  if (catiFirmaId && req.kullanici.sirketler?.length) {
+    const firmaRol = req.kullanici.sirketler.find((s) => s.sirketId === catiFirmaId)?.rol;
+    if (firmaRol === "salt_okunur") {
+      res.status(403).json({ error: "Bu firmada salt okunur erişiminiz var" });
+      return;
+    }
   }
   next();
 }

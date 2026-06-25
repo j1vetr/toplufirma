@@ -19,6 +19,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useYetki } from "@/hooks/use-yetki";
 import { ArrowLeft, Plus, Download, Mail, CheckCircle2, Copy } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -66,6 +67,7 @@ export default function FaturaDetay() {
   const id = Number(params?.id);
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { canWrite } = useYetki();
   const [odemeModal, setOdemeModal] = useState(false);
   const [odemeTutar, setOdemeTutar] = useState("");
   const [odemeTarih, setOdemeTarih] = useState(new Date().toISOString().split("T")[0]);
@@ -163,27 +165,29 @@ export default function FaturaDetay() {
           <p className="text-xs text-muted-foreground">{fatura.catiFirmaAd}</p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
-          <Button
-            variant="outline" size="sm" className="rounded-full"
-            onClick={() => {
-              const kopya = {
-                catiFirmaId: fatura.catiFirmaId,
-                bagliFirmaId: fatura.bagliFirmaId,
-                grupFirmaId: fatura.grupFirmaId ?? null,
-                gemiId: fatura.gemiId ?? null,
-                faturaAdi: fatura.faturaAdi ?? "",
-                paraBirimi: fatura.paraBirimi,
-                notlar: fatura.notlar ?? "",
-                kalemler: fatura.kalemler?.map(k => ({
-                  aciklama: k.aciklama, miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani,
-                })) ?? [],
-              };
-              sessionStorage.setItem("fatura_kopya", JSON.stringify(kopya));
-              navigate("/faturalar/yeni");
-            }}
-          >
-            <Copy className="mr-1 h-4 w-4" /> Kopyala
-          </Button>
+          {canWrite && (
+            <Button
+              variant="outline" size="sm" className="rounded-full"
+              onClick={() => {
+                const kopya = {
+                  catiFirmaId: fatura.catiFirmaId,
+                  bagliFirmaId: fatura.bagliFirmaId,
+                  grupFirmaId: fatura.grupFirmaId ?? null,
+                  gemiId: fatura.gemiId ?? null,
+                  faturaAdi: fatura.faturaAdi ?? "",
+                  paraBirimi: fatura.paraBirimi,
+                  notlar: fatura.notlar ?? "",
+                  kalemler: fatura.kalemler?.map(k => ({
+                    aciklama: k.aciklama, miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani,
+                  })) ?? [],
+                };
+                sessionStorage.setItem("fatura_kopya", JSON.stringify(kopya));
+                navigate("/faturalar/yeni");
+              }}
+            >
+              <Copy className="mr-1 h-4 w-4" /> Kopyala
+            </Button>
+          )}
           <Button
             variant="outline" size="sm" className="rounded-full"
             disabled={pdfIndiriyor}
@@ -199,12 +203,12 @@ export default function FaturaDetay() {
           <Button variant="outline" size="sm" className="rounded-full" onClick={() => setGonderModal(true)}>
             <Mail className="mr-1 h-4 w-4" /> E-posta
           </Button>
-          {fatura.durum === "taslak" && (
+          {canWrite && fatura.durum === "taslak" && (
             <Button size="sm" className="rounded-full" onClick={() => durumGuncelle("acik")} disabled={updateFatura.isPending} data-testid="button-kesinlestir">
               <CheckCircle2 className="mr-1 h-4 w-4" /> Kesinleştir
             </Button>
           )}
-          {(fatura.durum === "acik" || fatura.durum === "kismi_odendi") && (
+          {canWrite && (fatura.durum === "acik" || fatura.durum === "kismi_odendi") && (
             <Button size="sm" className="rounded-full" onClick={() => setOdemeModal(true)} data-testid="button-odeme-ekle">
               <Plus className="mr-1 h-4 w-4" /> Ödeme Kaydet
             </Button>
@@ -239,12 +243,16 @@ export default function FaturaDetay() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-base">Fatura Kalemleri</CardTitle>
-          <Select value={fatura.durum} onValueChange={durumGuncelle}>
-            <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(DURUM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {canWrite ? (
+            <Select value={fatura.durum} onValueChange={durumGuncelle}>
+              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(DURUM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          ) : (
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${DURUM_RENK[fatura.durum]}`}>{DURUM_ETIKET[fatura.durum]}</span>
+          )}
         </CardHeader>
         <CardContent>
           <div className="space-y-2">

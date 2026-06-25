@@ -24,6 +24,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useYetki } from "@/hooks/use-yetki";
 import {
   Plus, Pencil, Trash2, Building2, ChevronDown, ChevronRight,
   Mail, FileBarChart, Users, Download,
@@ -105,6 +106,7 @@ const BOSH_SMTP: SmtpForm = { smtpHost: "", smtpPort: "587", smtpGuvenlik: "star
 export default function Firmalar() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { canWrite } = useYetki();
 
   const [acikGrupFirmaId, setAcikGrupFirmaId] = useState<number | null>(null);
   const [firmaModal, setFirmaModal] = useState(false);
@@ -279,14 +281,16 @@ export default function Firmalar() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end gap-2">
-        <Button onClick={() => acFirmaModal("cati")} variant="outline" className="rounded-full" data-testid="button-cati-firma-ekle">
-          <Plus className="mr-2 h-4 w-4" /> Firmanız Ekle
-        </Button>
-        <Button onClick={() => acFirmaModal("grup")} className="rounded-full" data-testid="button-grup-firma-ekle">
-          <Plus className="mr-2 h-4 w-4" /> Çatı Firma Ekle
-        </Button>
-      </div>
+      {canWrite && (
+        <div className="flex justify-end gap-2">
+          <Button onClick={() => acFirmaModal("cati")} variant="outline" className="rounded-full" data-testid="button-cati-firma-ekle">
+            <Plus className="mr-2 h-4 w-4" /> Firmanız Ekle
+          </Button>
+          <Button onClick={() => acFirmaModal("grup")} className="rounded-full" data-testid="button-grup-firma-ekle">
+            <Plus className="mr-2 h-4 w-4" /> Çatı Firma Ekle
+          </Button>
+        </div>
+      )}
 
       {/* Firmanız (cati) — faturayı kesen, ayrı basit bölüm */}
       {catiFirmalar.length > 0 && (
@@ -316,15 +320,21 @@ export default function Firmalar() {
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" title="SMTP Ayarları" onClick={() => acSmtpModal(cati)}>
-                      <Mail className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => acFirmaModal("cati", undefined, cati.id)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setSilId(cati.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {canWrite && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7" title="SMTP Ayarları" onClick={() => acSmtpModal(cati)}>
+                        <Mail className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {canWrite && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => acFirmaModal("cati", undefined, cati.id)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {canWrite && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setSilId(cati.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -371,12 +381,16 @@ export default function Firmalar() {
                   {acik ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                 </button>
                 <div className="flex gap-1 shrink-0">
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => acFirmaModal("grup", undefined, grup.id)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(grup.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {canWrite && (
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => acFirmaModal("grup", undefined, grup.id)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {canWrite && (
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(grup.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -385,9 +399,11 @@ export default function Firmalar() {
               <CardContent className="p-0 border-t bg-muted/30">
                 <div className="px-4 py-3 flex items-center justify-between">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Bağlı Firmalar</p>
-                  <Button size="sm" variant="outline" className="rounded-full h-7 text-xs" onClick={() => acFirmaModal("bagli", grup.id)}>
-                    <Plus className="mr-1 h-3 w-3" /> Bağlı Firma Ekle
-                  </Button>
+                  {canWrite && (
+                    <Button size="sm" variant="outline" className="rounded-full h-7 text-xs" onClick={() => acFirmaModal("bagli", grup.id)}>
+                      <Plus className="mr-1 h-3 w-3" /> Bağlı Firma Ekle
+                    </Button>
+                  )}
                 </div>
                 {bagliler.length === 0 ? (
                   <div className="px-4 pb-4 text-sm text-muted-foreground">Henüz bağlı firma yok.</div>
@@ -412,12 +428,16 @@ export default function Firmalar() {
                           <Button size="icon" variant="ghost" className="h-7 w-7" title="Ekstre" onClick={() => { setEkstreFirmaId(b.id); setEkstreFirmaAd(b.ad); }}>
                             <FileBarChart className="h-3.5 w-3.5" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => acFirmaModal("bagli", grup.id, b.id)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setSilId(b.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {canWrite && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => acFirmaModal("bagli", grup.id, b.id)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {canWrite && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setSilId(b.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}

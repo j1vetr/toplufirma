@@ -8,6 +8,7 @@ import {
 } from "@workspace/api-client-react";
 import type { Fatura } from "@workspace/api-client-react";
 import { useSirket } from "@/contexts/sirket-context";
+import { useYetki } from "@/hooks/use-yetki";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,7 @@ export default function Faturalar() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { aktifSirketId } = useSirket();
+  const { canWrite } = useYetki();
   const [arama, setArama] = useState("");
   const [durumFiltre, setDurumFiltre] = useState("tumu");
   const [pbFiltre, setPbFiltre] = useState("tumu");
@@ -270,7 +272,7 @@ export default function Faturalar() {
             )}
           </div>
           <div className="flex gap-1 shrink-0">
-            {(f.durum === "acik" || f.durum === "kismi_odendi") && (
+            {canWrite && (f.durum === "acik" || f.durum === "kismi_odendi") && (
               <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" title="Ödeme Kaydet" onClick={() => acOdemeModal(f)}>
                 <CreditCard className="h-3.5 w-3.5" />
               </Button>
@@ -290,9 +292,11 @@ export default function Faturalar() {
             <Button size="icon" variant="ghost" className="h-8 w-8" title="E-posta Gönder" onClick={() => { setGonderFaturaId(f.id); setGonderModal(true); }}>
               <Mail className="h-3.5 w-3.5" />
             </Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(f.id)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {canWrite && (
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(f.id)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <Link href={`/faturalar/${f.id}`}>
               <Button size="icon" variant="ghost" className="h-8 w-8">
                 <ChevronRight className="h-4 w-4" />
@@ -328,11 +332,13 @@ export default function Faturalar() {
               {mevcutPblar.map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Link href="/faturalar/yeni">
-            <Button className="rounded-full shrink-0" data-testid="button-fatura-yeni">
-              <Plus className="mr-2 h-4 w-4" /> Yeni Fatura
-            </Button>
-          </Link>
+          {canWrite && (
+            <Link href="/faturalar/yeni">
+              <Button className="rounded-full shrink-0" data-testid="button-fatura-yeni">
+                <Plus className="mr-2 h-4 w-4" /> Yeni Fatura
+              </Button>
+            </Link>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5">
@@ -390,13 +396,15 @@ export default function Faturalar() {
               <Download className="h-3 w-3" />
               {topluPdfIndiriyor ? "İndiriliyor..." : "Toplu PDF"}
             </Button>
-            <Button
-              size="sm" variant="outline" className="h-7 text-xs rounded-full gap-1"
-              onClick={() => setTopluDurumModal(true)}
-            >
-              <SquarePen className="h-3 w-3" />
-              Durum Değiştir
-            </Button>
+            {canWrite && (
+              <Button
+                size="sm" variant="outline" className="h-7 text-xs rounded-full gap-1"
+                onClick={() => setTopluDurumModal(true)}
+              >
+                <SquarePen className="h-3 w-3" />
+                Durum Değiştir
+              </Button>
+            )}
           </div>
         )}
       </div>

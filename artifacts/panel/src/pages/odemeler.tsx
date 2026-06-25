@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Wallet, TrendingUp, TrendingDown, Search } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
+import { useYetki } from "@/hooks/use-yetki";
 
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
@@ -35,6 +36,7 @@ const fmt = (n: number, pb = "USD") =>
 
 export default function Odemeler() {
   const { aktifSirketId } = useSirket();
+  const { canWrite } = useYetki();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [arama, setArama] = useState("");
@@ -146,9 +148,11 @@ export default function Odemeler() {
               {mevcutPblar.map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={() => setModalAcik(true)} className="rounded-full shrink-0" data-testid="button-odeme-yeni">
-            <Plus className="mr-2 h-4 w-4" /> Yeni İşlem
-          </Button>
+          {canWrite && (
+            <Button onClick={() => setModalAcik(true)} className="rounded-full shrink-0" data-testid="button-odeme-yeni">
+              <Plus className="mr-2 h-4 w-4" /> Yeni İşlem
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <Label className="text-xs text-muted-foreground shrink-0">Tarih:</Label>
@@ -176,7 +180,7 @@ export default function Odemeler() {
               <span className={`font-bold text-lg ${o.tip === "tahsilat" ? "text-green-600" : "text-red-500"}`}>
                 {o.tip === "tahsilat" ? "+" : "-"}{fmt(o.tutar, o.paraBirimi)}
               </span>
-              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(o.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+              {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(o.id)}><Trash2 className="h-3.5 w-3.5" /></Button>}
             </CardContent>
           </Card>
         ))}
