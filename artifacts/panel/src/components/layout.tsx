@@ -18,6 +18,7 @@ import {
   Repeat,
   X,
   Menu,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toovLogo from "@assets/TOOV_1781531572101.png";
@@ -48,6 +49,7 @@ const navigation = [
   { name: "Ödemeler", href: "/odemeler", icon: Wallet },
   { name: "Ekipmanlar", href: "/ekipmanlar", icon: HardDrive },
   { name: "Tekrarlayan Faturalar", href: "/tekrarlayan-faturalar", icon: Repeat },
+  { name: "Gönderim Geçmişi", href: "/gonderi-gecmisi", icon: Send },
   { name: "Raporlar", href: "/raporlar", icon: PieChart },
   { name: "Tanımlar", href: "/tanimlar", icon: Settings },
 ];

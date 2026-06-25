@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -191,6 +191,14 @@ export default function Teklifler() {
 
   const filtrelenmis = durumFiltre === "tumu" ? teklifListesi : teklifListesi.filter(t => t.durum === durumFiltre);
   const firmaGemileri = gemiler.filter(g => g.firmaId === Number(form.catiFirmaId));
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get("open");
+    if (!openId) return;
+    navigate("/teklifler", { replace: true } as Parameters<typeof navigate>[1]);
+    formAc({ id: Number(openId) } as Teklif);
+  }, []);
 
   function formAc(teklif?: Teklif) {
     if (teklif) {
