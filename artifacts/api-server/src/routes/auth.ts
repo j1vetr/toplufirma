@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET, requireAuth } from "../middleware/auth";
+import { sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -31,6 +32,11 @@ router.post("/auth/login", async (req, res) => {
       res.status(401).json({ error: "Geçersiz email veya parola" });
       return;
     }
+
+    await db
+      .update(kullanicilar)
+      .set({ sonGirisTarihi: sql`now()` })
+      .where(eq(kullanicilar.id, kullanici.id));
 
     const firmaRows = await db
       .select()

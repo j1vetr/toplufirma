@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, ShieldCheck, Eye, BookOpen, User, Building2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, Eye, BookOpen, User, Building2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ interface Kullanici {
   rol: string;
   aktif: boolean;
   olusturmaTarihi: string;
+  sonGirisTarihi: string | null;
   sirketler: Array<{ sirketId: number; rol: string }>;
 }
 
@@ -217,6 +218,12 @@ export default function Kullanicilar({ kullanici }: Props) {
                     {!k.aktif && <Badge variant="outline" className="text-xs rounded-full text-muted-foreground">Pasif</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground">{k.email}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                    <Clock className="h-3 w-3 shrink-0" />
+                    {k.sonGirisTarihi
+                      ? `Son giriş: ${new Date(k.sonGirisTarihi).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}`
+                      : "Henüz giriş yapılmadı"}
+                  </p>
                   <div className="flex flex-wrap gap-1.5 mt-1">
                     {k.sirketler.length > 0 ? k.sirketler.map(s => (
                       <span key={s.sirketId} className="inline-flex items-center gap-1 text-xs bg-muted rounded-full px-2 py-0.5">

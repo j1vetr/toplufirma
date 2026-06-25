@@ -219,6 +219,7 @@ export const kullanicilar = pgTable("kullanicilar", {
   rol: kullaniciRolEnum("rol").notNull().default("muhasebeci"),
   aktif: boolean("aktif").notNull().default(true),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
+  sonGirisTarihi: timestamp("son_giris_tarihi"),
 });
 
 export const kullaniciFirmalar = pgTable("kullanici_firmalar", {

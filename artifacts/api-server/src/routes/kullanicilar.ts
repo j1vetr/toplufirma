@@ -10,7 +10,7 @@ const router = Router();
 router.get("/kullanicilar", requireYonetici, async (req, res) => {
   try {
     const rows = await db
-      .select({ id: kullanicilar.id, ad: kullanicilar.ad, email: kullanicilar.email, rol: kullanicilar.rol, aktif: kullanicilar.aktif, olusturmaTarihi: kullanicilar.olusturmaTarihi })
+      .select({ id: kullanicilar.id, ad: kullanicilar.ad, email: kullanicilar.email, rol: kullanicilar.rol, aktif: kullanicilar.aktif, olusturmaTarihi: kullanicilar.olusturmaTarihi, sonGirisTarihi: kullanicilar.sonGirisTarihi })
       .from(kullanicilar)
       .orderBy(kullanicilar.ad);
 
