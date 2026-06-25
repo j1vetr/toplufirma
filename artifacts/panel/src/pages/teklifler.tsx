@@ -56,7 +56,12 @@ import {
   DollarSign,
   Receipt,
   Mail,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -147,6 +152,7 @@ export default function Teklifler() {
   const [gonderTeklif, setGonderTeklif] = useState<Teklif | null>(null);
   const [gonderEposta, setGonderEposta] = useState<string>("");
   const [gonderKonu, setGonderKonu] = useState<string>("");
+  const [gecmisAcik, setGecmisAcik] = useState(false);
 
   const [form, setForm] = useState({
     catiFirmaId: "" as string | number,
@@ -277,11 +283,22 @@ export default function Teklifler() {
     onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
+  interface GonderiGecmisiSatir { id: number; aliciEposta: string; gonderenAd: string | null; gonderilmeTarihi: string; }
+  const { data: teklifGonderiGecmisi = [] } = useQuery<GonderiGecmisiSatir[]>({
+    queryKey: ["teklif-gonderi-gecmisi", gonderTeklif?.id],
+    queryFn: async () => {
+      if (!gonderTeklif) return [];
+      return apiFetch(`/teklifler/${gonderTeklif.id}/gonderi-gecmisi`);
+    },
+    enabled: !!gonderTeklif,
+  });
+
   const gonderMutasyon = useMutation({
     mutationFn: ({ id, aliciAdres, aliciAd, konu }: { id: number; aliciAdres: string; aliciAd?: string; konu?: string }) =>
       apiFetch(`/teklifler/${id}/gonder`, { method: "POST", body: JSON.stringify({ aliciAdres, aliciAd, konu }) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teklifler"] });
+      qc.invalidateQueries({ queryKey: ["teklif-gonderi-gecmisi", gonderTeklif?.id] });
       toast({ title: "Teklif gönderildi", description: `${gonderTeklif?.teklifNo} teklifi e-posta ile gönderildi ve durumu güncellendi.` });
       setGonderTeklif(null);
       setGonderEposta("");
@@ -780,7 +797,7 @@ export default function Teklifler() {
       </Dialog>
 
       {/* ── E-posta ile Gönder Dialog ── */}
-      <Dialog open={!!gonderTeklif} onOpenChange={o => !o && setGonderTeklif(null)}>
+      <Dialog open={!!gonderTeklif} onOpenChange={o => { if (!o) { setGonderTeklif(null); setGecmisAcik(false); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>
@@ -811,6 +828,34 @@ export default function Teklifler() {
                 onChange={e => setGonderKonu(e.target.value)}
               />
             </div>
+            <Collapsible open={gecmisAcik} onOpenChange={setGecmisAcik}>
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  {gecmisAcik ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  Gönderim Geçmişi
+                  {teklifGonderiGecmisi.length > 0 && `(${teklifGonderiGecmisi.length})`}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-2 rounded-lg border bg-muted/30 p-3 space-y-2">
+                  {teklifGonderiGecmisi.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Henüz gönderim yapılmamış.</p>
+                  ) : (
+                    teklifGonderiGecmisi.map(g => (
+                      <div key={g.id} className="text-xs flex justify-between gap-2">
+                        <div>
+                          <p className="font-medium text-foreground">{g.aliciEposta}</p>
+                          {g.gonderenAd && <p className="text-muted-foreground">Gönderen: {g.gonderenAd}</p>}
+                        </div>
+                        <span className="text-muted-foreground whitespace-nowrap">
+                          {new Date(g.gonderilmeTarihi).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setGonderTeklif(null)}>İptal</Button>

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { teklifler, teklifKalemleri, firmalar, gemiler, bankaHesaplari, faturalar, faturaKalemleri, faturaSerileri, firmaEpostaAyarlari } from "@workspace/db";
+import { teklifler, teklifKalemleri, firmalar, gemiler, bankaHesaplari, faturalar, faturaKalemleri, faturaSerileri, firmaEpostaAyarlari, gonderiGecmisi } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import nodemailer from "nodemailer";
@@ -306,10 +306,41 @@ router.post("/teklifler/:id/gonder", requireYazma, async (req, res) => {
       guncellenmeTarihi: new Date(),
     }).where(eq(teklifler.id, id));
 
+    await db.insert(gonderiGecmisi).values({
+      kayitTipi: "teklif",
+      kayitId: id,
+      aliciEposta: aliciAdres,
+      gonderenKullaniciId: req.kullanici?.id ?? null,
+      gonderenAd: req.kullanici?.ad ?? null,
+    });
+
     res.json({ mesaj: `Teklif ${teklifNo} adresine gönderildi: ${aliciAdres}` });
   } catch (err) {
     console.error("[teklif-gonder] error:", err);
     if (!res.headersSent) res.status(500).json({ error: "E-posta gönderilemedi" });
+  }
+});
+
+// ── GÖNDERIM GEÇMİŞİ ─────────────────────────────────────────────────────
+router.get("/teklifler/:id/gonderi-gecmisi", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const [teklif] = await db.select({ catiFirmaId: teklifler.catiFirmaId }).from(teklifler).where(eq(teklifler.id, id));
+    if (!teklif) { res.status(404).json({ error: "Teklif bulunamadı" }); return; }
+    if (!sirketErisimKontrol(teklif.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+
+    const gecmis = await db.select().from(gonderiGecmisi)
+      .where(and(eq(gonderiGecmisi.kayitTipi, "teklif"), eq(gonderiGecmisi.kayitId, id)))
+      .orderBy(gonderiGecmisi.gonderilmeTarihi);
+
+    res.json(gecmis.map(g => ({
+      id: g.id,
+      aliciEposta: g.aliciEposta,
+      gonderenAd: g.gonderenAd,
+      gonderilmeTarihi: g.gonderilmeTarihi,
+    })));
+  } catch {
+    res.status(500).json({ error: "Gönderim geçmişi alınamadı" });
   }
 });
 

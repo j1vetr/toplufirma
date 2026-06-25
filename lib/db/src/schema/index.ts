@@ -269,6 +269,17 @@ export const kullaniciFirmalar = pgTable("kullanici_firmalar", {
   rol: kullaniciRolEnum("rol").notNull().default("muhasebeci"),
 });
 
+// ── Gönderim Geçmişi ──────────────────────────────────────────────────────
+export const gonderiGecmisi = pgTable("gonderi_gecmisi", {
+  id: serial("id").primaryKey(),
+  kayitTipi: text("kayit_tipi").notNull(), // "teklif" | "fatura"
+  kayitId: integer("kayit_id").notNull(),
+  aliciEposta: text("alici_eposta").notNull(),
+  gonderenKullaniciId: integer("gonderen_kullanici_id").references(() => kullanicilar.id, { onDelete: "set null" }),
+  gonderenAd: text("gonderen_ad"),
+  gonderilmeTarihi: timestamp("gonderilme_tarihi").notNull().defaultNow(),
+});
+
 // ── İlişkiler ─────────────────────────────────────────────────────────────
 export const firmalarRelations = relations(firmalar, ({ one, many }) => ({
   ustFirma: one(firmalar, { fields: [firmalar.ustFirmaId], references: [firmalar.id], relationName: "ustBagli" }),

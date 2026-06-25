@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRoute } from "wouter";
 import { Link } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   useGetFatura, getGetFaturaQueryKey,
   useListBankaHesaplari, getListBankaHesaplariQueryKey,
@@ -18,9 +18,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
-import { ArrowLeft, Plus, Download, Mail, CheckCircle2, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Download, Mail, CheckCircle2, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import { useLocation } from "wouter";
 
 const fmt = (n: number, pb = "USD") =>
@@ -78,12 +81,27 @@ export default function FaturaDetay() {
   const [gonderModal, setGonderModal] = useState(false);
   const [aliciAdres, setAliciAdres] = useState("");
   const [aliciAd, setAliciAd] = useState("");
+  const [gecmisAcik, setGecmisAcik] = useState(false);
   const [gonderiyor, setGonderiyor] = useState(false);
   const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
   const [, navigate] = useLocation();
 
   const { data: fatura, isLoading } = useGetFatura(id, { query: { enabled: !!id, queryKey: getGetFaturaQueryKey(id) } });
   const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
+
+  interface GonderiGecmisiSatir { id: number; aliciEposta: string; gonderenAd: string | null; gonderilmeTarihi: string; }
+  const { data: gonderiGecmisi = [] } = useQuery<GonderiGecmisiSatir[]>({
+    queryKey: ["fatura-gonderi-gecmisi", id],
+    queryFn: async () => {
+      const token = localStorage.getItem("panel_token") ?? "";
+      const r = await fetch(`${apiBase()}/faturalar/${id}/gonderi-gecmisi`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!id,
+  });
   const createOdeme = useCreateOdeme();
   const updateFatura = useUpdateFatura();
 
@@ -138,6 +156,7 @@ export default function FaturaDetay() {
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error ?? "Gönderim başarısız");
       setGonderModal(false); setAliciAdres(""); setAliciAd("");
+      qc.invalidateQueries({ queryKey: ["fatura-gonderi-gecmisi", id] });
       toast({ title: data.mesaj ?? "E-posta gönderildi" });
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Hata", variant: "destructive" });
@@ -317,6 +336,46 @@ export default function FaturaDetay() {
           </CardContent>
         </Card>
       )}
+
+      <Collapsible open={gecmisAcik} onOpenChange={setGecmisAcik}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="pb-2 cursor-pointer select-none">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  Gönderim Geçmişi
+                  {gonderiGecmisi.length > 0 && (
+                    <span className="text-xs font-normal text-muted-foreground">({gonderiGecmisi.length})</span>
+                  )}
+                </CardTitle>
+                {gecmisAcik ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              {gonderiGecmisi.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Henüz gönderim yapılmamış.</p>
+              ) : (
+                <div className="space-y-2">
+                  {gonderiGecmisi.map(g => (
+                    <div key={g.id} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
+                      <div>
+                        <p className="font-medium">{g.aliciEposta}</p>
+                        {g.gonderenAd && <p className="text-xs text-muted-foreground">Gönderen: {g.gonderenAd}</p>}
+                      </div>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+                        {new Date(g.gonderilmeTarihi).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       <Dialog open={odemeModal} onOpenChange={setOdemeModal}>
         <DialogContent>

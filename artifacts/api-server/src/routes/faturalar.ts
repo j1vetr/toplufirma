@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri, bankaHesaplari, firmaEpostaAyarlari, tekrarlayanFaturalar, tekrarlayanFaturaKalemleri } from "@workspace/db";
+import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri, bankaHesaplari, firmaEpostaAyarlari, tekrarlayanFaturalar, tekrarlayanFaturaKalemleri, gonderiGecmisi } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import nodemailer from "nodemailer";
@@ -548,10 +548,40 @@ router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
       attachments: [{ filename: `fatura-${faturaNo}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
     });
 
+    await db.insert(gonderiGecmisi).values({
+      kayitTipi: "fatura",
+      kayitId: id,
+      aliciEposta: aliciAdres,
+      gonderenKullaniciId: req.kullanici?.id ?? null,
+      gonderenAd: req.kullanici?.ad ?? null,
+    });
+
     res.json({ mesaj: `Fatura ${faturaNo} adresine gönderildi: ${aliciAdres}` });
   } catch (err) {
     console.error("[gonder] error:", err);
     if (!res.headersSent) res.status(500).json({ error: "E-posta gönderilemedi" });
+  }
+});
+
+router.get("/faturalar/:id/gonderi-gecmisi", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const [fatura] = await db.select({ catiFirmaId: faturalar.catiFirmaId }).from(faturalar).where(eq(faturalar.id, id));
+    if (!fatura) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
+    if (!sirketErisimKontrol(fatura.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+
+    const gecmis = await db.select().from(gonderiGecmisi)
+      .where(and(eq(gonderiGecmisi.kayitTipi, "fatura"), eq(gonderiGecmisi.kayitId, id)))
+      .orderBy(gonderiGecmisi.gonderilmeTarihi);
+
+    res.json(gecmis.map(g => ({
+      id: g.id,
+      aliciEposta: g.aliciEposta,
+      gonderenAd: g.gonderenAd,
+      gonderilmeTarihi: g.gonderilmeTarihi,
+    })));
+  } catch {
+    res.status(500).json({ error: "Gönderim geçmişi alınamadı" });
   }
 });
 
