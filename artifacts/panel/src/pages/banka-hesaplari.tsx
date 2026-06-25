@@ -23,7 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Landmark, ChevronRight, TrendingUp, TrendingDown, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2, Landmark, ChevronRight, TrendingUp, TrendingDown, FileText, Copy, Check } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
 import { useYetki } from "@/hooks/use-yetki";
 
@@ -52,6 +52,7 @@ export default function BankaHesaplari() {
   const [duzenleId, setDuzenleId] = useState<number | null>(null);
   const [form, setForm] = useState<HesapForm>(BOSH);
   const [silId, setSilId] = useState<number | null>(null);
+  const [kopyalandıId, setKopyalandıId] = useState<number | null>(null);
 
   const { data: hesaplar = [], isLoading } = useListBankaHesaplari(
     aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined,
@@ -146,7 +147,31 @@ export default function BankaHesaplari() {
               <div className="mt-3">
                 <p className="text-2xl font-display font-bold">{fmt(h.bakiye ?? 0, h.paraBirimi)}</p>
                 <p className="text-xs text-muted-foreground mt-1">{h.catiFirmaAd}</p>
-                {h.iban && <p className="text-xs text-muted-foreground font-mono mt-0.5">{h.iban}</p>}
+                {h.iban && (
+                  <div className="flex items-center gap-1.5 mt-0.5 group">
+                    <p className="text-xs text-muted-foreground font-mono">{h.iban}</p>
+                    <button
+                      onClick={() => {
+                        const metin = [
+                          `Banka: ${h.bankaAdi}`,
+                          `Hesap Adı: ${h.hesapAdi}`,
+                          `IBAN: ${h.iban}`,
+                          `Para Birimi: ${h.paraBirimi}`,
+                          h.subeAdi ? `Şube: ${h.subeAdi}` : null,
+                        ].filter(Boolean).join("\n");
+                        navigator.clipboard.writeText(metin);
+                        setKopyalandıId(h.id);
+                        setTimeout(() => setKopyalandıId(null), 2000);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                      title="Hesap bilgilerini kopyala"
+                    >
+                      {kopyalandıId === h.id
+                        ? <Check className="h-3.5 w-3.5 text-green-500" />
+                        : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <Badge variant={h.aktif ? "default" : "secondary"}>{h.aktif ? "Aktif" : "Pasif"}</Badge>
