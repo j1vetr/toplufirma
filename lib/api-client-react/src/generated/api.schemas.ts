@@ -41,6 +41,8 @@ export interface Firma {
   /** @nullable */
   seriOneki?: string | null;
   /** @nullable */
+  etiket?: string | null;
+  /** @nullable */
   logoUrl?: string | null;
   aktif?: boolean;
   olusturmaTarihi: string;
@@ -172,6 +174,8 @@ export interface FirmaDetay {
   /** @nullable */
   seriOneki?: string | null;
   /** @nullable */
+  etiket?: string | null;
+  /** @nullable */
   logoUrl?: string | null;
   aktif?: boolean;
   toplamBorc?: number;
@@ -205,6 +209,7 @@ export interface FirmaInput {
   telefon?: string;
   eposta?: string;
   seriOneki?: string;
+  etiket?: string;
   logoUrl?: string;
   aktif?: boolean;
 }
@@ -219,6 +224,7 @@ export interface FirmaUpdate {
   telefon?: string;
   eposta?: string;
   seriOneki?: string;
+  etiket?: string;
   logoUrl?: string;
   aktif?: boolean;
 }

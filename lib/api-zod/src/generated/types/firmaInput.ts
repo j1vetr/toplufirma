@@ -19,6 +19,7 @@ export interface FirmaInput {
   telefon?: string;
   eposta?: string;
   seriOneki?: string;
+  etiket?: string;
   logoUrl?: string;
   aktif?: boolean;
 }

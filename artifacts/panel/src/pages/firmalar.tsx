@@ -93,9 +93,9 @@ const fmt = (n: number, pb = "USD") =>
 interface FirmaForm {
   ad: string; vergiNo: string; vergiDairesi: string;
   adres: string; telefon: string; eposta: string; seriOneki: string; logoUrl: string;
-  grupFirmaId: string;
+  etiket: string; grupFirmaId: string;
 }
-const BOSH_FORMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", eposta: "", seriOneki: "", logoUrl: "", grupFirmaId: "" };
+const BOSH_FORMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", eposta: "", seriOneki: "", logoUrl: "", etiket: "", grupFirmaId: "" };
 
 interface SmtpForm {
   smtpHost: string; smtpPort: string; smtpGuvenlik: string;
@@ -179,6 +179,7 @@ export default function Firmalar() {
         ad: f.ad, vergiNo: f.vergiNo ?? "", vergiDairesi: f.vergiDairesi ?? "",
         adres: f.adres ?? "", telefon: f.telefon ?? "", eposta: f.eposta ?? "",
         seriOneki: f.seriOneki ?? "",
+        etiket: (f as unknown as Record<string, unknown>).etiket as string ?? "",
         logoUrl: (f as unknown as Record<string, unknown>).logoUrl as string ?? "",
         grupFirmaId: (f as unknown as Record<string, unknown>).grupFirmaId != null
           ? String((f as unknown as Record<string, unknown>).grupFirmaId) : "",
@@ -217,6 +218,7 @@ export default function Firmalar() {
       ...(form.telefon && { telefon: form.telefon }),
       ...(form.eposta && { eposta: form.eposta }),
       ...(form.seriOneki && { seriOneki: form.seriOneki }),
+      ...(form.etiket && { etiket: form.etiket }),
       ...(form.logoUrl && { logoUrl: form.logoUrl }),
       ...(modalTip === "bagli" && form.grupFirmaId && { grupFirmaId: Number(form.grupFirmaId) }),
       aktif: true,
@@ -308,9 +310,10 @@ export default function Firmalar() {
                     {cati.logoUrl ? <img src={cati.logoUrl} alt={cati.ad} className="w-full h-full object-contain" /> : <Building2 className="h-4 w-4 text-primary" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-sm">{cati.ad}</p>
                       <Badge variant="outline" className="text-xs">Firmanız</Badge>
+                      {(cati as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((cati as unknown as Record<string, unknown>).etiket)}</Badge>}
                       {!cati.aktif && <Badge variant="secondary" className="text-xs">Pasif</Badge>}
                     </div>
                     <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
@@ -367,9 +370,10 @@ export default function Firmalar() {
                     {grup.logoUrl ? <img src={grup.logoUrl} alt={grup.ad} className="w-full h-full object-contain" /> : <Building2 className="h-5 w-5 text-amber-600" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-base">{grup.ad}</h3>
                       <Badge variant="outline" className="text-xs">Çatı Firma</Badge>
+                      {(grup as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((grup as unknown as Record<string, unknown>).etiket)}</Badge>}
                       {!grup.aktif && <Badge variant="secondary">Pasif</Badge>}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
@@ -415,7 +419,10 @@ export default function Firmalar() {
                           {b.logoUrl ? <img src={b.logoUrl} alt={b.ad} className="w-full h-full object-contain" /> : <Building2 className="h-4 w-4 text-blue-500" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{b.ad}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium text-sm">{b.ad}</p>
+                            {(b as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((b as unknown as Record<string, unknown>).etiket)}</Badge>}
+                          </div>
                           <div className="flex gap-3 text-xs text-muted-foreground">
                             {b.vergiNo && <span>VKN: {b.vergiNo}</span>}
                             {b.eposta && <span>{b.eposta}</span>}
@@ -478,6 +485,10 @@ export default function Firmalar() {
             <div className="col-span-2 space-y-1.5">
               <Label>Adres</Label>
               <Input value={form.adres} onChange={e => setForm(f => ({ ...f, adres: e.target.value }))} data-testid="input-firma-adres" />
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>Etiket <span className="text-xs text-muted-foreground">(opsiyonel — ülke, bölge vb.)</span></Label>
+              <Input value={form.etiket} onChange={e => setForm(f => ({ ...f, etiket: e.target.value }))} placeholder="Örn: İngiltere, Kıbrıs, Hollanda" data-testid="input-firma-etiket" />
             </div>
             {modalTip === "cati" && (
               <div className="space-y-1.5">

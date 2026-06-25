@@ -30,6 +30,8 @@ export interface Firma {
   /** @nullable */
   seriOneki?: string | null;
   /** @nullable */
+  etiket?: string | null;
+  /** @nullable */
   logoUrl?: string | null;
   aktif?: boolean;
   olusturmaTarihi: Date;

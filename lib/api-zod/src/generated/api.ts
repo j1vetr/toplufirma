@@ -40,6 +40,7 @@ export const ListFirmalarResponseItem = zod.object({
   "telefon": zod.string().nullish(),
   "eposta": zod.string().nullish(),
   "seriOneki": zod.string().nullish(),
+  "etiket": zod.string().nullish(),
   "logoUrl": zod.string().nullish(),
   "aktif": zod.boolean().default(listFirmalarResponseAktifDefault),
   "olusturmaTarihi": zod.coerce.date()
@@ -61,6 +62,7 @@ export const CreateFirmaBody = zod.object({
   "telefon": zod.string().optional(),
   "eposta": zod.string().optional(),
   "seriOneki": zod.string().optional(),
+  "etiket": zod.string().optional(),
   "logoUrl": zod.string().optional(),
   "aktif": zod.boolean().optional()
 })
@@ -88,6 +90,7 @@ export const GetFirmaResponse = zod.object({
   "telefon": zod.string().nullish(),
   "eposta": zod.string().nullish(),
   "seriOneki": zod.string().nullish(),
+  "etiket": zod.string().nullish(),
   "logoUrl": zod.string().nullish(),
   "aktif": zod.boolean().optional(),
   "toplamBorc": zod.number().optional(),
@@ -106,6 +109,7 @@ export const GetFirmaResponse = zod.object({
   "telefon": zod.string().nullish(),
   "eposta": zod.string().nullish(),
   "seriOneki": zod.string().nullish(),
+  "etiket": zod.string().nullish(),
   "logoUrl": zod.string().nullish(),
   "aktif": zod.boolean().default(getFirmaResponseBagliSirketlerItemAktifDefault),
   "olusturmaTarihi": zod.coerce.date()
@@ -181,6 +185,7 @@ export const UpdateFirmaBody = zod.object({
   "telefon": zod.string().optional(),
   "eposta": zod.string().optional(),
   "seriOneki": zod.string().optional(),
+  "etiket": zod.string().optional(),
   "logoUrl": zod.string().optional(),
   "aktif": zod.boolean().optional()
 })
@@ -200,6 +205,7 @@ export const UpdateFirmaResponse = zod.object({
   "telefon": zod.string().nullish(),
   "eposta": zod.string().nullish(),
   "seriOneki": zod.string().nullish(),
+  "etiket": zod.string().nullish(),
   "logoUrl": zod.string().nullish(),
   "aktif": zod.boolean().default(updateFirmaResponseAktifDefault),
   "olusturmaTarihi": zod.coerce.date()
@@ -1412,6 +1418,7 @@ export const GlobalAramaResponse = zod.object({
   "telefon": zod.string().nullish(),
   "eposta": zod.string().nullish(),
   "seriOneki": zod.string().nullish(),
+  "etiket": zod.string().nullish(),
   "logoUrl": zod.string().nullish(),
   "aktif": zod.boolean().default(globalAramaResponseFirmalarItemAktifDefault),
   "olusturmaTarihi": zod.coerce.date()

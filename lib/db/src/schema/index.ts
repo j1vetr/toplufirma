@@ -53,6 +53,7 @@ export const firmalar = pgTable("firmalar", {
   paraBirimi: text("para_birimi").notNull().default("USD"),
   notlar: text("notlar"),
   seriOneki: text("seri_oneki"),
+  etiket: text("etiket"),
   logo: text("logo"),
   aktif: boolean("aktif").notNull().default(true),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),

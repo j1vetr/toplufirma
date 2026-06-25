@@ -1350,6 +1350,8 @@ components:
           type: ["string", "null"]
         seriOneki:
           type: ["string", "null"]
+        etiket:
+          type: ["string", "null"]
         logoUrl:
           type: ["string", "null"]
         aktif:
@@ -1387,6 +1389,8 @@ components:
         eposta:
           type: ["string", "null"]
         seriOneki:
+          type: ["string", "null"]
+        etiket:
           type: ["string", "null"]
         logoUrl:
           type: ["string", "null"]
@@ -1443,6 +1447,8 @@ components:
           type: string
         seriOneki:
           type: string
+        etiket:
+          type: string
         logoUrl:
           type: string
         aktif:
@@ -1466,6 +1472,8 @@ components:
         eposta:
           type: string
         seriOneki:
+          type: string
+        etiket:
           type: string
         logoUrl:
           type: string

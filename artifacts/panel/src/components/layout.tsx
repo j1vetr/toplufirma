@@ -239,10 +239,15 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
                 <DropdownMenuItem
                   key={f.id}
                   onClick={() => setAktifSirketId(f.id)}
-                  className={cn("cursor-pointer", aktifSirketId === f.id && "font-bold text-primary")}
+                  className={cn("cursor-pointer flex items-center justify-between gap-2", aktifSirketId === f.id && "font-bold text-primary")}
                   data-testid={`sirket-secici-${f.id}`}
                 >
-                  {f.ad}
+                  <span className="truncate">{f.ad}</span>
+                  {(f as unknown as Record<string, unknown>).etiket && (
+                    <span className="shrink-0 text-[10px] font-bold bg-[#ffed00] text-black px-1.5 py-0.5 leading-none">
+                      {String((f as unknown as Record<string, unknown>).etiket)}
+                    </span>
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>

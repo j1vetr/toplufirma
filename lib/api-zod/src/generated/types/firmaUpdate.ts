@@ -16,6 +16,7 @@ export interface FirmaUpdate {
   telefon?: string;
   eposta?: string;
   seriOneki?: string;
+  etiket?: string;
   logoUrl?: string;
   aktif?: boolean;
 }
