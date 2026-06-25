@@ -25,6 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, HardDrive, AlertTriangle, Ship } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
+import { useYetki } from "@/hooks/use-yetki";
 
 interface EkipmanForm {
   catiFirmaId: string; gemiId: string; tip: string; seriNo: string;
@@ -37,6 +38,7 @@ const EKIPMAN_TIPLERI = ["Starlink Terminal", "Router", "Kablo Seti", "Montaj Ki
 
 export default function Ekipmanlar() {
   const { aktifSirketId } = useSirket();
+  const { canWrite } = useYetki();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [secilenGemiId, setSecilenGemiId] = useState("");
@@ -118,12 +120,14 @@ export default function Ekipmanlar() {
             {gemiler.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button
-          onClick={() => ac()} className="rounded-full ml-auto" data-testid="button-ekipman-ekle"
-          disabled={!secilenGemiId}
-        >
-          <Plus className="mr-2 h-4 w-4" /> Ekipman Ekle
-        </Button>
+        {canWrite && (
+          <Button
+            onClick={() => ac()} className="rounded-full ml-auto" data-testid="button-ekipman-ekle"
+            disabled={!secilenGemiId}
+          >
+            <Plus className="mr-2 h-4 w-4" /> Ekipman Ekle
+          </Button>
+        )}
       </div>
 
       {!secilenGemiId ? (
@@ -157,10 +161,12 @@ export default function Ekipmanlar() {
                     </div>
                   </div>
                   <Badge variant={e.aktif ? "default" : "secondary"}>{e.aktif ? "Aktif" : "Pasif"}</Badge>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => ac(e.id)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                  </div>
+                  {canWrite && (
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => ac(e.id)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(e.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );

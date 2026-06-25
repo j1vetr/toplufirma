@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { kdvOranlari } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
+import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 
 const router = Router();
 
@@ -38,6 +38,7 @@ router.patch("/kdv-oranlari/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(kdvOranlari).where(eq(kdvOranlari.id, id));
     if (!existing) { res.status(404).json({ error: "KDV oranı bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { ad, oran, varsayilan } = req.body;
     const [row] = await db.update(kdvOranlari)
@@ -55,6 +56,7 @@ router.delete("/kdv-oranlari/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(kdvOranlari).where(eq(kdvOranlari.id, id));
     if (!existing) { res.status(404).json({ error: "KDV oranı bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
     await db.delete(kdvOranlari).where(eq(kdvOranlari.id, id));
     res.status(204).send();
   } catch {

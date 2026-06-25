@@ -26,10 +26,12 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { useYetki } from "@/hooks/use-yetki";
 
 export default function Tanimlar() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { canWrite } = useYetki();
 
   const { data: kdvOranlari = [] } = useListKdvOranlari(undefined, { query: { queryKey: getListKdvOranlariQueryKey() } });
   const { data: faturaSerileri = [] } = useListFaturaSerileri(undefined, { query: { queryKey: getListFaturaSerileriQueryKey() } });
@@ -120,11 +122,13 @@ export default function Tanimlar() {
         </TabsList>
 
         <TabsContent value="kdv" className="mt-6">
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => kdvAc()} className="rounded-full" data-testid="button-kdv-ekle">
-              <Plus className="mr-2 h-4 w-4" /> KDV Oranı Ekle
-            </Button>
-          </div>
+          {canWrite && (
+            <div className="flex justify-end mb-4">
+              <Button onClick={() => kdvAc()} className="rounded-full" data-testid="button-kdv-ekle">
+                <Plus className="mr-2 h-4 w-4" /> KDV Oranı Ekle
+              </Button>
+            </div>
+          )}
           <div className="space-y-2">
             {kdvOranlari.map(k => (
               <Card key={k.id} data-testid={`card-kdv-${k.id}`}>
@@ -136,8 +140,8 @@ export default function Tanimlar() {
                   <div className="flex items-center gap-3">
                     <span className="text-2xl font-display font-bold">%{k.oran}</span>
                     {k.varsayilan && <Badge>Varsayılan</Badge>}
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => kdvAc(k.id)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setKdvSilId(k.id)}><Trash2 className="h-4 w-4" /></Button>
+                    {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => kdvAc(k.id)}><Pencil className="h-4 w-4" /></Button>}
+                    {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setKdvSilId(k.id)}><Trash2 className="h-4 w-4" /></Button>}
                   </div>
                 </CardContent>
               </Card>
@@ -147,11 +151,13 @@ export default function Tanimlar() {
         </TabsContent>
 
         <TabsContent value="seriler" className="mt-6">
-          <div className="flex justify-end mb-4">
-            <Button onClick={() => seriAc()} className="rounded-full" data-testid="button-seri-ekle">
-              <Plus className="mr-2 h-4 w-4" /> Seri Ekle
-            </Button>
-          </div>
+          {canWrite && (
+            <div className="flex justify-end mb-4">
+              <Button onClick={() => seriAc()} className="rounded-full" data-testid="button-seri-ekle">
+                <Plus className="mr-2 h-4 w-4" /> Seri Ekle
+              </Button>
+            </div>
+          )}
           <div className="space-y-2">
             {faturaSerileri.map(s => (
               <Card key={s.id} data-testid={`card-seri-${s.id}`}>
@@ -166,8 +172,8 @@ export default function Tanimlar() {
                       <p className="text-xs text-muted-foreground">Sonraki: #{s.sonrakiNo}</p>
                     </div>
                     {s.varsayilan && <Badge>Varsayılan</Badge>}
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => seriAc(s.id)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSeriSilId(s.id)}><Trash2 className="h-4 w-4" /></Button>
+                    {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => seriAc(s.id)}><Pencil className="h-4 w-4" /></Button>}
+                    {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSeriSilId(s.id)}><Trash2 className="h-4 w-4" /></Button>}
                   </div>
                 </CardContent>
               </Card>

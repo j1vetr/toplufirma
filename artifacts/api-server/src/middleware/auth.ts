@@ -79,6 +79,15 @@ export function requireYazma(req: Request, res: Response, next: NextFunction): v
   next();
 }
 
+export function firmaYazmaDenetimi(catiFirmaId: number, req: Request): boolean {
+  const k = req.kullanici;
+  if (!k) return false;
+  if (k.rol === "yonetici") return true;
+  if (k.rol === "salt_okunur") return false;
+  const firmaRol = k.sirketler?.find((s) => s.sirketId === catiFirmaId)?.rol;
+  return firmaRol !== "salt_okunur";
+}
+
 export function sirketErisimKontrol(catiFirmaId: number, req: Request): boolean {
   if (!req.kullanici) return false;
   if (req.kullanici.rol === "yonetici") return true;

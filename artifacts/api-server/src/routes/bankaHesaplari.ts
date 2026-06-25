@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { bankaHesaplari, firmalar, odemeler } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
-import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
+import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
@@ -83,6 +83,7 @@ router.patch("/banka-hesaplari/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(bankaHesaplari).where(eq(bankaHesaplari.id, id));
     if (!existing) { res.status(404).json({ error: "Banka hesabı bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster } = req.body;
     const [row] = await db.update(bankaHesaplari)
@@ -101,6 +102,7 @@ router.delete("/banka-hesaplari/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(bankaHesaplari).where(eq(bankaHesaplari.id, id));
     if (!existing) { res.status(404).json({ error: "Banka hesabı bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
     await db.delete(bankaHesaplari).where(eq(bankaHesaplari.id, id));
     res.status(204).send();
   } catch {

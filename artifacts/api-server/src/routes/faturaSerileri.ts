@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { faturaSerileri } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
+import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 
 const router = Router();
 
@@ -38,6 +38,7 @@ router.patch("/fatura-serileri/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(faturaSerileri).where(eq(faturaSerileri.id, id));
     if (!existing) { res.status(404).json({ error: "Fatura serisi bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { ad, onek, sonrakiNo, varsayilan } = req.body;
     const [row] = await db.update(faturaSerileri)
@@ -55,6 +56,7 @@ router.delete("/fatura-serileri/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(faturaSerileri).where(eq(faturaSerileri.id, id));
     if (!existing) { res.status(404).json({ error: "Fatura serisi bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
     await db.delete(faturaSerileri).where(eq(faturaSerileri.id, id));
     res.status(204).send();
   } catch {

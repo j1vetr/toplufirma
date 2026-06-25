@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { ekipmanlar, gemiler, firmalar } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
+import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 
 const router = Router();
 
@@ -59,6 +59,7 @@ router.patch("/ekipmanlar/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(ekipmanlar).where(eq(ekipmanlar.id, id));
     if (!existing) { res.status(404).json({ error: "Ekipman bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { tip, seriNo, kurulumTarihi, garantiBitisTarihi, notlar, aktif, gemiId } = req.body;
     if (gemiId !== undefined) {
@@ -86,6 +87,7 @@ router.delete("/ekipmanlar/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(ekipmanlar).where(eq(ekipmanlar.id, id));
     if (!existing) { res.status(404).json({ error: "Ekipman bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
     await db.delete(ekipmanlar).where(eq(ekipmanlar.id, id));
     res.status(204).send();
   } catch {

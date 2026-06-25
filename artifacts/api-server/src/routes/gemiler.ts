@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { gemiler, firmalar, faturalar, ekipmanlar } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireYazma, sirketErisimKontrol } from "../middleware/auth";
+import { requireYazma, sirketErisimKontrol, firmaYazmaDenetimi } from "../middleware/auth";
 
 const router = Router();
 
@@ -48,6 +48,7 @@ router.post("/gemiler", requireYazma, async (req, res) => {
     if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
     if (firma.tip !== "bagli") { res.status(400).json({ error: "Gemi yalnızca bağlı firmaya eklenebilir" }); return; }
     if (!sirketErisimKontrol(firma.ustFirmaId!, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(firma.ustFirmaId!, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const [row] = await db.insert(gemiler).values({
       firmaId, ad, imoNumarasi, bayrakDevleti, notlar, aktif: aktif ?? true,
@@ -102,6 +103,7 @@ router.patch("/gemiler/:id", requireYazma, async (req, res) => {
       .where(eq(gemiler.id, id));
     if (!existing) { res.status(404).json({ error: "Gemi bulunamadı" }); return; }
     if (existing.ustFirmaId && !sirketErisimKontrol(existing.ustFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (existing.ustFirmaId && !firmaYazmaDenetimi(existing.ustFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { ad, imoNumarasi, bayrakDevleti, notlar, aktif, firmaId } = req.body;
     if (firmaId !== undefined) {
@@ -126,6 +128,7 @@ router.delete("/gemiler/:id", requireYazma, async (req, res) => {
       .where(eq(gemiler.id, id));
     if (!existing) { res.status(404).json({ error: "Gemi bulunamadı" }); return; }
     if (existing.ustFirmaId && !sirketErisimKontrol(existing.ustFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (existing.ustFirmaId && !firmaYazmaDenetimi(existing.ustFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
     try {
       await db.delete(gemiler).where(eq(gemiler.id, id));
     } catch (e: unknown) {

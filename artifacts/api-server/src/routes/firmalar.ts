@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { firmalar, firmaEpostaAyarlari, faturalar, odemeler } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { requireYazma, requireYonetici, sirketErisimKontrol } from "../middleware/auth";
+import { requireYazma, requireYonetici, sirketErisimKontrol, firmaYazmaDenetimi } from "../middleware/auth";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
@@ -60,6 +60,7 @@ router.post("/firmalar", requireYazma, async (req, res) => {
     if (tip === "bagli") {
       if (ustFirmaId) {
         if (!sirketErisimKontrol(Number(ustFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+        if (!firmaYazmaDenetimi(Number(ustFirmaId), req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
         const [catiFirma] = await db.select().from(firmalar).where(eq(firmalar.id, Number(ustFirmaId)));
         if (!catiFirma || catiFirma.tip !== "cati") { res.status(400).json({ error: "ustFirmaId geçerli bir firma değil" }); return; }
       }
@@ -123,6 +124,7 @@ router.patch("/firmalar/:id", requireYazma, async (req, res) => {
 
     const catiFirmaId = existing.tip === "cati" ? existing.id : existing.tip === "bagli" ? existing.ustFirmaId : null;
     if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+    if (catiFirmaId && !firmaYazmaDenetimi(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { ad, grupFirmaId, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, logoUrl, aktif } = req.body;
     if (grupFirmaId !== undefined && grupFirmaId !== null && existing.tip === "bagli") {

@@ -54,6 +54,14 @@ interface Props { kullanici: KullaniciInfo | null }
 
 export default function Kullanicilar({ kullanici }: Props) {
   const { toast } = useToast();
+  const currentUserId = (() => {
+    try {
+      const token = localStorage.getItem("panel_token");
+      if (!token) return null;
+      const [, payload] = token.split(".");
+      return (JSON.parse(atob(payload)) as { id: number }).id;
+    } catch { return null; }
+  })();
   const [kullanicilar, setKullanicilar] = useState<Kullanici[]>([]);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [dialogAcik, setDialogAcik] = useState(false);
@@ -226,12 +234,20 @@ export default function Kullanicilar({ kullanici }: Props) {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => acDialog(k)} data-testid={`button-kullanici-duzenle-${k.id}`}>
+                  <Button
+                    size="icon" variant="ghost" className="h-8 w-8 rounded-full"
+                    onClick={() => acDialog(k)}
+                    disabled={k.id === currentUserId}
+                    title={k.id === currentUserId ? "Kendi hesabınızı düzenleyemezsiniz" : undefined}
+                    data-testid={`button-kullanici-duzenle-${k.id}`}
+                  >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     size="icon" variant="ghost" className="h-8 w-8 rounded-full text-destructive hover:text-destructive"
                     onClick={() => { setSilHedef(k); setSilDialogAcik(true); }}
+                    disabled={k.id === currentUserId}
+                    title={k.id === currentUserId ? "Kendi hesabınızı silemezsiniz" : undefined}
                     data-testid={`button-kullanici-sil-${k.id}`}
                   >
                     <Trash2 className="h-3.5 w-3.5" />

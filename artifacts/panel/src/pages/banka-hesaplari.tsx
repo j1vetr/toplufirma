@@ -25,6 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Landmark, ChevronRight, TrendingUp, TrendingDown, FileText } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
+import { useYetki } from "@/hooks/use-yetki";
 
 interface HesapForm {
   catiFirmaId: string;
@@ -44,6 +45,7 @@ const fmt = (n: number, pb = "TRY") =>
 
 export default function BankaHesaplari() {
   const { aktifSirketId } = useSirket();
+  const { canWrite } = useYetki();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [modalAcik, setModalAcik] = useState(false);
@@ -113,9 +115,11 @@ export default function BankaHesaplari() {
             </div>
           ))}
         </div>
-        <Button onClick={() => ac()} className="rounded-full" data-testid="button-hesap-ekle">
-          <Plus className="mr-2 h-4 w-4" /> Yeni Hesap
-        </Button>
+        {canWrite && (
+          <Button onClick={() => ac()} className="rounded-full" data-testid="button-hesap-ekle">
+            <Plus className="mr-2 h-4 w-4" /> Yeni Hesap
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -132,10 +136,12 @@ export default function BankaHesaplari() {
                     <p className="text-xs text-muted-foreground">{h.hesapAdi}</p>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => ac(h.id)}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(h.id)}><Trash2 className="h-4 w-4" /></Button>
-                </div>
+                {canWrite && (
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => ac(h.id)}><Pencil className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(h.id)}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                )}
               </div>
               <div className="mt-3">
                 <p className="text-2xl font-display font-bold">{fmt(h.bakiye ?? 0, h.paraBirimi)}</p>
