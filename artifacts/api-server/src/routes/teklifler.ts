@@ -26,7 +26,7 @@ const router = Router();
 // ── LIST ─────────────────────────────────────────────────────────────────
 router.get("/teklifler", async (req, res) => {
   try {
-    const { catiFirmaId, durum, paraBirimi } = req.query as Record<string, string>;
+    const { catiFirmaId, gemiId, durum, paraBirimi } = req.query as Record<string, string>;
 
     let rows = await db
       .select({ t: teklifler, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
@@ -42,6 +42,7 @@ router.get("/teklifler", async (req, res) => {
     if (yetkisiz) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     rows = rows.filter(r => scoped.some(s => s.t.id === r.t.id));
 
+    if (gemiId) rows = rows.filter(r => r.t.gemiId === Number(gemiId));
     if (durum) rows = rows.filter(r => r.t.durum === durum);
     if (paraBirimi) rows = rows.filter(r => r.t.paraBirimi === paraBirimi);
 
@@ -68,6 +69,15 @@ router.post("/teklifler", requireYazma, async (req, res) => {
     }
     if (!firmaYazmaDenetimi(Number(catiFirmaId), req)) {
       res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return;
+    }
+
+    if (gemiId) {
+      const [gemiRow] = await db.select({ firmaId: gemiler.firmaId }).from(gemiler).where(eq(gemiler.id, Number(gemiId)));
+      if (!gemiRow) { res.status(400).json({ error: "Belirtilen gemi bulunamadı" }); return; }
+      const [gFirma] = await db.select({ ustFirmaId: firmalar.ustFirmaId }).from(firmalar).where(eq(firmalar.id, gemiRow.firmaId));
+      if (!gFirma || gFirma.ustFirmaId !== Number(catiFirmaId)) {
+        res.status(400).json({ error: "Belirtilen gemi bu çatı firmaya ait değil" }); return;
+      }
     }
 
     const [catiFirma] = await db.select({ seriOneki: firmalar.seriOneki }).from(firmalar).where(eq(firmalar.id, Number(catiFirmaId)));
@@ -124,6 +134,7 @@ router.get("/teklifler/:id", async (req, res) => {
     if (!sirketErisimKontrol(row.t.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const kalemler = await db.select().from(teklifKalemleri).where(eq(teklifKalemleri.teklifId, id)).orderBy(teklifKalemleri.sira);
+    const bankalar = await db.select().from(bankaHesaplari).where(and(eq(bankaHesaplari.catiFirmaId, row.t.catiFirmaId), eq(bankaHesaplari.faturadaGoster, true)));
 
     res.json({
       ...formatTeklif(row.t, row.catiFirmaAd, row.gemiAd),
@@ -134,6 +145,10 @@ router.get("/teklifler/:id", async (req, res) => {
         miktar: Number(k.miktar), birimFiyat: Number(k.birimFiyat),
         birim: k.birim, opsiyonel: k.opsiyonel,
         toplam: Number(k.miktar) * Number(k.birimFiyat),
+      })),
+      bankaHesaplari: bankalar.map(b => ({
+        id: b.id, bankaAdi: b.bankaAdi, hesapAdi: b.hesapAdi,
+        iban: b.iban, paraBirimi: b.paraBirimi,
       })),
     });
   } catch {
@@ -154,6 +169,15 @@ router.patch("/teklifler/:id", requireYazma, async (req, res) => {
       gemiId, tarih, gecerlilikTarihi, aliciAd, aliciAdres, aliciTelefon,
       paraBirimi, kurNotu, notlar, kosullar, kalemler,
     } = req.body;
+
+    if (gemiId) {
+      const [gemiRow] = await db.select({ firmaId: gemiler.firmaId }).from(gemiler).where(eq(gemiler.id, Number(gemiId)));
+      if (!gemiRow) { res.status(400).json({ error: "Belirtilen gemi bulunamadı" }); return; }
+      const [gFirma] = await db.select({ ustFirmaId: firmalar.ustFirmaId }).from(firmalar).where(eq(firmalar.id, gemiRow.firmaId));
+      if (!gFirma || gFirma.ustFirmaId !== existing.catiFirmaId) {
+        res.status(400).json({ error: "Belirtilen gemi bu çatı firmaya ait değil" }); return;
+      }
+    }
 
     await db.update(teklifler).set({
       gemiId: gemiId !== undefined ? (gemiId ? Number(gemiId) : null) : existing.gemiId,
@@ -267,13 +291,18 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
       ).join("\n")
     ).join("\n\n");
 
-    const kalemSatiri = (k: typeof kalemler[number]): TableCell[] => [
-      { text: k.aciklama },
-      { text: String(k.birim ?? "Adet"), alignment: "center" },
-      { text: Number(k.miktar).toFixed(2), alignment: "right" },
-      { text: Number(k.birimFiyat).toFixed(2), alignment: "right" },
-      { text: (Number(k.miktar) * Number(k.birimFiyat)).toFixed(2), alignment: "right" },
-    ];
+    let satirNo = 0;
+    const kalemSatiri = (k: typeof kalemler[number]): TableCell[] => {
+      satirNo++;
+      return [
+        { text: String(satirNo), alignment: "center" },
+        { text: k.aciklama },
+        { text: String(k.birim ?? "Adet"), alignment: "center" },
+        { text: Number(k.miktar).toFixed(2), alignment: "right" },
+        { text: Number(k.birimFiyat).toFixed(2), alignment: "right" },
+        { text: (Number(k.miktar) * Number(k.birimFiyat)).toFixed(2), alignment: "right" },
+      ];
+    };
 
     const tabloLayout = {
       hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
@@ -358,9 +387,10 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
         {
           table: {
             headerRows: 1,
-            widths: ["*", 50, 50, 70, 70],
+            widths: [24, "*", 44, 40, 64, 64],
             body: ([
               [
+                { text: "#", style: "tabloBaslik", alignment: "center" },
                 { text: "Description", style: "tabloBaslik" },
                 { text: "Unit", style: "tabloBaslik", alignment: "center" },
                 { text: "Qty", style: "tabloBaslik", alignment: "right" },
@@ -378,9 +408,10 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
           {
             table: {
               headerRows: 1,
-              widths: ["*", 50, 50, 70, 70],
+              widths: [24, "*", 44, 40, 64, 64],
               body: ([
                 [
+                  { text: "#", style: "tabloBaslik", alignment: "center" },
                   { text: "Description", style: "tabloBaslik" },
                   { text: "Unit", style: "tabloBaslik", alignment: "center" },
                   { text: "Qty", style: "tabloBaslik", alignment: "right" },
@@ -389,7 +420,7 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
                 ],
                 ...opsKalemler.map(kalemSatiri),
                 [
-                  { text: "Optional Total:", colSpan: 4, alignment: "right", bold: true, color: "#555" }, {}, {}, {},
+                  { text: "Optional Total:", colSpan: 5, alignment: "right", bold: true, color: "#555" }, {}, {}, {}, {},
                   { text: `${opsToplamTutar.toFixed(2)} ${t.paraBirimi}`, alignment: "right", bold: true, color: "#555" },
                 ],
               ] as unknown as TableCell[][]),
@@ -437,11 +468,17 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
         tabloBaslik: { bold: true, color: "#ffffff", fillColor: "#0070d1" },
       },
       footer: (currentPage: number, pageCount: number) => ({
-        columns: [
-          { text: `${catiFirmaRow?.ad ?? ""}${catiFirmaRow?.adres ? " — " + catiFirmaRow.adres : ""}`, fontSize: 8, color: "#aaa", alignment: "left", margin: [40, 0, 0, 0] },
-          { text: `${currentPage} / ${pageCount}`, fontSize: 8, color: "#aaa", alignment: "right", margin: [0, 0, 40, 0] },
+        stack: [
+          { canvas: [{ type: "line", x1: 40, y1: 0, x2: 555, y2: 0, lineWidth: 0.5, lineColor: "#e8eaf0" }] },
+          {
+            columns: [
+              { text: `${catiFirmaRow?.ad ?? ""}${catiFirmaRow?.adres ? "  ·  " + catiFirmaRow.adres : ""}`, fontSize: 7.5, color: "#aaa", alignment: "left", margin: [40, 4, 0, 0] },
+              { text: "< TOOV />", fontSize: 8, bold: true, color: "#0070d1", alignment: "center", margin: [0, 4, 0, 0] },
+              { text: `${currentPage} / ${pageCount}`, fontSize: 7.5, color: "#aaa", alignment: "right", margin: [0, 4, 40, 0] },
+            ],
+          },
         ],
-        margin: [0, 8, 0, 0],
+        margin: [0, 4, 0, 0],
       }),
     };
 

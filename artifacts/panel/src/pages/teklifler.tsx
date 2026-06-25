@@ -40,7 +40,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, FileDown, CheckCircle2, SendHorizonal, XCircle, FileText } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  FileDown,
+  CheckCircle2,
+  SendHorizonal,
+  XCircle,
+  FileText,
+  Building2,
+  Ship,
+  Calendar,
+  DollarSign,
+} from "lucide-react";
 import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -72,13 +85,6 @@ interface TeklifKalem {
   birimFiyat: number;
   birim: string;
   opsiyonel: boolean;
-}
-
-interface Firma {
-  id: number;
-  ad: string;
-  tip: string;
-  paraBirimi: string;
 }
 
 interface Gemi {
@@ -131,6 +137,7 @@ export default function Teklifler() {
   const [duzenleId, setDuzenleId] = useState<number | null>(null);
   const [silOnay, setSilOnay] = useState<number | null>(null);
   const [durumDegistirTeklif, setDurumDegistirTeklif] = useState<Teklif | null>(null);
+  const [pdfYukleniyor, setPdfYukleniyor] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     catiFirmaId: "" as string | number,
@@ -163,8 +170,6 @@ export default function Teklifler() {
   });
 
   const filtrelenmis = durumFiltre === "tumu" ? teklifListesi : teklifListesi.filter(t => t.durum === durumFiltre);
-
-  const aktifFirma = firmalar.find(f => f.id === Number(form.catiFirmaId));
   const firmaGemileri = gemiler.filter(g => g.firmaId === Number(form.catiFirmaId));
 
   function formAc(teklif?: Teklif) {
@@ -189,6 +194,7 @@ export default function Teklifler() {
       });
     } else {
       setDuzenleId(null);
+      const aktifFirma = firmalar.find(f => f.id === aktifSirketId);
       setForm({
         catiFirmaId: aktifSirketId ?? (firmalar[0]?.id ?? ""),
         gemiId: "",
@@ -197,7 +203,7 @@ export default function Teklifler() {
         aliciAd: "",
         aliciAdres: "",
         aliciTelefon: "",
-        paraBirimi: aktifFirma?.paraBirimi ?? "USD",
+        paraBirimi: (aktifFirma as { paraBirimi?: string } | undefined)?.paraBirimi ?? "USD",
         kurNotu: "",
         notlar: "",
         kosullar: "",
@@ -257,19 +263,19 @@ export default function Teklifler() {
     onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
-  function pdfIndir(teklif: Teklif) {
+  function pdfAc(teklif: Teklif) {
     const token = localStorage.getItem("panel_token") ?? "";
     const url = `${API_BASE}/api/teklifler/${teklif.id}/pdf`;
-    const a = document.createElement("a");
+    setPdfYukleniyor(teklif.id);
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.blob())
       .then(blob => {
-        a.href = URL.createObjectURL(blob);
-        a.download = `teklif-${teklif.teklifNo}.pdf`;
-        a.click();
-        URL.revokeObjectURL(a.href);
+        const objUrl = URL.createObjectURL(blob);
+        window.open(objUrl, "_blank");
+        setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
       })
-      .catch(() => toast({ title: "PDF oluşturulamadı", variant: "destructive" }));
+      .catch(() => toast({ title: "PDF oluşturulamadı", variant: "destructive" }))
+      .finally(() => setPdfYukleniyor(null));
   }
 
   const kalemGuncelle = useCallback((i: number, field: keyof TeklifKalem, value: string | number | boolean) => {
@@ -299,6 +305,11 @@ export default function Teklifler() {
     { key: "reddedildi", label: "Reddedildi" },
   ];
 
+  const durumSayilari = DURUMLAR.reduce<Record<string, number>>((acc, d) => {
+    acc[d.key] = d.key === "tumu" ? teklifListesi.length : teklifListesi.filter(t => t.durum === d.key).length;
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -313,6 +324,7 @@ export default function Teklifler() {
         )}
       </div>
 
+      {/* ── Durum Filtre Tabları ── */}
       <div className="flex gap-2 flex-wrap">
         {DURUMLAR.map(d => (
           <Button
@@ -320,75 +332,122 @@ export default function Teklifler() {
             variant={durumFiltre === d.key ? "default" : "outline"}
             size="sm"
             onClick={() => setDurumFiltre(d.key)}
+            className="gap-1.5"
           >
             {d.label}
+            <span className={`text-xs rounded-full px-1.5 py-0.5 ${durumFiltre === d.key ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
+              {durumSayilari[d.key]}
+            </span>
           </Button>
         ))}
       </div>
 
-      <div className="rounded-xl border overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead>Teklif No</TableHead>
-              <TableHead>Firma</TableHead>
-              <TableHead>Alıcı</TableHead>
-              <TableHead>Tarih</TableHead>
-              <TableHead>Geçerlilik</TableHead>
-              <TableHead>Para Birimi</TableHead>
-              <TableHead>Durum</TableHead>
-              <TableHead className="text-right">İşlemler</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Yükleniyor…</TableCell></TableRow>
-            ) : filtrelenmis.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                <FileText className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                <p>Teklif bulunamadı</p>
-              </TableCell></TableRow>
-            ) : filtrelenmis.map(t => (
-              <TableRow key={t.id} className="hover:bg-muted/30">
-                <TableCell className="font-mono text-sm font-medium text-primary">{t.teklifNo}</TableCell>
-                <TableCell>
-                  <div>{t.catiFirmaAd ?? "—"}</div>
-                  {t.gemiAd && <div className="text-xs text-muted-foreground">{t.gemiAd}</div>}
-                </TableCell>
-                <TableCell>{t.aliciAd}</TableCell>
-                <TableCell className="text-sm">{t.tarih}</TableCell>
-                <TableCell className="text-sm">{t.gecerlilikTarihi ?? "—"}</TableCell>
-                <TableCell>{t.paraBirimi}</TableCell>
-                <TableCell>
-                  <Badge variant={DURUM_RENK[t.durum] as "default" | "secondary" | "outline" | "destructive"}>
-                    {DURUM_ETIKET[t.durum]}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon" title="PDF İndir" onClick={() => pdfIndir(t)}>
-                      <FileDown className="h-4 w-4" />
-                    </Button>
-                    {canWrite && (
-                      <>
-                        <Button variant="ghost" size="icon" title="Durum Değiştir" onClick={() => setDurumDegistirTeklif(t)}>
-                          <CheckCircle2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" title="Düzenle" onClick={() => formAc(t)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" title="Sil" className="text-destructive hover:text-destructive" onClick={() => setSilOnay(t.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
+      {/* ── Kart Grid ── */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="rounded-xl border bg-card p-5 space-y-3 animate-pulse">
+              <div className="h-4 bg-muted rounded w-1/3" />
+              <div className="h-6 bg-muted rounded w-2/3" />
+              <div className="h-4 bg-muted rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : filtrelenmis.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
+          <FileText className="h-12 w-12 mb-4 opacity-20" />
+          <p className="font-medium">Teklif bulunamadı</p>
+          <p className="text-sm mt-1">Yeni teklif oluşturmak için "Yeni Teklif" butonunu kullanın.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtrelenmis.map(t => {
+            const zorunluToplam = 0;
+            return (
+              <div key={t.id} className="rounded-xl border bg-card shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                <div className="p-5 flex-1 space-y-3">
+                  {/* Üst: teklif no + durum */}
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-mono text-sm font-bold text-primary tracking-wide">{t.teklifNo}</span>
+                    <Badge variant={DURUM_RENK[t.durum] as "default" | "secondary" | "outline" | "destructive"} className="shrink-0">
+                      {DURUM_ETIKET[t.durum]}
+                    </Badge>
+                  </div>
+
+                  {/* Alıcı */}
+                  <div>
+                    <p className="font-semibold text-base leading-tight">{t.aliciAd}</p>
+                    {t.aliciAdres && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t.aliciAdres}</p>}
+                  </div>
+
+                  {/* Firma + Gemi */}
+                  <div className="space-y-1">
+                    {t.catiFirmaAd && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Building2 className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{t.catiFirmaAd}</span>
+                      </div>
+                    )}
+                    {t.gemiAd && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Ship className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{t.gemiAd}</span>
+                      </div>
                     )}
                   </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+
+                  {/* Tarihler */}
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      <span>{t.tarih}</span>
+                    </div>
+                    {t.gecerlilikTarihi && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground/50">→</span>
+                        <span>{t.gecerlilikTarihi}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Para birimi */}
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <DollarSign className="h-3 w-3" />
+                    <span>{t.paraBirimi}</span>
+                  </div>
+                </div>
+
+                {/* Alt: aksiyon butonları */}
+                <div className="border-t px-4 py-2.5 flex items-center justify-between bg-muted/20 rounded-b-xl">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary hover:text-primary hover:bg-primary/10 gap-1.5"
+                    onClick={() => pdfAc(t)}
+                    disabled={pdfYukleniyor === t.id}
+                  >
+                    <FileDown className="h-3.5 w-3.5" />
+                    {pdfYukleniyor === t.id ? "Yükleniyor…" : "PDF Görüntüle"}
+                  </Button>
+                  {canWrite && (
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Durum Değiştir" onClick={() => setDurumDegistirTeklif(t)}>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Düzenle" onClick={() => formAc(t)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" title="Sil" onClick={() => setSilOnay(t.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Create / Edit Modal ── */}
       <Dialog open={modalAcik} onOpenChange={setModalAcik}>
@@ -618,7 +677,10 @@ export default function Teklifler() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>İptal</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => silOnay !== null && silMutasyon.mutate(silOnay)}>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => silOnay !== null && silMutasyon.mutate(silOnay)}
+            >
               Sil
             </AlertDialogAction>
           </AlertDialogFooter>
