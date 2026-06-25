@@ -21,7 +21,6 @@ import {
   Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import toovLogo from "@assets/TOOV_1781531572101.png";
 import { useSirket } from "@/contexts/sirket-context";
 import { useListFirmalar, getListFirmalarQueryKey, useGlobalArama, getGlobalAramaQueryKey } from "@workspace/api-client-react";
 import {
@@ -100,7 +99,7 @@ function GlobalArama() {
           onChange={e => { setQ(e.target.value); setAcik(true); }}
           onFocus={() => setAcik(true)}
           placeholder="Ara..."
-          className="h-8 w-36 md:w-48 rounded-full border bg-background/60 pl-8 pr-7 text-sm outline-none ring-offset-background focus:ring-1 focus:ring-primary transition-all placeholder:text-muted-foreground"
+          className="h-8 w-36 md:w-48 rounded-none border bg-background/60 pl-8 pr-7 text-sm outline-none ring-offset-background focus:ring-1 focus:ring-primary transition-all placeholder:text-muted-foreground"
         />
         {q && (
           <button onClick={() => { setQ(""); setAramaQ(""); }} className="absolute right-2 text-muted-foreground hover:text-foreground">
@@ -109,14 +108,14 @@ function GlobalArama() {
         )}
       </div>
       {acik && aramaQ.length >= 2 && (
-        <div className="absolute right-0 top-full mt-1 w-72 md:w-80 rounded-xl border bg-popover shadow-lg z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-72 md:w-80 rounded-none border bg-popover shadow-lg z-50 overflow-hidden">
           {toplam === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">Sonuç bulunamadı.</p>
           ) : (
             <div className="max-h-96 overflow-y-auto">
               {(sonuclar?.firmalar?.length ?? 0) > 0 && (
                 <div>
-                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">Firmalar</p>
+                  <p className="px-3 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-widest bg-muted/50">Firmalar</p>
                   {sonuclar!.firmalar!.map(f => (
                     <button key={f.id} className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => { navigate("/firmalar"); setAcik(false); setQ(""); }}>
                       <p className="font-medium">{f.ad}</p>
@@ -127,7 +126,7 @@ function GlobalArama() {
               )}
               {(sonuclar?.gemiler?.length ?? 0) > 0 && (
                 <div>
-                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">Gemiler</p>
+                  <p className="px-3 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-widest bg-muted/50">Gemiler</p>
                   {sonuclar!.gemiler!.map(g => (
                     <button key={g.id} className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => { navigate(`/gemiler/${g.id}`); setAcik(false); setQ(""); }}>
                       <p className="font-medium">{g.ad}</p>
@@ -138,7 +137,7 @@ function GlobalArama() {
               )}
               {(sonuclar?.faturalar?.length ?? 0) > 0 && (
                 <div>
-                  <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">Faturalar</p>
+                  <p className="px-3 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-widest bg-muted/50">Faturalar</p>
                   {sonuclar!.faturalar!.map(f => (
                     <button key={f.id} className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => { navigate(`/faturalar/${f.id}`); setAcik(false); setQ(""); }}>
                       <p className="font-medium">{f.faturaNo}</p>
@@ -161,7 +160,7 @@ function NavLinks({ allNav, location, onNavigate }: {
   onNavigate?: () => void;
 }) {
   return (
-    <ul className="space-y-1 px-3">
+    <ul className="space-y-0.5 px-3">
       {allNav.map((item) => {
         const isActive = location === item.href || (location === "/" && item.href === "/dashboard");
         return (
@@ -170,13 +169,13 @@ function NavLinks({ allNav, location, onNavigate }: {
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "flex items-center px-3 py-2.5 rounded-full text-sm font-medium transition-colors",
+                "flex items-center px-3 py-2.5 rounded-none text-sm font-medium transition-colors border-l-2",
                 isActive
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  ? "bg-primary text-primary-foreground border-l-primary"
+                  : "text-sidebar-foreground border-l-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:border-l-primary/50"
               )}
             >
-              <item.icon className={cn("mr-3 h-5 w-5 shrink-0", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+              <item.icon className={cn("mr-3 h-4 w-4 shrink-0", isActive ? "text-primary-foreground" : "text-sidebar-foreground/60")} />
               {item.name}
             </Link>
           </li>
@@ -211,23 +210,29 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
 
-      {/* ── Desktop Sidebar ── */}
-      <div className="w-64 border-r bg-sidebar hidden md:flex flex-col">
-        <div className="h-16 flex items-center justify-center border-b shrink-0 px-4">
-          <img src={toovLogo} alt="TOOV" className="h-10 w-auto object-contain" />
+      {/* ── Desktop Sidebar — always dark ── */}
+      <div className="w-64 border-r border-sidebar-border bg-sidebar hidden md:flex flex-col">
+        {/* Logo */}
+        <div className="h-16 flex items-center px-5 border-b border-sidebar-border shrink-0">
+          <span className="text-xl font-black tracking-tight">
+            <span className="text-sidebar-foreground/40">&lt;</span>
+            <span className="text-sidebar-foreground mx-1.5">TOOV</span>
+            <span className="text-primary">/&gt;</span>
+          </span>
         </div>
 
-        <div className="px-3 py-3 border-b shrink-0">
-          <p className="text-xs text-muted-foreground px-2 mb-1.5 font-medium uppercase tracking-wider">Aktif Firma</p>
+        {/* Firma seçici */}
+        <div className="px-3 py-3 border-b border-sidebar-border shrink-0">
+          <p className="text-[10px] text-sidebar-foreground/40 px-2 mb-1.5 font-bold uppercase tracking-widest">Aktif Firma</p>
           <DropdownMenu>
-            <DropdownMenuTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-sidebar-accent hover:bg-sidebar-accent/80 text-sm font-medium transition-colors" data-testid="sirket-secici">
+            <DropdownMenuTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-none bg-sidebar-accent hover:bg-sidebar-accent/80 text-sm font-medium transition-colors text-sidebar-foreground border border-sidebar-border" data-testid="sirket-secici">
               <span className="truncate">{aktifSirketAd}</span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
+              <ChevronDown className="h-4 w-4 text-sidebar-foreground/40 shrink-0 ml-2" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem
                 onClick={() => setAktifSirketId(null)}
-                className={cn("cursor-pointer", aktifSirketId === null && "font-semibold text-primary")}
+                className={cn("cursor-pointer", aktifSirketId === null && "font-bold text-primary")}
                 data-testid="sirket-secici-tum"
               >
                 Tüm Firmalar
@@ -237,7 +242,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
                 <DropdownMenuItem
                   key={f.id}
                   onClick={() => setAktifSirketId(f.id)}
-                  className={cn("cursor-pointer", aktifSirketId === f.id && "font-semibold text-primary")}
+                  className={cn("cursor-pointer", aktifSirketId === f.id && "font-bold text-primary")}
                   data-testid={`sirket-secici-${f.id}`}
                 >
                   {f.ad}
@@ -247,18 +252,19 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
           </DropdownMenu>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4">
+        <nav className="flex-1 overflow-y-auto py-3">
           <NavLinks allNav={allNav} location={location} />
         </nav>
 
-        <div className="border-t px-3 py-3 shrink-0">
+        {/* Kullanıcı alanı */}
+        <div className="border-t border-sidebar-border px-3 py-3 shrink-0">
           <div className="flex items-center gap-3 px-2 py-1.5">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+            <div className="w-7 h-7 rounded-sm bg-primary flex items-center justify-center text-xs font-black text-primary-foreground shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{kullanici?.ad}</p>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <p className="text-sm font-semibold truncate text-sidebar-foreground">{kullanici?.ad}</p>
+              <p className="text-xs text-sidebar-foreground/50 flex items-center gap-1">
                 {isYonetici && <ShieldCheck className="h-3 w-3 text-primary" />}
                 {kullanici?.rol === "yonetici" ? "Yönetici" : kullanici?.rol === "muhasebeci" ? "Muhasebeci" : "Salt Okunur"}
               </p>
@@ -266,7 +272,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
             <button
               onClick={onLogout}
               title="Çıkış yap"
-              className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              className="w-7 h-7 rounded-sm flex items-center justify-center text-sidebar-foreground/40 hover:text-primary hover:bg-primary/10 transition-colors"
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -276,26 +282,29 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
 
       {/* ── Mobile Sheet ── */}
       <Sheet open={menuAcik} onOpenChange={setMenuAcik}>
-        <SheetContent side="left" className="w-72 p-0 flex flex-col bg-sidebar">
-          <SheetHeader className="h-16 flex flex-row items-center justify-center border-b px-4 shrink-0">
-            <SheetTitle className="sr-only">Menü</SheetTitle>
-            <img src={toovLogo} alt="TOOV" className="h-10 w-auto object-contain" />
+        <SheetContent side="left" className="w-72 p-0 flex flex-col bg-sidebar border-r-0">
+          <SheetHeader className="h-16 flex flex-row items-center px-5 border-b border-sidebar-border shrink-0">
+            <SheetTitle className="text-xl font-black tracking-tight">
+              <span className="text-sidebar-foreground/40">&lt;</span>
+              <span className="text-sidebar-foreground mx-1.5">TOOV</span>
+              <span className="text-primary">/&gt;</span>
+            </SheetTitle>
           </SheetHeader>
 
-          <div className="px-3 py-3 border-b shrink-0">
-            <p className="text-xs text-muted-foreground px-2 mb-1.5 font-medium uppercase tracking-wider">Aktif Firma</p>
+          <div className="px-3 py-3 border-b border-sidebar-border shrink-0">
+            <p className="text-[10px] text-sidebar-foreground/40 px-2 mb-1.5 font-bold uppercase tracking-widest">Aktif Firma</p>
             <DropdownMenu>
-              <DropdownMenuTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-sidebar-accent hover:bg-sidebar-accent/80 text-sm font-medium transition-colors">
+              <DropdownMenuTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-none bg-sidebar-accent hover:bg-sidebar-accent/80 text-sm font-medium transition-colors text-sidebar-foreground border border-sidebar-border">
                 <span className="truncate">{aktifSirketAd}</span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
+                <ChevronDown className="h-4 w-4 text-sidebar-foreground/40 shrink-0 ml-2" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuItem onClick={() => setAktifSirketId(null)} className={cn("cursor-pointer", aktifSirketId === null && "font-semibold text-primary")}>
+                <DropdownMenuItem onClick={() => setAktifSirketId(null)} className={cn("cursor-pointer", aktifSirketId === null && "font-bold text-primary")}>
                   Tüm Firmalar
                 </DropdownMenuItem>
                 {firmalar.length > 0 && <DropdownMenuSeparator />}
                 {firmalar.map(f => (
-                  <DropdownMenuItem key={f.id} onClick={() => setAktifSirketId(f.id)} className={cn("cursor-pointer", aktifSirketId === f.id && "font-semibold text-primary")}>
+                  <DropdownMenuItem key={f.id} onClick={() => setAktifSirketId(f.id)} className={cn("cursor-pointer", aktifSirketId === f.id && "font-bold text-primary")}>
                     {f.ad}
                   </DropdownMenuItem>
                 ))}
@@ -303,18 +312,18 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
             </DropdownMenu>
           </div>
 
-          <nav className="flex-1 overflow-y-auto py-4">
+          <nav className="flex-1 overflow-y-auto py-3">
             <NavLinks allNav={allNav} location={location} onNavigate={() => setMenuAcik(false)} />
           </nav>
 
-          <div className="border-t px-3 py-3 shrink-0">
+          <div className="border-t border-sidebar-border px-3 py-3 shrink-0">
             <div className="flex items-center gap-3 px-2 py-1.5">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+              <div className="w-7 h-7 rounded-sm bg-primary flex items-center justify-center text-xs font-black text-primary-foreground shrink-0">
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{kullanici?.ad}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <p className="text-sm font-semibold truncate text-sidebar-foreground">{kullanici?.ad}</p>
+                <p className="text-xs text-sidebar-foreground/50 flex items-center gap-1">
                   {isYonetici && <ShieldCheck className="h-3 w-3 text-primary" />}
                   {kullanici?.rol === "yonetici" ? "Yönetici" : kullanici?.rol === "muhasebeci" ? "Muhasebeci" : "Salt Okunur"}
                 </p>
@@ -322,7 +331,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
               <button
                 onClick={() => { onLogout(); setMenuAcik(false); }}
                 title="Çıkış yap"
-                className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                className="w-7 h-7 rounded-sm flex items-center justify-center text-sidebar-foreground/40 hover:text-primary transition-colors"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -333,33 +342,32 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
 
       {/* ── Main Content ── */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
+        {/* Header — white with bottom border */}
         <header className="h-14 md:h-16 border-b bg-background flex items-center justify-between px-4 md:px-8 z-10 shrink-0 gap-3">
-          {/* Mobil: hamburger + sayfa adı */}
           <div className="flex items-center gap-3 min-w-0">
             <button
-              className="md:hidden flex items-center justify-center w-9 h-9 rounded-full hover:bg-muted transition-colors shrink-0"
+              className="md:hidden flex items-center justify-center w-9 h-9 rounded-none hover:bg-muted transition-colors shrink-0"
               onClick={() => setMenuAcik(true)}
               aria-label="Menüyü aç"
             >
               <Menu className="h-5 w-5" />
             </button>
             <div className="min-w-0">
-              <h1 className="text-base md:text-xl font-semibold truncate">{currentPage}</h1>
+              <h1 className="text-base md:text-xl font-bold truncate leading-tight">{currentPage}</h1>
               <p className="text-xs text-muted-foreground truncate hidden sm:block">{aktifSirketAd}</p>
             </div>
           </div>
 
-          {/* Sağ: arama + kullanıcı */}
           <div className="flex items-center gap-2 shrink-0">
             <GlobalArama />
 
             <DropdownMenu>
-              <DropdownMenuTrigger className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary hover:bg-primary/20 transition-colors shrink-0">
+              <DropdownMenuTrigger className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center text-xs font-black text-primary-foreground hover:bg-primary/80 transition-colors shrink-0">
                 {initials}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <div className="px-3 py-2 text-sm">
-                  <p className="font-medium">{kullanici?.ad}</p>
+                  <p className="font-bold">{kullanici?.ad}</p>
                   <p className="text-xs text-muted-foreground">{kullanici?.email}</p>
                 </div>
                 <DropdownMenuSeparator />

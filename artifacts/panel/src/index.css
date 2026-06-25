@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto:wght@300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -47,93 +47,105 @@
   --font-sans: var(--app-font-sans);
   --font-display: var(--app-font-display);
 
-  --radius: 8px;
+  /* Radius scale — Renault system: square geometry everywhere except pills */
+  --radius: 2px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 4px;
+  --radius-3xl: 4px;
+  --radius-full: 9999px;
 }
 
 :root {
-  /* PlayStation Light: #f4f5f8, Dark: #0d0d14, Blue: #0070d1 */
-  --background: 225 20% 96%;
-  --foreground: 240 21% 6%;
-  
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: 208 100% 41%;
+  /* TOOV Design System — Renault-inspired: white canvas + Sunlight Yellow accent */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 7%;
+
+  --border: 0 0% 90%;
+  --input: 0 0% 85%;
+  --ring: 56 100% 50%;
 
   --card: 0 0% 100%;
-  --card-foreground: 240 21% 6%;
-  --card-border: 220 13% 91%;
+  --card-foreground: 0 0% 7%;
+  --card-border: 0 0% 88%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 240 21% 6%;
-  --popover-border: 220 13% 91%;
+  --popover-foreground: 0 0% 7%;
+  --popover-border: 0 0% 88%;
 
-  --primary: 208 100% 41%;
-  --primary-foreground: 0 0% 100%;
+  /* Sunlight Yellow — #ffed00 ≈ hsl(56,100%,50%) */
+  --primary: 56 100% 50%;
+  --primary-foreground: 0 0% 0%;
 
-  --secondary: 220 14% 96%;
-  --secondary-foreground: 240 21% 6%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 7%;
 
-  --muted: 220 14% 96%;
-  --muted-foreground: 220 9% 46%;
+  --muted: 0 0% 97%;
+  --muted-foreground: 0 0% 40%;
 
-  --accent: 220 14% 96%;
-  --accent-foreground: 240 21% 6%;
+  --accent: 0 0% 95%;
+  --accent-foreground: 0 0% 7%;
 
-  --destructive: 0 84% 60%;
+  --destructive: 0 60% 50%;
   --destructive-foreground: 0 0% 100%;
 
-  --sidebar: 0 0% 100%;
-  --sidebar-foreground: 240 21% 6%;
-  --sidebar-border: 220 13% 91%;
-  --sidebar-primary: 208 100% 41%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 220 14% 96%;
-  --sidebar-accent-foreground: 240 21% 6%;
-  --sidebar-ring: 208 100% 41%;
+  /* Sidebar — always dark (Surface-Dark: #000000) */
+  --sidebar: 0 0% 0%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 12%;
+  --sidebar-primary: 56 100% 50%;
+  --sidebar-primary-foreground: 0 0% 0%;
+  --sidebar-accent: 0 0% 10%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 56 100% 50%;
 
-  --app-font-sans: 'Inter', sans-serif;
-  --app-font-display: 'Roboto', sans-serif;
+  --app-font-sans: 'Manrope', sans-serif;
+  --app-font-display: 'Manrope', sans-serif;
 }
 
 .dark {
-  --background: 240 21% 6%;
-  --foreground: 225 20% 96%;
-  
-  --border: 240 10% 20%;
-  --input: 240 10% 20%;
-  --ring: 208 100% 41%;
+  /* Dark canvas — Surface-Dark: #000000 */
+  --background: 0 0% 0%;
+  --foreground: 0 0% 97%;
 
-  --card: 240 15% 10%;
-  --card-foreground: 225 20% 96%;
-  --card-border: 240 10% 20%;
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 56 100% 50%;
 
-  --popover: 240 15% 10%;
-  --popover-foreground: 225 20% 96%;
-  --popover-border: 240 10% 20%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 97%;
+  --card-border: 0 0% 15%;
 
-  --primary: 208 100% 41%;
-  --primary-foreground: 0 0% 100%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 97%;
+  --popover-border: 0 0% 15%;
 
-  --secondary: 240 10% 20%;
-  --secondary-foreground: 225 20% 96%;
+  --primary: 56 100% 50%;
+  --primary-foreground: 0 0% 0%;
 
-  --muted: 240 10% 20%;
-  --muted-foreground: 240 5% 65%;
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 0 0% 97%;
 
-  --accent: 240 10% 20%;
-  --accent-foreground: 225 20% 96%;
+  --muted: 0 0% 10%;
+  --muted-foreground: 0 0% 60%;
 
-  --destructive: 0 62% 30%;
-  --destructive-foreground: 225 20% 96%;
+  --accent: 0 0% 12%;
+  --accent-foreground: 0 0% 97%;
 
-  --sidebar: 240 21% 6%;
-  --sidebar-foreground: 225 20% 96%;
-  --sidebar-border: 240 10% 20%;
-  --sidebar-primary: 208 100% 41%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 10% 20%;
-  --sidebar-accent-foreground: 225 20% 96%;
-  --sidebar-ring: 208 100% 41%;
+  --destructive: 0 50% 40%;
+  --destructive-foreground: 0 0% 97%;
+
+  /* Sidebar stays dark in dark mode too */
+  --sidebar: 0 0% 0%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 12%;
+  --sidebar-primary: 56 100% 50%;
+  --sidebar-primary-foreground: 0 0% 0%;
+  --sidebar-accent: 0 0% 10%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 56 100% 50%;
 }
 
 @layer base {
@@ -144,8 +156,11 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display font-light;
+    font-family: var(--app-font-display);
+    font-weight: 700;
+    line-height: 0.95;
+    letter-spacing: 0;
   }
 }
