@@ -55,6 +55,7 @@ import {
   Calendar,
   DollarSign,
   Receipt,
+  Mail,
 } from "lucide-react";
 import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 
@@ -143,6 +144,9 @@ export default function Teklifler() {
   const [pdfYukleniyor, setPdfYukleniyor] = useState<number | null>(null);
   const [donusturTeklif, setDonusturTeklif] = useState<Teklif | null>(null);
   const [donusturBagliFirmaId, setDonusturBagliFirmaId] = useState<string>("");
+  const [gonderTeklif, setGonderTeklif] = useState<Teklif | null>(null);
+  const [gonderEposta, setGonderEposta] = useState<string>("");
+  const [gonderKonu, setGonderKonu] = useState<string>("");
 
   const [form, setForm] = useState({
     catiFirmaId: "" as string | number,
@@ -271,6 +275,19 @@ export default function Teklifler() {
       setDurumDegistirTeklif(null);
     },
     onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
+  const gonderMutasyon = useMutation({
+    mutationFn: ({ id, aliciAdres, aliciAd, konu }: { id: number; aliciAdres: string; aliciAd?: string; konu?: string }) =>
+      apiFetch(`/teklifler/${id}/gonder`, { method: "POST", body: JSON.stringify({ aliciAdres, aliciAd, konu }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["teklifler"] });
+      toast({ title: "Teklif gönderildi", description: `${gonderTeklif?.teklifNo} teklifi e-posta ile gönderildi ve durumu güncellendi.` });
+      setGonderTeklif(null);
+      setGonderEposta("");
+      setGonderKonu("");
+    },
+    onError: (e: Error) => toast({ title: "Gönderme hatası", description: e.message, variant: "destructive" }),
   });
 
   const donusturMutasyon = useMutation({
@@ -466,6 +483,19 @@ export default function Teklifler() {
                           Faturaya Dönüştür
                         </Button>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                        title="E-posta ile Gönder"
+                        onClick={() => {
+                          setGonderTeklif(t);
+                          setGonderEposta("");
+                          setGonderKonu(`Teklif ${t.teklifNo}`);
+                        }}
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" title="Durum Değiştir" onClick={() => setDurumDegistirTeklif(t)}>
                         <CheckCircle2 className="h-3.5 w-3.5" />
                       </Button>
@@ -744,6 +774,57 @@ export default function Teklifler() {
             >
               <Receipt className="mr-2 h-4 w-4" />
               {donusturMutasyon.isPending ? "Oluşturuluyor…" : "Fatura Oluştur"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── E-posta ile Gönder Dialog ── */}
+      <Dialog open={!!gonderTeklif} onOpenChange={o => !o && setGonderTeklif(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              <span className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Teklifi E-posta ile Gönder
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{gonderTeklif?.teklifNo}</span> numaralı teklif PDF eki olarak gönderilecek. Gönderim sonrası durum otomatik olarak <strong>Gönderildi</strong> olarak güncellenir.
+            </p>
+            <div className="space-y-1.5">
+              <Label>Alıcı E-posta <span className="text-destructive">*</span></Label>
+              <Input
+                type="email"
+                placeholder="ornek@firma.com"
+                value={gonderEposta}
+                onChange={e => setGonderEposta(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>E-posta Konusu</Label>
+              <Input
+                placeholder={`Teklif ${gonderTeklif?.teklifNo ?? ""}`}
+                value={gonderKonu}
+                onChange={e => setGonderKonu(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setGonderTeklif(null)}>İptal</Button>
+            <Button
+              disabled={!gonderEposta || gonderMutasyon.isPending}
+              onClick={() => gonderTeklif && gonderMutasyon.mutate({
+                id: gonderTeklif.id,
+                aliciAdres: gonderEposta,
+                aliciAd: gonderTeklif.aliciAd,
+                konu: gonderKonu || undefined,
+              })}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              {gonderMutasyon.isPending ? "Gönderiliyor…" : "Gönder"}
             </Button>
           </DialogFooter>
         </DialogContent>

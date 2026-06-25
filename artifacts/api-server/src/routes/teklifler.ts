@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { teklifler, teklifKalemleri, firmalar, gemiler, bankaHesaplari, faturalar, faturaKalemleri, faturaSerileri } from "@workspace/db";
+import { teklifler, teklifKalemleri, firmalar, gemiler, bankaHesaplari, faturalar, faturaKalemleri, faturaSerileri, firmaEpostaAyarlari } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
+import nodemailer from "nodemailer";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { TDocumentDefinitions, TableCell } from "pdfmake/interfaces";
@@ -249,6 +250,66 @@ router.delete("/teklifler/:id", requireYazma, async (req, res) => {
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Teklif silinemedi" });
+  }
+});
+
+// ── GÖNDER ────────────────────────────────────────────────────────────────
+router.post("/teklifler/:id/gonder", requireYazma, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { aliciAdres, aliciAd, konu } = req.body as { aliciAdres?: string; aliciAd?: string; konu?: string };
+    if (!aliciAdres) { res.status(400).json({ error: "aliciAdres zorunludur" }); return; }
+
+    const [row] = await db
+      .select({ t: teklifler, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
+      .from(teklifler)
+      .leftJoin(firmalar, eq(teklifler.catiFirmaId, firmalar.id))
+      .leftJoin(gemiler, eq(teklifler.gemiId, gemiler.id))
+      .where(eq(teklifler.id, id));
+    if (!row) { res.status(404).json({ error: "Teklif bulunamadı" }); return; }
+    if (!sirketErisimKontrol(row.t.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(row.t.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
+
+    const [ayarlar] = await db.select().from(firmaEpostaAyarlari)
+      .where(eq(firmaEpostaAyarlari.firmaId, row.t.catiFirmaId));
+    if (!ayarlar || !ayarlar.aktif || !ayarlar.smtpSifre) {
+      res.status(422).json({ error: "Bu firma için aktif SMTP ayarları yapılandırılmamış" }); return;
+    }
+
+    const pdfUrl = `http://localhost:${process.env.PORT ?? 3001}/api/teklifler/${id}/pdf`;
+    const pdfResp = await fetch(pdfUrl, {
+      headers: { authorization: req.headers.authorization ?? "" },
+    });
+    if (!pdfResp.ok) { res.status(500).json({ error: "PDF oluşturulamadı" }); return; }
+    const pdfBuffer = Buffer.from(await pdfResp.arrayBuffer());
+
+    const guvenlik = ayarlar.smtpGuvenlik ?? "starttls";
+    const transporter = nodemailer.createTransport({
+      host: ayarlar.smtpHost,
+      port: ayarlar.smtpPort ?? 587,
+      secure: guvenlik === "ssl",
+      requireTLS: guvenlik === "starttls",
+      auth: { user: ayarlar.smtpKullanici, pass: ayarlar.smtpSifre },
+    });
+
+    const teklifNo = row.t.teklifNo;
+    await transporter.sendMail({
+      from: `"${ayarlar.gonderenAd}" <${ayarlar.gonderenAdres}>`,
+      to: aliciAd ? `"${aliciAd}" <${aliciAdres}>` : aliciAdres,
+      subject: konu ?? `Teklif ${teklifNo}`,
+      text: `Sayın ${aliciAd ?? aliciAdres},\n\nEkte ${teklifNo} numaralı teklifimizi bulabilirsiniz.\n\nSaygılarımızla,\n${ayarlar.gonderenAd}`,
+      attachments: [{ filename: `teklif-${teklifNo}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
+    });
+
+    await db.update(teklifler).set({
+      durum: "gonderildi",
+      guncellenmeTarihi: new Date(),
+    }).where(eq(teklifler.id, id));
+
+    res.json({ mesaj: `Teklif ${teklifNo} adresine gönderildi: ${aliciAdres}` });
+  } catch (err) {
+    console.error("[teklif-gonder] error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "E-posta gönderilemedi" });
   }
 });
 
