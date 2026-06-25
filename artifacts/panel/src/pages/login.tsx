@@ -89,10 +89,10 @@ export default function Login({ onLogin }: Props) {
 
           <Button
             type="submit"
-            className="w-full h-11 rounded-none bg-[#ffed00] text-black font-black text-sm uppercase tracking-wider hover:bg-[#e6d200] border-0"
+            className="w-full h-11 rounded-none bg-[#ffed00] text-black font-black text-sm tracking-wider hover:bg-[#e6d200] border-0"
             disabled={yukleniyor}
           >
-            {yukleniyor ? "Giriş yapılıyor..." : "Giriş Yap"}
+            {yukleniyor ? "GİRİŞ YAPILIYOR..." : "GİRİŞ YAP"}
           </Button>
         </form>
 
