@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
+import toovBeyaz from "@assets/toov__beyaz_logo_1782430202251.png";
 import {
   LayoutDashboard,
   Building2,
@@ -213,12 +214,8 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
       {/* ── Desktop Sidebar — always dark ── */}
       <div className="w-64 border-r border-sidebar-border bg-sidebar hidden md:flex flex-col">
         {/* Logo */}
-        <div className="h-16 flex items-center px-5 border-b border-sidebar-border shrink-0">
-          <span className="text-xl font-black tracking-tight">
-            <span className="text-sidebar-foreground/40">&lt;</span>
-            <span className="text-sidebar-foreground mx-1.5">TOOV</span>
-            <span className="text-primary">/&gt;</span>
-          </span>
+        <div className="flex items-center justify-center px-5 py-5 border-b border-sidebar-border shrink-0">
+          <img src={toovBeyaz} alt="TOOV" className="w-36 h-auto" />
         </div>
 
         {/* Firma seçici */}
@@ -283,11 +280,9 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
       {/* ── Mobile Sheet ── */}
       <Sheet open={menuAcik} onOpenChange={setMenuAcik}>
         <SheetContent side="left" className="w-72 p-0 flex flex-col bg-sidebar border-r-0">
-          <SheetHeader className="h-16 flex flex-row items-center px-5 border-b border-sidebar-border shrink-0">
-            <SheetTitle className="text-xl font-black tracking-tight">
-              <span className="text-sidebar-foreground/40">&lt;</span>
-              <span className="text-sidebar-foreground mx-1.5">TOOV</span>
-              <span className="text-primary">/&gt;</span>
+          <SheetHeader className="flex flex-row items-center justify-center px-5 py-5 border-b border-sidebar-border shrink-0">
+            <SheetTitle className="flex items-center justify-center">
+              <img src={toovBeyaz} alt="TOOV" className="w-32 h-auto" />
             </SheetTitle>
           </SheetHeader>
 
