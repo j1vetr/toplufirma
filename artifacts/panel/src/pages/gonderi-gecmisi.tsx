@@ -130,7 +130,7 @@ export default function GonderiGecmisi() {
           <Button variant="outline" size="sm" onClick={sifirlaFiltreler} className="gap-1.5">
             <RotateCcw className="h-3.5 w-3.5" />
             Filtreleri Temizle
-            <span className="ml-0.5 bg-primary text-primary-foreground text-xs rounded-full px-1.5 py-0.5">{aktifFiltreSayisi}</span>
+            <span className="ml-0.5 bg-primary text-primary-foreground text-xs rounded-sm px-1.5 py-0.5">{aktifFiltreSayisi}</span>
           </Button>
         )}
       </div>

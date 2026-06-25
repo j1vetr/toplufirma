@@ -95,7 +95,7 @@ export default function BankaHesaplari() {
     }
   }
 
-  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}</div>;
+  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 bg-muted rounded-none" />)}</div>;
 
   const toplamlar = hesaplar.reduce((acc, h) => {
     const pb = h.paraBirimi;
@@ -109,14 +109,14 @@ export default function BankaHesaplari() {
       <div className="flex items-center justify-between">
         <div className="flex gap-3 flex-wrap">
           {Object.entries(toplamlar).map(([pb, toplam]) => (
-            <div key={pb} className="flex items-center gap-1.5 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-full">
+            <div key={pb} className="flex items-center gap-1.5 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-sm">
               {toplam >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
               <span className="font-semibold">{fmt(toplam, pb)}</span>
             </div>
           ))}
         </div>
         {canWrite && (
-          <Button onClick={() => ac()} className="rounded-full" data-testid="button-hesap-ekle">
+          <Button onClick={() => ac()} data-testid="button-hesap-ekle">
             <Plus className="mr-2 h-4 w-4" /> Yeni Hesap
           </Button>
         )}
@@ -124,11 +124,11 @@ export default function BankaHesaplari() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {hesaplar.map(h => (
-          <Card key={h.id} className="hover:shadow-md transition-shadow" data-testid={`card-hesap-${h.id}`}>
+          <Card key={h.id} className="" data-testid={`card-hesap-${h.id}`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-sm bg-green-500/10 flex items-center justify-center">
                     <Landmark className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
@@ -151,7 +151,7 @@ export default function BankaHesaplari() {
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <Badge variant={h.aktif ? "default" : "secondary"}>{h.aktif ? "Aktif" : "Pasif"}</Badge>
                 {h.faturadaGoster !== false && (
-                  <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full">
+                  <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-sm">
                     <FileText className="h-3 w-3" /> Faturada Göster
                   </span>
                 )}
@@ -219,8 +219,8 @@ export default function BankaHesaplari() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={kapat} className="rounded-full">İptal</Button>
-            <Button onClick={kaydet} disabled={!form.catiFirmaId || !form.bankaAdi || !form.hesapAdi} className="rounded-full" data-testid="button-hesap-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={kapat}>İptal</Button>
+            <Button onClick={kaydet} disabled={!form.catiFirmaId || !form.bankaAdi || !form.hesapAdi} data-testid="button-hesap-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -275,7 +275,7 @@ export default function Firmalar() {
 
   if (isLoading) return (
     <div className="animate-pulse space-y-4">
-      {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted rounded-xl" />)}
+      {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted rounded-none" />)}
     </div>
   );
 
@@ -283,10 +283,10 @@ export default function Firmalar() {
     <div className="space-y-4">
       {canWrite && (
         <div className="flex justify-end gap-2">
-          <Button onClick={() => acFirmaModal("cati")} variant="outline" className="rounded-full" data-testid="button-cati-firma-ekle">
+          <Button onClick={() => acFirmaModal("cati")} variant="outline" data-testid="button-cati-firma-ekle">
             <Plus className="mr-2 h-4 w-4" /> Firmanız Ekle
           </Button>
-          <Button onClick={() => acFirmaModal("grup")} className="rounded-full" data-testid="button-grup-firma-ekle">
+          <Button onClick={() => acFirmaModal("grup")} data-testid="button-grup-firma-ekle">
             <Plus className="mr-2 h-4 w-4" /> Çatı Firma Ekle
           </Button>
         </div>
@@ -304,7 +304,7 @@ export default function Firmalar() {
             <div className="divide-y">
               {catiFirmalar.map(cati => (
                 <div key={cati.id} className="flex items-center gap-3 px-4 py-3" data-testid={`card-cati-${cati.id}`}>
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="w-9 h-9 rounded-sm bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                     {cati.logoUrl ? <img src={cati.logoUrl} alt={cati.ad} className="w-full h-full object-contain" /> : <Building2 className="h-4 w-4 text-primary" />}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -363,7 +363,7 @@ export default function Firmalar() {
                   onClick={() => setAcikGrupFirmaId(acik ? null : grup.id)}
                   className="flex items-center gap-3 flex-1 text-left"
                 >
-                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="w-10 h-10 rounded-sm bg-amber-500/10 flex items-center justify-center shrink-0 overflow-hidden">
                     {grup.logoUrl ? <img src={grup.logoUrl} alt={grup.ad} className="w-full h-full object-contain" /> : <Building2 className="h-5 w-5 text-amber-600" />}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -400,7 +400,7 @@ export default function Firmalar() {
                 <div className="px-4 py-3 flex items-center justify-between">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Bağlı Firmalar</p>
                   {canWrite && (
-                    <Button size="sm" variant="outline" className="rounded-full h-7 text-xs" onClick={() => acFirmaModal("bagli", grup.id)}>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => acFirmaModal("bagli", grup.id)}>
                       <Plus className="mr-1 h-3 w-3" /> Bağlı Firma Ekle
                     </Button>
                   )}
@@ -411,7 +411,7 @@ export default function Firmalar() {
                   <div className="divide-y">
                     {bagliler.map(b => (
                       <div key={b.id} className="flex items-center gap-3 px-4 py-3" data-testid={`card-bagli-${b.id}`}>
-                        <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className="w-8 h-8 rounded-sm bg-blue-500/10 flex items-center justify-center shrink-0 overflow-hidden">
                           {b.logoUrl ? <img src={b.logoUrl} alt={b.ad} className="w-full h-full object-contain" /> : <Building2 className="h-4 w-4 text-blue-500" />}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -519,8 +519,8 @@ export default function Firmalar() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFirmaModal(false)} className="rounded-full">İptal</Button>
-            <Button onClick={kaydetFirma} disabled={!form.ad || createFirma.isPending || updateFirma.isPending} className="rounded-full" data-testid="button-firma-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={() => setFirmaModal(false)}>İptal</Button>
+            <Button onClick={kaydetFirma} disabled={!form.ad || createFirma.isPending || updateFirma.isPending} data-testid="button-firma-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -529,7 +529,7 @@ export default function Firmalar() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>SMTP / E-posta Ayarları</DialogTitle></DialogHeader>
           {smtpData && (
-            <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 mb-2">
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded-none border p-3 mb-2">
               Mevcut: {smtpData.smtpHost}:{smtpData.smtpPort} — {smtpData.gonderenAdres}
             </div>
           )}
@@ -577,11 +577,10 @@ export default function Firmalar() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSmtpFirmaId(null)} className="rounded-full">İptal</Button>
+            <Button variant="outline" onClick={() => setSmtpFirmaId(null)}>İptal</Button>
             <Button
               onClick={kaydetSmtp}
               disabled={!smtpForm.smtpHost || !smtpForm.smtpKullanici || !smtpForm.gonderenAd || !smtpForm.gonderenAdres || upsertSmtp.isPending}
-              className="rounded-full"
             >Kaydet</Button>
           </DialogFooter>
         </DialogContent>
@@ -603,14 +602,14 @@ export default function Firmalar() {
               <div className="ml-auto flex gap-1.5 flex-wrap">
                 <Button
                   size="sm" variant="outline"
-                  className="rounded-full gap-1.5 text-xs h-8"
+                  className="gap-1.5 text-xs h-8"
                   onClick={() => ekstreCsvIndir(ekstreData, ekstreFirmaAd ?? "ekstre")}
                 >
                   <Download className="h-3.5 w-3.5" />CSV İndir
                 </Button>
                 <Button
                   size="sm" variant="outline"
-                  className="rounded-full gap-1.5 text-xs h-8"
+                  className="gap-1.5 text-xs h-8"
                   onClick={() => {
                     if (!ekstreFirmaId) return;
                     ekstreExcelIndir(ekstreFirmaId, ekstreFirmaAd ?? "ekstre", ekstreBaslangic, ekstreBitis)
@@ -621,7 +620,7 @@ export default function Firmalar() {
                 </Button>
                 <Button
                   size="sm" variant="outline"
-                  className="rounded-full gap-1.5 text-xs h-8"
+                  className="gap-1.5 text-xs h-8"
                   onClick={() => {
                     if (!ekstreFirmaId) return;
                     ekstrePdfIndir(ekstreFirmaId, ekstreFirmaAd ?? "ekstre", ekstreBaslangic, ekstreBitis)

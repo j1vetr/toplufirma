@@ -135,7 +135,7 @@ export default function FaturaYeni() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
-        <Link href="/faturalar"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-4 w-4" /></Button></Link>
+        <Link href="/faturalar"><Button variant="ghost" size="icon" className="rounded-sm"><ArrowLeft className="h-4 w-4" /></Button></Link>
         <h2 className="text-xl font-display font-semibold">Yeni Fatura</h2>
       </div>
 
@@ -214,7 +214,7 @@ export default function FaturaYeni() {
             <Label>Notlar</Label>
             <Input value={notlar} onChange={e => setNotlar(e.target.value)} data-testid="input-fatura-notlar" />
           </div>
-          <div className="flex items-start gap-2.5 rounded-lg border p-3 bg-muted/30">
+          <div className="flex items-start gap-2.5 rounded-none border p-3 bg-muted/30">
             <Checkbox id="tekrarlat" checked={tekrarlat} onCheckedChange={v => setTekrarlat(v === true)} data-testid="checkbox-tekrarlat" />
             <div className="space-y-0.5">
               <Label htmlFor="tekrarlat" className="cursor-pointer">Bu faturayı aylık tekrarlat</Label>
@@ -227,7 +227,7 @@ export default function FaturaYeni() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Kalemler</CardTitle>
-          <Button variant="outline" size="sm" onClick={kalemEkle} className="rounded-full" data-testid="button-kalem-ekle">
+          <Button variant="outline" size="sm" onClick={kalemEkle} data-testid="button-kalem-ekle">
             <Plus className="mr-1 h-3.5 w-3.5" /> Kalem Ekle
           </Button>
         </CardHeader>
@@ -278,8 +278,8 @@ export default function FaturaYeni() {
       </Card>
 
       <div className="flex justify-end gap-3">
-        <Link href="/faturalar"><Button variant="outline" className="rounded-full">İptal</Button></Link>
-        <Button onClick={kaydet} disabled={createFatura.isPending} className="rounded-full" data-testid="button-fatura-kaydet">
+        <Link href="/faturalar"><Button variant="outline">İptal</Button></Link>
+        <Button onClick={kaydet} disabled={createFatura.isPending} data-testid="button-fatura-kaydet">
           {createFatura.isPending ? "Kaydediliyor..." : "Fatura Oluştur"}
         </Button>
       </div>

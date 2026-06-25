@@ -191,7 +191,7 @@ export default function Ayarlar() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex flex-col gap-3">
+            <div className="rounded-none border border-destructive/30 bg-destructive/5 p-4 flex flex-col gap-3">
               <div>
                 <p className="text-sm font-semibold">Tüm İş Verilerini Sil</p>
                 <p className="text-xs text-muted-foreground mt-1">

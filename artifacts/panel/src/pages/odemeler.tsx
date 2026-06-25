@@ -112,17 +112,17 @@ export default function Odemeler() {
     });
   }
 
-  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-lg" />)}</div>;
+  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-none" />)}</div>;
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
         <Card><CardContent className="p-5 flex items-center gap-3">
-          <div className="p-3 rounded-full bg-green-500/10"><TrendingUp className="h-5 w-5 text-green-500" /></div>
+          <div className="p-3 rounded-sm bg-green-500/10"><TrendingUp className="h-5 w-5 text-green-500" /></div>
           <div><p className="text-xs text-muted-foreground">Toplam Tahsilat</p><p className="text-xl font-display font-bold text-green-600">+{fmt(toplamTahsilat)}</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-5 flex items-center gap-3">
-          <div className="p-3 rounded-full bg-red-500/10"><TrendingDown className="h-5 w-5 text-red-500" /></div>
+          <div className="p-3 rounded-sm bg-red-500/10"><TrendingDown className="h-5 w-5 text-red-500" /></div>
           <div><p className="text-xs text-muted-foreground">Toplam Ödeme</p><p className="text-xl font-display font-bold text-red-500">-{fmt(toplamOdeme)}</p></div>
         </CardContent></Card>
       </div>
@@ -149,7 +149,7 @@ export default function Odemeler() {
             </SelectContent>
           </Select>
           {canWrite && (
-            <Button onClick={() => setModalAcik(true)} className="rounded-full shrink-0" data-testid="button-odeme-yeni">
+            <Button onClick={() => setModalAcik(true)} className="shrink-0" data-testid="button-odeme-yeni">
               <Plus className="mr-2 h-4 w-4" /> Yeni İşlem
             </Button>
           )}
@@ -167,9 +167,9 @@ export default function Odemeler() {
 
       <div className="space-y-2">
         {filtrelenmis.map(o => (
-          <Card key={o.id} className="hover:shadow-sm transition-shadow" data-testid={`card-odeme-${o.id}`}>
+          <Card key={o.id} className="" data-testid={`card-odeme-${o.id}`}>
             <CardContent className="p-4 flex items-center gap-4">
-              <div className={`p-2 rounded-full ${o.tip === "tahsilat" ? "bg-green-500/10" : "bg-red-500/10"}`}>
+              <div className={`p-2 rounded-sm ${o.tip === "tahsilat" ? "bg-green-500/10" : "bg-red-500/10"}`}>
                 {o.tip === "tahsilat" ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
               </div>
               <div className="flex-1 min-w-0">
@@ -258,8 +258,8 @@ export default function Odemeler() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModalAcik(false)} className="rounded-full">İptal</Button>
-            <Button onClick={kaydet} disabled={createOdeme.isPending} className="rounded-full" data-testid="button-yeni-odeme-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={() => setModalAcik(false)}>İptal</Button>
+            <Button onClick={kaydet} disabled={createOdeme.isPending} data-testid="button-yeni-odeme-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

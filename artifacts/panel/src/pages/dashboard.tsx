@@ -75,9 +75,9 @@ export default function Dashboard() {
     return (
       <div className="animate-pulse space-y-4">
         <div className="grid grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-32 bg-muted rounded-xl" />)}
+          {[1,2,3,4].map(i => <div key={i} className="h-32 bg-muted rounded-none" />)}
         </div>
-        <div className="h-64 bg-muted rounded-xl" />
+        <div className="h-64 bg-muted rounded-none" />
       </div>
     );
   }
@@ -99,9 +99,9 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi, i) => (
-          <Card key={i} className="border-none shadow-sm bg-card hover:shadow-md transition-shadow">
+          <Card key={i} className="border bg-card">
             <CardContent className="p-5 flex items-center space-x-4">
-              <div className={`p-4 rounded-full ${kpi.bg}`}>
+              <div className={`p-4 rounded-sm ${kpi.bg}`}>
                 <kpi.icon className={`h-6 w-6 ${kpi.color}`} />
               </div>
               <div>
@@ -115,7 +115,7 @@ export default function Dashboard() {
 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="col-span-2 shadow-sm">
+        <Card className="col-span-2">
           <CardHeader>
             <CardTitle className="font-display text-base">
               {aktifSirketId === null
@@ -164,7 +164,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="">
           <CardHeader>
             <CardTitle className="font-display text-base">Para Birimi Dağılımı</CardTitle>
           </CardHeader>
@@ -194,7 +194,7 @@ export default function Dashboard() {
 
 
       {kritikDilimler.length > 0 && (
-        <Card className="shadow-sm border-orange-200 bg-orange-50/40 dark:bg-orange-950/10">
+        <Card className="border-orange-200 bg-orange-50/40 dark:bg-orange-950/10">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="font-display text-base flex items-center gap-2">
@@ -215,7 +215,7 @@ export default function Dashboard() {
                 const bglar = ["bg-green-500/10", "bg-yellow-500/10", "bg-orange-500/10", "bg-red-500/10"];
                 const idx = agingData?.dilimler?.findIndex(x => x.etiket === d.etiket) ?? i;
                 return (
-                  <div key={d.etiket} className={`p-3 rounded-lg ${bglar[idx] ?? "bg-muted"}`}>
+                  <div key={d.etiket} className={`p-3 rounded-none ${bglar[idx] ?? "bg-muted"}`}>
                     <p className="text-xs text-muted-foreground">{d.etiket}</p>
                     <p className={`text-lg font-display font-bold mt-0.5 ${renkler[idx] ?? ""}`}>{fmt(d.toplamTutar)}</p>
                     <p className="text-xs text-muted-foreground">{d.faturaSayisi} fatura</p>
@@ -229,7 +229,7 @@ export default function Dashboard() {
 
       {sonIslemler && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="shadow-sm">
+          <Card className="">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="font-display text-base">Son Faturalar</CardTitle>
               <Link href="/faturalar" className="text-xs text-primary hover:underline">Tümü →</Link>
@@ -255,7 +255,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
+          <Card className="">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="font-display text-base">Son Ödemeler</CardTitle>
               <Link href="/odemeler" className="text-xs text-primary hover:underline">Tümü →</Link>

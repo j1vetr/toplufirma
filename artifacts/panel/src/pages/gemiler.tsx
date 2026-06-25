@@ -94,7 +94,7 @@ export default function Gemiler() {
     }
   }
 
-  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-lg" />)}</div>;
+  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-none" />)}</div>;
 
   return (
     <div className="space-y-6">
@@ -104,7 +104,7 @@ export default function Gemiler() {
           <Input className="pl-9" placeholder="Gemi ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-gemi-ara" />
         </div>
         {canWrite && (
-          <Button onClick={() => ac()} className="rounded-full" data-testid="button-gemi-ekle">
+          <Button onClick={() => ac()} data-testid="button-gemi-ekle">
             <Plus className="mr-2 h-4 w-4" /> Yeni Gemi
           </Button>
         )}
@@ -112,11 +112,11 @@ export default function Gemiler() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtrelenmis.map(g => (
-          <Card key={g.id} className="hover:shadow-md transition-shadow" data-testid={`card-gemi-${g.id}`}>
+          <Card key={g.id} className="" data-testid={`card-gemi-${g.id}`}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-sm bg-blue-500/10 flex items-center justify-center">
                     <Ship className="h-5 w-5 text-blue-500" />
                   </div>
                   <div>
@@ -177,8 +177,8 @@ export default function Gemiler() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={kapat} className="rounded-full">İptal</Button>
-            <Button onClick={kaydet} disabled={!form.firmaId || !form.ad} className="rounded-full" data-testid="button-gemi-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={kapat}>İptal</Button>
+            <Button onClick={kaydet} disabled={!form.firmaId || !form.ad} data-testid="button-gemi-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

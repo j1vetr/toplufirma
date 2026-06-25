@@ -165,13 +165,13 @@ export default function FaturaDetay() {
     }
   }
 
-  if (isLoading) return <div className="animate-pulse space-y-4"><div className="h-32 bg-muted rounded-xl" /><div className="h-64 bg-muted rounded-xl" /></div>;
+  if (isLoading) return <div className="animate-pulse space-y-4"><div className="h-32 bg-muted rounded-none" /><div className="h-64 bg-muted rounded-none" /></div>;
   if (!fatura) return <div className="text-center py-16 text-muted-foreground">Fatura bulunamadı.</div>;
 
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
-        <Link href="/faturalar"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-4 w-4" /></Button></Link>
+        <Link href="/faturalar"><Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
         {fatura.catiFirmaLogoUrl && (
           <img src={fatura.catiFirmaLogoUrl} alt={fatura.catiFirmaAd ?? ""} className="h-10 w-auto max-w-[100px] object-contain rounded" />
         )}
@@ -186,7 +186,7 @@ export default function FaturaDetay() {
         <div className="flex gap-2 flex-wrap justify-end">
           {canWrite && (
             <Button
-              variant="outline" size="sm" className="rounded-full"
+              variant="outline" size="sm"
               onClick={() => {
                 const kopya = {
                   catiFirmaId: fatura.catiFirmaId,
@@ -208,7 +208,7 @@ export default function FaturaDetay() {
             </Button>
           )}
           <Button
-            variant="outline" size="sm" className="rounded-full"
+            variant="outline" size="sm"
             disabled={pdfIndiriyor}
             onClick={async () => {
               setPdfIndiriyor(true);
@@ -219,16 +219,16 @@ export default function FaturaDetay() {
           >
             <Download className="mr-1 h-4 w-4" /> {pdfIndiriyor ? "İndiriliyor..." : "PDF"}
           </Button>
-          <Button variant="outline" size="sm" className="rounded-full" onClick={() => setGonderModal(true)}>
+          <Button variant="outline" size="sm" onClick={() => setGonderModal(true)}>
             <Mail className="mr-1 h-4 w-4" /> E-posta
           </Button>
           {canWrite && fatura.durum === "taslak" && (
-            <Button size="sm" className="rounded-full" onClick={() => durumGuncelle("acik")} disabled={updateFatura.isPending} data-testid="button-kesinlestir">
+            <Button size="sm" onClick={() => durumGuncelle("acik")} disabled={updateFatura.isPending} data-testid="button-kesinlestir">
               <CheckCircle2 className="mr-1 h-4 w-4" /> Kesinleştir
             </Button>
           )}
           {canWrite && (fatura.durum === "acik" || fatura.durum === "kismi_odendi") && (
-            <Button size="sm" className="rounded-full" onClick={() => setOdemeModal(true)} data-testid="button-odeme-ekle">
+            <Button size="sm" onClick={() => setOdemeModal(true)} data-testid="button-odeme-ekle">
               <Plus className="mr-1 h-4 w-4" /> Ödeme Kaydet
             </Button>
           )}
@@ -324,7 +324,7 @@ export default function FaturaDetay() {
                 <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">— {pb} Hesapları —</p>
                 <div className="space-y-2">
                   {bankalarGruplu[pb].map(b => (
-                    <div key={b.id} className="text-sm p-3 bg-muted/50 rounded-lg">
+                    <div key={b.id} className="text-sm p-3 bg-muted/50 rounded-none border">
                       <p className="font-medium">{b.bankaAdi}</p>
                       <p className="text-muted-foreground">{b.hesapAdi}</p>
                       {b.iban && <p className="font-mono text-xs mt-1">{b.iban}</p>}
@@ -416,8 +416,8 @@ export default function FaturaDetay() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOdemeModal(false)} className="rounded-full">İptal</Button>
-            <Button onClick={odemeKaydet} disabled={!odemeTutar || createOdeme.isPending} className="rounded-full">Kaydet</Button>
+            <Button variant="outline" onClick={() => setOdemeModal(false)}>İptal</Button>
+            <Button onClick={odemeKaydet} disabled={!odemeTutar || createOdeme.isPending}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -437,8 +437,8 @@ export default function FaturaDetay() {
             <p className="text-xs text-muted-foreground">Fatura PDF eki ile çatı firmanın SMTP ayarları üzerinden gönderilir.</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setGonderModal(false)} className="rounded-full">İptal</Button>
-            <Button onClick={gonderFatura} disabled={!aliciAdres || gonderiyor} className="rounded-full">
+            <Button variant="outline" onClick={() => setGonderModal(false)}>İptal</Button>
+            <Button onClick={gonderFatura} disabled={!aliciAdres || gonderiyor}>
               {gonderiyor ? "Gönderiliyor..." : "Gönder"}
             </Button>
           </DialogFooter>

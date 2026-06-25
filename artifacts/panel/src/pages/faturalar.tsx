@@ -246,14 +246,14 @@ export default function Faturalar() {
     const vadesiGecmis = f.vadeTarihi < bugun && (f.durum === "acik" || f.durum === "kismi_odendi");
     const secili = secilenler.has(f.id);
     return (
-      <Card key={f.id} className={`hover:shadow-sm transition-shadow ${vadesiGecmis ? "border-red-300" : ""} ${secili ? "ring-1 ring-primary" : ""}`} data-testid={`card-fatura-${f.id}`}>
+      <Card key={f.id} className={`${vadesiGecmis ? "border-red-300" : ""} ${secili ? "ring-1 ring-primary" : ""}`} data-testid={`card-fatura-${f.id}`}>
         <CardContent className="p-4 flex items-center gap-3">
           <Checkbox
             checked={secili}
             onCheckedChange={() => secToggle(f.id)}
             className="shrink-0"
           />
-          <div className={`p-2 rounded-full ${vadesiGecmis ? "bg-red-500/10" : "bg-orange-500/10"}`}>
+          <div className={`p-2 rounded-sm ${vadesiGecmis ? "bg-red-500/10" : "bg-orange-500/10"}`}>
             {vadesiGecmis ? <AlertCircle className="h-4 w-4 text-red-500" /> : <FileText className="h-4 w-4 text-orange-500" />}
           </div>
           <div className="flex-1 min-w-0">
@@ -308,7 +308,7 @@ export default function Faturalar() {
     );
   }
 
-  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-16 bg-muted rounded-lg" />)}</div>;
+  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-16 bg-muted rounded-none" />)}</div>;
 
   return (
     <div className="space-y-6">
@@ -334,7 +334,7 @@ export default function Faturalar() {
           </Select>
           {canWrite && (
             <Link href="/faturalar/yeni">
-              <Button className="rounded-full shrink-0" data-testid="button-fatura-yeni">
+              <Button className="shrink-0" data-testid="button-fatura-yeni">
                 <Plus className="mr-2 h-4 w-4" /> Yeni Fatura
               </Button>
             </Link>
@@ -353,18 +353,18 @@ export default function Faturalar() {
           {taslakSayisi > 0 && (
             <button
               onClick={() => setDurumFiltre(durumFiltre === "taslak" ? "tumu" : "taslak")}
-              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors shrink-0 ${
+              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-none border transition-colors shrink-0 ${
                 durumFiltre === "taslak"
                   ? "bg-slate-600 text-white border-slate-600"
                   : "bg-slate-500/10 text-slate-600 border-slate-300 hover:bg-slate-500/20"
               }`}
             >
-              <span className={`inline-flex items-center justify-center rounded-full text-[10px] font-bold h-4 min-w-4 px-1 ${durumFiltre === "taslak" ? "bg-white/20 text-white" : "bg-slate-500/20 text-slate-700"}`}>{taslakSayisi}</span>
+              <span className={`inline-flex items-center justify-center rounded-sm text-[10px] font-bold h-4 min-w-4 px-1 ${durumFiltre === "taslak" ? "bg-white/20 text-white" : "bg-slate-500/20 text-slate-700"}`}>{taslakSayisi}</span>
               Bekleyen Taslak
             </button>
           )}
           <Button
-            variant="outline" size="sm" className="rounded-full ml-auto gap-1.5"
+            variant="outline" size="sm" className="ml-auto gap-1.5"
             disabled={excelIndiriyor}
             onClick={async () => {
               setExcelIndiriyor(true);
@@ -389,7 +389,7 @@ export default function Faturalar() {
           <div className="ml-auto flex items-center gap-2">
             <span className="text-sm font-medium text-primary">{secilenler.size} seçildi</span>
             <Button
-              size="sm" variant="outline" className="h-7 text-xs rounded-full gap-1"
+              size="sm" variant="outline" className="h-7 text-xs gap-1"
               disabled={topluPdfIndiriyor}
               onClick={topluPdfIndir}
             >
@@ -398,7 +398,7 @@ export default function Faturalar() {
             </Button>
             {canWrite && (
               <Button
-                size="sm" variant="outline" className="h-7 text-xs rounded-full gap-1"
+                size="sm" variant="outline" className="h-7 text-xs gap-1"
                 onClick={() => setTopluDurumModal(true)}
               >
                 <SquarePen className="h-3 w-3" />
@@ -459,8 +459,8 @@ export default function Faturalar() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOdemeModal(false)} className="rounded-full">İptal</Button>
-            <Button onClick={odemeKaydet} disabled={!odemeTutar || createOdeme.isPending} className="rounded-full">Kaydet</Button>
+            <Button variant="outline" onClick={() => setOdemeModal(false)}>İptal</Button>
+            <Button onClick={odemeKaydet} disabled={!odemeTutar || createOdeme.isPending}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -480,8 +480,8 @@ export default function Faturalar() {
             <p className="text-xs text-muted-foreground">Fatura PDF eki ile çatı firmanın SMTP ayarları üzerinden gönderilir.</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setGonderModal(false)} className="rounded-full">İptal</Button>
-            <Button onClick={gonderFatura} disabled={!aliciAdres || gonderiyor} className="rounded-full">
+            <Button variant="outline" onClick={() => setGonderModal(false)}>İptal</Button>
+            <Button onClick={gonderFatura} disabled={!aliciAdres || gonderiyor}>
               {gonderiyor ? "Gönderiliyor..." : "Gönder"}
             </Button>
           </DialogFooter>
@@ -504,8 +504,8 @@ export default function Faturalar() {
             <p className="text-xs text-muted-foreground">Seçili {secilenler.size} faturanın durumu "{DURUM_ETIKET[topluDurum]}" olarak güncellenir.</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTopluDurumModal(false)} className="rounded-full">İptal</Button>
-            <Button onClick={topluDurumKaydet} disabled={topluDurumGuncelle.isPending} className="rounded-full">Uygula</Button>
+            <Button variant="outline" onClick={() => setTopluDurumModal(false)}>İptal</Button>
+            <Button onClick={topluDurumKaydet} disabled={topluDurumGuncelle.isPending}>Uygula</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

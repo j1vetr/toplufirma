@@ -66,13 +66,13 @@ export default function BankaHesabiDetay() {
   const { data: hesap, isLoading } = useGetBankaHesabi(id, { query: { enabled: !!id, queryKey: getGetBankaHesabiQueryKey(id) } });
   const { data: hareketler } = useGetBankaHesabiHareketleri(id, { query: { enabled: !!id, queryKey: getGetBankaHesabiHareketleriQueryKey(id) } });
 
-  if (isLoading) return <div className="animate-pulse space-y-4"><div className="h-32 bg-muted rounded-xl" /><div className="h-64 bg-muted rounded-xl" /></div>;
+  if (isLoading) return <div className="animate-pulse space-y-4"><div className="h-32 bg-muted rounded-none" /><div className="h-64 bg-muted rounded-none" /></div>;
   if (!hesap) return <div className="text-center py-16 text-muted-foreground">Hesap bulunamadi.</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/banka-hesaplari"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-4 w-4" /></Button></Link>
+        <Link href="/banka-hesaplari"><Button variant="ghost" size="icon" className="rounded-sm"><ArrowLeft className="h-4 w-4" /></Button></Link>
         <div>
           <h2 className="text-xl font-display font-semibold">{hesap.bankaAdi} - {hesap.hesapAdi}</h2>
           <p className="text-sm text-muted-foreground">{hesap.catiFirmaAd}</p>
@@ -82,21 +82,21 @@ export default function BankaHesabiDetay() {
             <>
               <Button
                 variant="outline" size="sm"
-                className="rounded-full gap-1.5 text-xs"
+                className="gap-1.5 text-xs"
                 onClick={() => csvIndir(hareketler.hareketler ?? [], `${hesap.bankaAdi}-${hesap.hesapAdi}`)}
               >
                 <Download className="h-3.5 w-3.5" />CSV İndir
               </Button>
               <Button
                 variant="outline" size="sm"
-                className="rounded-full gap-1.5 text-xs"
+                className="gap-1.5 text-xs"
                 onClick={() => excelIndir(id, `${hesap.bankaAdi}-${hesap.hesapAdi}`).catch(() => {})}
               >
                 <Download className="h-3.5 w-3.5" />Excel İndir
               </Button>
               <Button
                 variant="outline" size="sm"
-                className="rounded-full gap-1.5 text-xs"
+                className="gap-1.5 text-xs"
                 onClick={() => pdfIndir(id, `${hesap.bankaAdi}-${hesap.hesapAdi}`).catch(() => {})}
               >
                 <Download className="h-3.5 w-3.5" />PDF İndir
@@ -113,11 +113,11 @@ export default function BankaHesabiDetay() {
       {hareketler && (
         <div className="grid grid-cols-2 gap-4">
           <Card><CardContent className="p-5 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-green-500/10"><TrendingUp className="h-5 w-5 text-green-500" /></div>
+            <div className="p-3 rounded-sm bg-green-500/10"><TrendingUp className="h-5 w-5 text-green-500" /></div>
             <div><p className="text-xs text-muted-foreground">Toplam Gelen</p><p className="text-xl font-display font-bold">{fmt(hareketler.toplamGelen, hesap.paraBirimi)}</p></div>
           </CardContent></Card>
           <Card><CardContent className="p-5 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-red-500/10"><TrendingDown className="h-5 w-5 text-red-500" /></div>
+            <div className="p-3 rounded-sm bg-red-500/10"><TrendingDown className="h-5 w-5 text-red-500" /></div>
             <div><p className="text-xs text-muted-foreground">Toplam Giden</p><p className="text-xl font-display font-bold">{fmt(hareketler.toplamGiden, hesap.paraBirimi)}</p></div>
           </CardContent></Card>
         </div>

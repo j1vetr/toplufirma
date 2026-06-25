@@ -233,14 +233,14 @@ export default function TekrarlayanFaturalar() {
     ? bagliFirmalar.filter(f => f.ustFirmaId === Number(form.catiFirmaId))
     : bagliFirmalar;
 
-  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-lg" />)}</div>;
+  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-none" />)}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">{filtreli.length} kayıt</p>
         {canWrite && (
-          <Button className="rounded-full" onClick={() => acModal()} data-testid="button-tekrar-yeni">
+          <Button onClick={() => acModal()} data-testid="button-tekrar-yeni">
             <Plus className="mr-2 h-4 w-4" /> Yeni Tanım
           </Button>
         )}
@@ -259,10 +259,10 @@ export default function TekrarlayanFaturalar() {
               ? tr.kalemler
               : [{ aciklama: tr.aciklama, miktar: 1, birimFiyat: tr.birimFiyat, kdvOrani: tr.kdvOrani }];
             return (
-              <Card key={tr.id} className={`hover:shadow-sm transition-shadow ${!tr.aktif ? "opacity-50" : ""}`}>
+              <Card key={tr.id} className={`${!tr.aktif ? "opacity-50" : ""}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-full bg-primary/10">
+                    <div className="p-2 rounded-sm bg-primary/10">
                       <RefreshCw className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -385,7 +385,7 @@ export default function TekrarlayanFaturalar() {
             <div className="col-span-2 space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs">Kalemler *</Label>
-                <Button type="button" variant="outline" size="sm" className="h-7 rounded-full text-xs" onClick={kalemEkle} data-testid="button-tekrar-kalem-ekle">
+                <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={kalemEkle} data-testid="button-tekrar-kalem-ekle">
                   <Plus className="mr-1 h-3 w-3" /> Kalem Ekle
                 </Button>
               </div>
@@ -445,8 +445,8 @@ export default function TekrarlayanFaturalar() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModal(false)} className="rounded-full">İptal</Button>
-            <Button onClick={kaydet} disabled={create.isPending || update.isPending} className="rounded-full">Kaydet</Button>
+            <Button variant="outline" onClick={() => setModal(false)}>İptal</Button>
+            <Button onClick={kaydet} disabled={create.isPending || update.isPending}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

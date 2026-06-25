@@ -107,7 +107,7 @@ export default function Ekipmanlar() {
     }
   }
 
-  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-lg" />)}</div>;
+  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-none" />)}</div>;
 
   return (
     <div className="space-y-6">
@@ -122,7 +122,7 @@ export default function Ekipmanlar() {
         </Select>
         {canWrite && (
           <Button
-            onClick={() => ac()} className="rounded-full ml-auto" data-testid="button-ekipman-ekle"
+            onClick={() => ac()} className="ml-auto" data-testid="button-ekipman-ekle"
             disabled={!secilenGemiId}
           >
             <Plus className="mr-2 h-4 w-4" /> Ekipman Ekle
@@ -144,9 +144,9 @@ export default function Ekipmanlar() {
           {gemiEkipmanlari.map(e => {
             const garantiUyari = e.garantiBitisTarihi && e.garantiBitisTarihi <= in30Str;
             return (
-              <Card key={e.id} className={`hover:shadow-sm transition-shadow ${garantiUyari ? "border-amber-300" : ""}`} data-testid={`card-ekipman-${e.id}`}>
+              <Card key={e.id} className={`${garantiUyari ? "border-amber-300" : ""}`} data-testid={`card-ekipman-${e.id}`}>
                 <CardContent className="p-4 flex items-center gap-4">
-                  <div className={`p-2 rounded-full ${garantiUyari ? "bg-amber-500/10" : "bg-purple-500/10"}`}>
+                  <div className={`p-2 rounded-sm ${garantiUyari ? "bg-amber-500/10" : "bg-purple-500/10"}`}>
                     <HardDrive className={`h-4 w-4 ${garantiUyari ? "text-amber-500" : "text-purple-500"}`} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -220,8 +220,8 @@ export default function Ekipmanlar() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={kapat} className="rounded-full">İptal</Button>
-            <Button onClick={kaydet} disabled={!form.gemiId || !form.tip || !form.seriNo} className="rounded-full" data-testid="button-ekipman-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={kapat}>İptal</Button>
+            <Button onClick={kaydet} disabled={!form.gemiId || !form.tip || !form.seriNo} data-testid="button-ekipman-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

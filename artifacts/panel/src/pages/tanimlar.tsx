@@ -116,15 +116,15 @@ export default function Tanimlar() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="kdv">
-        <TabsList className="rounded-full">
-          <TabsTrigger value="kdv" className="rounded-full">KDV Oranları</TabsTrigger>
-          <TabsTrigger value="seriler" className="rounded-full">Fatura Serileri</TabsTrigger>
+        <TabsList className="rounded-none">
+          <TabsTrigger value="kdv" className="rounded-none">KDV Oranları</TabsTrigger>
+          <TabsTrigger value="seriler" className="rounded-none">Fatura Serileri</TabsTrigger>
         </TabsList>
 
         <TabsContent value="kdv" className="mt-6">
           {canWrite && (
             <div className="flex justify-end mb-4">
-              <Button onClick={() => kdvAc()} className="rounded-full" data-testid="button-kdv-ekle">
+              <Button onClick={() => kdvAc()} data-testid="button-kdv-ekle">
                 <Plus className="mr-2 h-4 w-4" /> KDV Oranı Ekle
               </Button>
             </div>
@@ -153,7 +153,7 @@ export default function Tanimlar() {
         <TabsContent value="seriler" className="mt-6">
           {canWrite && (
             <div className="flex justify-end mb-4">
-              <Button onClick={() => seriAc()} className="rounded-full" data-testid="button-seri-ekle">
+              <Button onClick={() => seriAc()} data-testid="button-seri-ekle">
                 <Plus className="mr-2 h-4 w-4" /> Seri Ekle
               </Button>
             </div>
@@ -211,8 +211,8 @@ export default function Tanimlar() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setKdvModal(false)} className="rounded-full">İptal</Button>
-            <Button onClick={kdvKaydet} disabled={!kdvForm.catiFirmaId || !kdvForm.ad || !kdvForm.oran} className="rounded-full" data-testid="button-kdv-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={() => setKdvModal(false)}>İptal</Button>
+            <Button onClick={kdvKaydet} disabled={!kdvForm.catiFirmaId || !kdvForm.ad || !kdvForm.oran} data-testid="button-kdv-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -249,8 +249,8 @@ export default function Tanimlar() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSeriModal(false)} className="rounded-full">İptal</Button>
-            <Button onClick={seriKaydet} disabled={!seriForm.catiFirmaId || !seriForm.ad || !seriForm.onek} className="rounded-full" data-testid="button-seri-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={() => setSeriModal(false)}>İptal</Button>
+            <Button onClick={seriKaydet} disabled={!seriForm.catiFirmaId || !seriForm.ad || !seriForm.onek} data-testid="button-seri-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -191,31 +191,31 @@ export default function Kullanicilar({ kullanici }: Props) {
           <h1 className="text-2xl font-display font-semibold">Kullanıcı Yönetimi</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Panel kullanıcılarını ve şirket erişimlerini yönetin</p>
         </div>
-        <Button onClick={() => acDialog()} className="rounded-full gap-2" data-testid="button-kullanici-yeni">
+        <Button onClick={() => acDialog()} className="gap-2" data-testid="button-kullanici-yeni">
           <Plus className="h-4 w-4" /> Yeni Kullanıcı
         </Button>
       </div>
 
       {yukleniyor ? (
         <div className="animate-pulse space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-20 bg-muted rounded-xl" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-20 bg-muted rounded-none" />)}
         </div>
       ) : (
         <div className="grid gap-3">
           {kullanicilar.map(k => (
-            <Card key={k.id} className="border-none shadow-sm" data-testid={`card-kullanici-${k.id}`}>
+            <Card key={k.id} className="" data-testid={`card-kullanici-${k.id}`}>
               <CardContent className="flex items-center gap-4 py-4 px-5">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-sm bg-primary/10 flex items-center justify-center shrink-0">
                   <User className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm">{k.ad}</span>
-                    <Badge className={`text-xs flex items-center gap-1 px-2 py-0 rounded-full ${rolRenk(k.rol)}`}>
+                    <Badge className={`text-xs flex items-center gap-1 px-2 py-0 rounded-sm ${rolRenk(k.rol)}`}>
                       {ROL_ETIKET[k.rol]?.icon}
                       {ROL_ETIKET[k.rol]?.label ?? k.rol}
                     </Badge>
-                    {!k.aktif && <Badge variant="outline" className="text-xs rounded-full text-muted-foreground">Pasif</Badge>}
+                    {!k.aktif && <Badge variant="outline" className="text-xs rounded-sm text-muted-foreground">Pasif</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground">{k.email}</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
@@ -226,7 +226,7 @@ export default function Kullanicilar({ kullanici }: Props) {
                   </p>
                   <div className="flex flex-wrap gap-1.5 mt-1">
                     {k.sirketler.length > 0 ? k.sirketler.map(s => (
-                      <span key={s.sirketId} className="inline-flex items-center gap-1 text-xs bg-muted rounded-full px-2 py-0.5">
+                      <span key={s.sirketId} className="inline-flex items-center gap-1 text-xs bg-muted rounded-sm px-2 py-0.5">
                         <Building2 className="h-2.5 w-2.5 text-muted-foreground" />
                         {sirketAd(s.sirketId)}
                         {s.rol !== "muhasebeci" && (
@@ -242,7 +242,7 @@ export default function Kullanicilar({ kullanici }: Props) {
                 </div>
                 <div className="flex gap-2">
                   <Button
-                    size="icon" variant="ghost" className="h-8 w-8 rounded-full"
+                    size="icon" variant="ghost" className="h-8 w-8"
                     onClick={() => acDialog(k)}
                     disabled={k.id === currentUserId}
                     title={k.id === currentUserId ? "Kendi hesabınızı düzenleyemezsiniz" : undefined}
@@ -251,7 +251,7 @@ export default function Kullanicilar({ kullanici }: Props) {
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
-                    size="icon" variant="ghost" className="h-8 w-8 rounded-full text-destructive hover:text-destructive"
+                    size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive"
                     onClick={() => { setSilHedef(k); setSilDialogAcik(true); }}
                     disabled={k.id === currentUserId}
                     title={k.id === currentUserId ? "Kendi hesabınızı silemezsiniz" : undefined}
@@ -294,7 +294,7 @@ export default function Kullanicilar({ kullanici }: Props) {
               <div className="space-y-1.5">
                 <Label>Global Rol</Label>
                 <Select value={form.rol} onValueChange={v => setForm(f => ({ ...f, rol: v }))}>
-                  <SelectTrigger className="rounded-lg" data-testid="select-kullanici-rol"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-sm" data-testid="select-kullanici-rol"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="yonetici">Yönetici</SelectItem>
                     <SelectItem value="muhasebeci">Muhasebeci</SelectItem>
@@ -305,7 +305,7 @@ export default function Kullanicilar({ kullanici }: Props) {
               <div className="space-y-1.5">
                 <Label>Durum</Label>
                 <Select value={form.aktif ? "aktif" : "pasif"} onValueChange={v => setForm(f => ({ ...f, aktif: v === "aktif" }))}>
-                  <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="aktif">Aktif</SelectItem>
                     <SelectItem value="pasif">Pasif</SelectItem>
@@ -317,7 +317,7 @@ export default function Kullanicilar({ kullanici }: Props) {
             <div className="space-y-1.5">
               <Label>Şirket Erişimi</Label>
               <p className="text-xs text-muted-foreground">Her şirket için ayrı erişim seviyesi belirleyin.</p>
-              <div className="space-y-2 rounded-lg border p-3 max-h-48 overflow-y-auto">
+              <div className="space-y-2 rounded-none border p-3 max-h-48 overflow-y-auto">
                 {(sirketler as Array<{ id: number; ad: string }>).map((s) => {
                   const atama = form.sirketler.find(x => x.sirketId === s.id);
                   const checked = !!atama;
@@ -335,7 +335,7 @@ export default function Kullanicilar({ kullanici }: Props) {
                           value={atama!.rol}
                           onValueChange={rol => sirketRolGuncelle(s.id, rol)}
                         >
-                          <SelectTrigger className="w-36 h-7 text-xs rounded-lg">
+                          <SelectTrigger className="w-36 h-7 text-xs rounded-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -354,8 +354,8 @@ export default function Kullanicilar({ kullanici }: Props) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="rounded-full" onClick={() => setDialogAcik(false)}>İptal</Button>
-            <Button className="rounded-full" onClick={kaydet} data-testid="button-kullanici-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={() => setDialogAcik(false)}>İptal</Button>
+            <Button onClick={kaydet} data-testid="button-kullanici-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

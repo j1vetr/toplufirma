@@ -132,19 +132,19 @@ export default function Raporlar() {
       </div>
 
       <Tabs defaultValue="kdv">
-        <TabsList className="rounded-full">
-          <TabsTrigger value="kdv" className="rounded-full">KDV Özeti</TabsTrigger>
-          <TabsTrigger value="yaslandirma" className="rounded-full">Alacak Yaşlandırma</TabsTrigger>
-          <TabsTrigger value="gemi" className="rounded-full">Gemi Bazlı Gelir</TabsTrigger>
+        <TabsList className="rounded-none">
+          <TabsTrigger value="kdv" className="rounded-none">KDV Özeti</TabsTrigger>
+          <TabsTrigger value="yaslandirma" className="rounded-none">Alacak Yaşlandırma</TabsTrigger>
+          <TabsTrigger value="gemi" className="rounded-none">Gemi Bazlı Gelir</TabsTrigger>
         </TabsList>
 
         <TabsContent value="kdv" className="mt-6">
           {kdvYukleniyor ? (
-            <div className="animate-pulse space-y-3">{[1,2].map(i => <div key={i} className="h-20 bg-muted rounded-lg" />)}</div>
+            <div className="animate-pulse space-y-3">{[1,2].map(i => <div key={i} className="h-20 bg-muted rounded-none" />)}</div>
           ) : kdvOzeti ? (
             <div className="space-y-6">
               <div className="flex justify-end">
-                <Button variant="outline" size="sm" className="rounded-full" onClick={() => csvIndir([
+                <Button variant="outline" size="sm" onClick={() => csvIndir([
                   { "KDV Haric": kdvOzeti.kdvHaricToplam, "KDV Tutari": kdvOzeti.kdvTutariToplam, "KDV Dahil": kdvOzeti.kdvDahilToplam }
                 ], `kdv-ozeti-${yil}${ay ? "-" + ay : ""}.csv`)}>
                   <Download className="mr-2 h-4 w-4" /> CSV İndir
@@ -209,11 +209,11 @@ export default function Raporlar() {
 
         <TabsContent value="yaslandirma" className="mt-6">
           {yasYukleniyor ? (
-            <div className="animate-pulse space-y-3">{[1,2].map(i => <div key={i} className="h-20 bg-muted rounded-lg" />)}</div>
+            <div className="animate-pulse space-y-3">{[1,2].map(i => <div key={i} className="h-20 bg-muted rounded-none" />)}</div>
           ) : yaslandirma?.dilimler ? (
             <div className="space-y-6">
               <div className="flex justify-end">
-                <Button variant="outline" size="sm" className="rounded-full" onClick={() => {
+                <Button variant="outline" size="sm" onClick={() => {
                   const rows = yaslandirma.dilimler?.flatMap(d =>
                     (d.faturalar ?? []).map(f => ({ dilim: d.etiket, faturaNo: f.faturaNo, durum: f.durum, vade: f.vadeTarihi, tutar: f.genelToplam, pb: f.paraBirimi }))
                   ) ?? [];
@@ -279,13 +279,13 @@ export default function Raporlar() {
 
         <TabsContent value="gemi" className="mt-6">
           {gemiYukleniyor ? (
-            <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-lg" />)}</div>
+            <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-none" />)}</div>
           ) : gemiGelir.length === 0 ? (
             <div className="text-center text-muted-foreground py-16">Fatura atanmış gemi bulunamadı.</div>
           ) : (
             <div className="space-y-4">
               <div className="flex justify-end">
-                <Button variant="outline" size="sm" className="rounded-full" onClick={() => csvIndir(
+                <Button variant="outline" size="sm" onClick={() => csvIndir(
                   gemiGelir.map(g => ({ Gemi: g.gemiAd, IMO: g.gemiImo ?? "", "Fatura Sayısı": g.faturaSayisi, "Toplam Fatura": g.toplamFatura, "Toplam Tahsilat": g.toplamTahsilat })),
                   `gemi-gelir-${yil}.csv`
                 )}>
