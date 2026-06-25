@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, firmalar, gemiler } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { faturalar, firmalar, gemiler, odemeler } from "@workspace/db";
+import { eq, inArray } from "drizzle-orm";
 import { sirketErisimKontrol } from "../middleware/auth";
 
 const router = Router();
@@ -157,6 +157,67 @@ router.get("/raporlar/alacak-yaslandirma", async (req, res) => {
     res.json({ dilimler: result });
   } catch {
     res.status(500).json({ error: "Alacak yaşlandırma raporu alınamadı" });
+  }
+});
+
+router.get("/raporlar/gemi-gelir", async (req, res) => {
+  try {
+    const { catiFirmaId, yil } = req.query as Record<string, string>;
+
+    if (catiFirmaId && !sirketErisimKontrol(Number(catiFirmaId), req)) {
+      res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return;
+    }
+
+    const rows = await db
+      .select({ f: faturalar, gemiAd: gemiler.ad, gemiImo: gemiler.imoNumarasi })
+      .from(faturalar)
+      .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id));
+
+    let filtered = rows.filter(r => r.f.gemiId !== null);
+
+    if (catiFirmaId) {
+      filtered = filtered.filter(r => r.f.catiFirmaId === Number(catiFirmaId));
+    } else if (req.kullanici?.rol !== "yonetici") {
+      const izinli = req.izinliSirketler ?? [];
+      filtered = filtered.filter(r => izinli.includes(r.f.catiFirmaId));
+    }
+
+    if (yil) filtered = filtered.filter(r => r.f.faturaTarihi.startsWith(yil));
+
+    const faturaIds = filtered.map(r => r.f.id);
+    const odemeRows = faturaIds.length > 0
+      ? await db.select().from(odemeler).where(inArray(odemeler.faturaId, faturaIds))
+      : [];
+
+    const tahsilatMap: Record<number, number> = {};
+    for (const o of odemeRows) {
+      if (o.faturaId && o.tip === "tahsilat") {
+        tahsilatMap[o.faturaId] = (tahsilatMap[o.faturaId] ?? 0) + Number(o.tutar);
+      }
+    }
+
+    const gemiMap: Record<number, {
+      gemiId: number; gemiAd: string; gemiImo: string | null;
+      toplamFatura: number; toplamTahsilat: number; faturaSayisi: number;
+    }> = {};
+
+    for (const r of filtered) {
+      if (!r.f.gemiId) continue;
+      if (!gemiMap[r.f.gemiId]) {
+        gemiMap[r.f.gemiId] = {
+          gemiId: r.f.gemiId, gemiAd: r.gemiAd ?? "Bilinmiyor",
+          gemiImo: r.gemiImo ?? null, toplamFatura: 0, toplamTahsilat: 0, faturaSayisi: 0,
+        };
+      }
+      gemiMap[r.f.gemiId].toplamFatura += Number(r.f.genelToplam);
+      gemiMap[r.f.gemiId].toplamTahsilat += tahsilatMap[r.f.id] ?? 0;
+      gemiMap[r.f.gemiId].faturaSayisi++;
+    }
+
+    const result = Object.values(gemiMap).sort((a, b) => b.toplamFatura - a.toplamFatura);
+    res.json({ gemiler: result });
+  } catch {
+    res.status(500).json({ error: "Gemi gelir raporu alınamadı" });
   }
 });
 

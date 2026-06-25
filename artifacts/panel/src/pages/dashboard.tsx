@@ -65,6 +65,12 @@ export default function Dashboard() {
     { query: { queryKey: [...getGetAlacakYaslandirmaQueryKey(firmaParam), aktifSirketId] } },
   );
 
+  const toplamVadesiGecmisTutar = agingData?.dilimler
+    ?.filter(d => d.etiket !== "0-30 Gün")
+    .reduce((s, d) => s + d.toplamTutar, 0) ?? 0;
+
+  const kritikDilimler = agingData?.dilimler?.filter(d => d.faturaSayisi > 0) ?? [];
+
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4">
@@ -186,6 +192,40 @@ export default function Dashboard() {
         </Card>
       </div>
 
+
+      {kritikDilimler.length > 0 && (
+        <Card className="shadow-sm border-orange-200 bg-orange-50/40 dark:bg-orange-950/10">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="font-display text-base flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                Alacak Yaşlandırma
+              </CardTitle>
+              {toplamVadesiGecmisTutar > 0 && (
+                <span className="text-sm font-semibold text-orange-600">
+                  {fmt(toplamVadesiGecmisTutar)} vadesi geçmiş
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {kritikDilimler.map((d, i) => {
+                const renkler = ["text-green-600", "text-yellow-600", "text-orange-600", "text-red-600"];
+                const bglar = ["bg-green-500/10", "bg-yellow-500/10", "bg-orange-500/10", "bg-red-500/10"];
+                const idx = agingData?.dilimler?.findIndex(x => x.etiket === d.etiket) ?? i;
+                return (
+                  <div key={d.etiket} className={`p-3 rounded-lg ${bglar[idx] ?? "bg-muted"}`}>
+                    <p className="text-xs text-muted-foreground">{d.etiket}</p>
+                    <p className={`text-lg font-display font-bold mt-0.5 ${renkler[idx] ?? ""}`}>{fmt(d.toplamTutar)}</p>
+                    <p className="text-xs text-muted-foreground">{d.faturaSayisi} fatura</p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {sonIslemler && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

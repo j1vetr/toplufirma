@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   useGetKdvOzeti, getGetKdvOzetiQueryKey,
   useGetAlacakYaslandirma, getGetAlacakYaslandirmaQueryKey,
@@ -72,6 +72,27 @@ export default function Raporlar() {
     query: { queryKey: [...getGetAlacakYaslandirmaQueryKey(), catiFirmaId] },
   });
 
+  type GemiGelirRow = { gemiId: number; gemiAd: string; gemiImo: string | null; toplamFatura: number; toplamTahsilat: number; faturaSayisi: number };
+  const [gemiGelir, setGemiGelir] = useState<GemiGelirRow[]>([]);
+  const [gemiYukleniyor, setGemiYukleniyor] = useState(false);
+
+  const gemiGelirGetir = useCallback(async () => {
+    setGemiYukleniyor(true);
+    try {
+      const token = localStorage.getItem("panel_token");
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const params = new URLSearchParams();
+      if (catiFirmaId && catiFirmaId !== "all") params.set("catiFirmaId", catiFirmaId);
+      if (yil) params.set("yil", yil);
+      const resp = await fetch(`${base}/api/raporlar/gemi-gelir?${params}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (resp.ok) { const j = await resp.json(); setGemiGelir(j.gemiler ?? []); }
+    } finally { setGemiYukleniyor(false); }
+  }, [catiFirmaId, yil]);
+
+  useEffect(() => { gemiGelirGetir(); }, [gemiGelirGetir]);
+
   const grafigVerisi = yaslandirma?.dilimler?.map(d => ({
     etiket: d.etiket,
     tutar: d.toplamTutar,
@@ -114,6 +135,7 @@ export default function Raporlar() {
         <TabsList className="rounded-full">
           <TabsTrigger value="kdv" className="rounded-full">KDV Özeti</TabsTrigger>
           <TabsTrigger value="yaslandirma" className="rounded-full">Alacak Yaşlandırma</TabsTrigger>
+          <TabsTrigger value="gemi" className="rounded-full">Gemi Bazlı Gelir</TabsTrigger>
         </TabsList>
 
         <TabsContent value="kdv" className="mt-6">
@@ -253,6 +275,72 @@ export default function Raporlar() {
               ))}
             </div>
           ) : <div className="text-center text-muted-foreground py-16">Veri bulunamadı.</div>}
+        </TabsContent>
+
+        <TabsContent value="gemi" className="mt-6">
+          {gemiYukleniyor ? (
+            <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-lg" />)}</div>
+          ) : gemiGelir.length === 0 ? (
+            <div className="text-center text-muted-foreground py-16">Fatura atanmış gemi bulunamadı.</div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" className="rounded-full" onClick={() => csvIndir(
+                  gemiGelir.map(g => ({ Gemi: g.gemiAd, IMO: g.gemiImo ?? "", "Fatura Sayısı": g.faturaSayisi, "Toplam Fatura": g.toplamFatura, "Toplam Tahsilat": g.toplamTahsilat })),
+                  `gemi-gelir-${yil}.csv`
+                )}>
+                  <Download className="mr-2 h-4 w-4" /> CSV İndir
+                </Button>
+              </div>
+              <Card>
+                <CardHeader><CardTitle className="text-base">Gemi Bazlı Gelir — {yil}</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                  <div className="divide-y">
+                    {gemiGelir.map((g, i) => {
+                      const tahsilatOrani = g.toplamFatura > 0 ? (g.toplamTahsilat / g.toplamFatura) * 100 : 0;
+                      return (
+                        <div key={g.gemiId} className="flex items-center justify-between px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-muted-foreground w-6">{i + 1}.</span>
+                            <div>
+                              <p className="font-semibold text-sm">{g.gemiAd}</p>
+                              {g.gemiImo && <p className="text-xs text-muted-foreground">IMO: {g.gemiImo}</p>}
+                              <p className="text-xs text-muted-foreground">{g.faturaSayisi} fatura</p>
+                            </div>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <p className="font-bold">{fmt(g.toplamFatura)}</p>
+                            <p className="text-xs text-green-600">Tahsilat: {fmt(g.toplamTahsilat)}</p>
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <div className="h-1.5 w-20 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(tahsilatOrani, 100)}%` }} />
+                              </div>
+                              <span className="text-xs text-muted-foreground">%{tahsilatOrani.toFixed(0)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-base">Gemi Gelir Grafiği</CardTitle></CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={gemiGelir.slice(0, 10).map(g => ({ isim: g.gemiAd.length > 12 ? g.gemiAd.slice(0, 12) + "…" : g.gemiAd, tutar: g.toplamFatura }))} margin={{ top: 5, right: 20, left: 10, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="isim" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(v) => [fmt(Number(v)), "Toplam Fatura"]} />
+                      <Bar dataKey="tutar" fill="#0070d1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

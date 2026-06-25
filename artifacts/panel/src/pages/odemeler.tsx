@@ -39,6 +39,9 @@ export default function Odemeler() {
   const { toast } = useToast();
   const [arama, setArama] = useState("");
   const [tipFiltre, setTipFiltre] = useState("tumu");
+  const [pbFiltre, setPbFiltre] = useState("tumu");
+  const [baslangicTarihi, setBaslangicTarihi] = useState("");
+  const [bitisTarihi, setBitisTarihi] = useState("");
   const [modalAcik, setModalAcik] = useState(false);
   const [silId, setSilId] = useState<number | null>(null);
 
@@ -70,10 +73,15 @@ export default function Odemeler() {
 
   const filtrelenmisBagliFirmalar = bagliFirmalar.filter(f => !catiFirmaId || f.ustFirmaId === Number(catiFirmaId));
 
+  const mevcutPblar = [...new Set(odemeler.map(o => o.paraBirimi))].filter(Boolean);
+
   const filtrelenmis = odemeler.filter(o => {
     const aramaUyum = !arama || o.bagliFirmaAd?.toLowerCase().includes(arama.toLowerCase()) || o.aciklama?.toLowerCase().includes(arama.toLowerCase());
     const tipUyum = tipFiltre === "tumu" || o.tip === tipFiltre;
-    return aramaUyum && tipUyum;
+    const pbUyum = pbFiltre === "tumu" || o.paraBirimi === pbFiltre;
+    const baslangicUyum = !baslangicTarihi || o.tarih >= baslangicTarihi;
+    const bitisUyum = !bitisTarihi || o.tarih <= bitisTarihi;
+    return aramaUyum && tipUyum && pbUyum && baslangicUyum && bitisUyum;
   });
 
   const toplamTahsilat = filtrelenmis.filter(o => o.tip === "tahsilat").reduce((s, o) => s + o.tutar, 0);
@@ -117,22 +125,40 @@ export default function Odemeler() {
         </CardContent></Card>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Firma veya açıklama ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-odeme-ara" />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Firma veya açıklama ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-odeme-ara" />
+          </div>
+          <Select value={tipFiltre} onValueChange={setTipFiltre}>
+            <SelectTrigger className="w-40" data-testid="select-odeme-tip-filtre"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tumu">Tümü</SelectItem>
+              <SelectItem value="tahsilat">Tahsilat</SelectItem>
+              <SelectItem value="odeme">Ödeme</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={pbFiltre} onValueChange={setPbFiltre}>
+            <SelectTrigger className="w-32"><SelectValue placeholder="Para Birimi" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tumu">Tüm PB</SelectItem>
+              {mevcutPblar.map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => setModalAcik(true)} className="rounded-full shrink-0" data-testid="button-odeme-yeni">
+            <Plus className="mr-2 h-4 w-4" /> Yeni İşlem
+          </Button>
         </div>
-        <Select value={tipFiltre} onValueChange={setTipFiltre}>
-          <SelectTrigger className="w-40" data-testid="select-odeme-tip-filtre"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="tumu">Tümü</SelectItem>
-            <SelectItem value="tahsilat">Tahsilat</SelectItem>
-            <SelectItem value="odeme">Ödeme</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button onClick={() => setModalAcik(true)} className="rounded-full" data-testid="button-odeme-yeni">
-          <Plus className="mr-2 h-4 w-4" /> Yeni İşlem
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Label className="text-xs text-muted-foreground shrink-0">Tarih:</Label>
+          <Input type="date" value={baslangicTarihi} onChange={e => setBaslangicTarihi(e.target.value)} className="h-8 w-36 text-xs" />
+          <span className="text-muted-foreground text-xs">—</span>
+          <Input type="date" value={bitisTarihi} onChange={e => setBitisTarihi(e.target.value)} className="h-8 w-36 text-xs" />
+          {(baslangicTarihi || bitisTarihi) && (
+            <button onClick={() => { setBaslangicTarihi(""); setBitisTarihi(""); }} className="text-xs text-muted-foreground hover:text-foreground px-1">✕</button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">

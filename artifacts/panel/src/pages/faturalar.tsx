@@ -64,12 +64,32 @@ async function pdfIndir(id: number, faturaNo: string) {
   URL.revokeObjectURL(url);
 }
 
+async function excelIndir(catiFirmaId?: number | null) {
+  const token = localStorage.getItem("panel_token");
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  const params = new URLSearchParams();
+  if (catiFirmaId) params.set("catiFirmaId", String(catiFirmaId));
+  const resp = await fetch(`${base}/api/faturalar/excel?${params}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) throw new Error("Excel indirilemedi");
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "faturalar.xlsx"; a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Faturalar() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { aktifSirketId } = useSirket();
   const [arama, setArama] = useState("");
   const [durumFiltre, setDurumFiltre] = useState("tumu");
+  const [pbFiltre, setPbFiltre] = useState("tumu");
+  const [baslangicTarihi, setBaslangicTarihi] = useState("");
+  const [bitisTarihi, setBitisTarihi] = useState("");
+  const [excelIndiriyor, setExcelIndiriyor] = useState(false);
   const [silId, setSilId] = useState<number | null>(null);
 
   const [odemeModal, setOdemeModal] = useState(false);
@@ -104,8 +124,13 @@ export default function Faturalar() {
   const filtrelenmis = faturalar.filter(f => {
     const aramaUyum = !arama || f.faturaNo?.toLowerCase().includes(arama.toLowerCase()) || f.bagliFirmaAd?.toLowerCase().includes(arama.toLowerCase());
     const durumUyum = durumFiltre === "tumu" || f.durum === durumFiltre;
-    return aramaUyum && durumUyum;
+    const pbUyum = pbFiltre === "tumu" || f.paraBirimi === pbFiltre;
+    const baslangicUyum = !baslangicTarihi || f.faturaTarihi >= baslangicTarihi;
+    const bitisUyum = !bitisTarihi || f.faturaTarihi <= bitisTarihi;
+    return aramaUyum && durumUyum && pbUyum && baslangicUyum && bitisUyum;
   });
+
+  const mevcutPblar = [...new Set(faturalar.map(f => f.paraBirimi))].filter(Boolean);
 
   function secToggle(id: number) {
     setSecilenler(prev => {
@@ -283,43 +308,69 @@ export default function Faturalar() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Fatura no veya firma ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-fatura-ara" />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Fatura no veya firma ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-fatura-ara" />
+          </div>
+          <Select value={durumFiltre} onValueChange={setDurumFiltre}>
+            <SelectTrigger className="w-44" data-testid="select-fatura-durum"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tumu">Tüm Durumlar</SelectItem>
+              {Object.entries(DURUM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={pbFiltre} onValueChange={setPbFiltre}>
+            <SelectTrigger className="w-32"><SelectValue placeholder="Para Birimi" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tumu">Tüm PB</SelectItem>
+              {mevcutPblar.map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Link href="/faturalar/yeni">
+            <Button className="rounded-full shrink-0" data-testid="button-fatura-yeni">
+              <Plus className="mr-2 h-4 w-4" /> Yeni Fatura
+            </Button>
+          </Link>
         </div>
-        <Select value={durumFiltre} onValueChange={setDurumFiltre}>
-          <SelectTrigger className="w-44" data-testid="select-fatura-durum">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="tumu">Tüm Durumlar</SelectItem>
-            {Object.entries(DURUM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        {taslakSayisi > 0 && (
-          <button
-            onClick={() => setDurumFiltre(durumFiltre === "taslak" ? "tumu" : "taslak")}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors shrink-0 ${
-              durumFiltre === "taslak"
-                ? "bg-slate-600 text-white border-slate-600"
-                : "bg-slate-500/10 text-slate-600 border-slate-300 hover:bg-slate-500/20"
-            }`}
-            title="Bekleyen taslak faturaları filtrele"
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <Label className="text-xs text-muted-foreground shrink-0">Tarih:</Label>
+            <Input type="date" value={baslangicTarihi} onChange={e => setBaslangicTarihi(e.target.value)} className="h-8 w-36 text-xs" />
+            <span className="text-muted-foreground text-xs">—</span>
+            <Input type="date" value={bitisTarihi} onChange={e => setBitisTarihi(e.target.value)} className="h-8 w-36 text-xs" />
+            {(baslangicTarihi || bitisTarihi) && (
+              <button onClick={() => { setBaslangicTarihi(""); setBitisTarihi(""); }} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1">✕</button>
+            )}
+          </div>
+          {taslakSayisi > 0 && (
+            <button
+              onClick={() => setDurumFiltre(durumFiltre === "taslak" ? "tumu" : "taslak")}
+              className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors shrink-0 ${
+                durumFiltre === "taslak"
+                  ? "bg-slate-600 text-white border-slate-600"
+                  : "bg-slate-500/10 text-slate-600 border-slate-300 hover:bg-slate-500/20"
+              }`}
+            >
+              <span className={`inline-flex items-center justify-center rounded-full text-[10px] font-bold h-4 min-w-4 px-1 ${durumFiltre === "taslak" ? "bg-white/20 text-white" : "bg-slate-500/20 text-slate-700"}`}>{taslakSayisi}</span>
+              Bekleyen Taslak
+            </button>
+          )}
+          <Button
+            variant="outline" size="sm" className="rounded-full ml-auto gap-1.5"
+            disabled={excelIndiriyor}
+            onClick={async () => {
+              setExcelIndiriyor(true);
+              try { await excelIndir(aktifSirketId); }
+              catch { toast({ title: "Excel indirilemedi", variant: "destructive" }); }
+              finally { setExcelIndiriyor(false); }
+            }}
           >
-            <span className={`inline-flex items-center justify-center rounded-full text-[10px] font-bold h-4 min-w-4 px-1 ${
-              durumFiltre === "taslak" ? "bg-white/20 text-white" : "bg-slate-500/20 text-slate-700"
-            }`}>
-              {taslakSayisi}
-            </span>
-            Bekleyen Taslak
-          </button>
-        )}
-        <Link href="/faturalar/yeni">
-          <Button className="rounded-full" data-testid="button-fatura-yeni">
-            <Plus className="mr-2 h-4 w-4" /> Yeni Fatura
+            <Download className="h-3.5 w-3.5" />
+            {excelIndiriyor ? "İndiriliyor..." : "Excel İndir"}
           </Button>
-        </Link>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

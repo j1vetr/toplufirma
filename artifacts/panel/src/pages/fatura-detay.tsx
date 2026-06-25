@@ -19,7 +19,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Download, Mail, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Plus, Download, Mail, CheckCircle2, Copy } from "lucide-react";
+import { useLocation } from "wouter";
 
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
@@ -77,6 +78,7 @@ export default function FaturaDetay() {
   const [aliciAd, setAliciAd] = useState("");
   const [gonderiyor, setGonderiyor] = useState(false);
   const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
+  const [, navigate] = useLocation();
 
   const { data: fatura, isLoading } = useGetFatura(id, { query: { enabled: !!id, queryKey: getGetFaturaQueryKey(id) } });
   const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
@@ -161,6 +163,27 @@ export default function FaturaDetay() {
           <p className="text-xs text-muted-foreground">{fatura.catiFirmaAd}</p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
+          <Button
+            variant="outline" size="sm" className="rounded-full"
+            onClick={() => {
+              const kopya = {
+                catiFirmaId: fatura.catiFirmaId,
+                bagliFirmaId: fatura.bagliFirmaId,
+                grupFirmaId: fatura.grupFirmaId ?? null,
+                gemiId: fatura.gemiId ?? null,
+                faturaAdi: fatura.faturaAdi ?? "",
+                paraBirimi: fatura.paraBirimi,
+                notlar: fatura.notlar ?? "",
+                kalemler: fatura.kalemler?.map(k => ({
+                  aciklama: k.aciklama, miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani,
+                })) ?? [],
+              };
+              sessionStorage.setItem("fatura_kopya", JSON.stringify(kopya));
+              navigate("/faturalar/yeni");
+            }}
+          >
+            <Copy className="mr-1 h-4 w-4" /> Kopyala
+          </Button>
           <Button
             variant="outline" size="sm" className="rounded-full"
             disabled={pdfIndiriyor}

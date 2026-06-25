@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -48,6 +48,23 @@ export default function FaturaYeni() {
   const [kalemler, setKalemler] = useState<Kalem[]>([
     { aciklama: "", miktar: 1, birimFiyat: 0, kdvOrani: 0 },
   ]);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("fatura_kopya");
+    if (!raw) return;
+    sessionStorage.removeItem("fatura_kopya");
+    try {
+      const k = JSON.parse(raw);
+      if (k.catiFirmaId) setCatiFirmaId(String(k.catiFirmaId));
+      if (k.bagliFirmaId) setBagliFirmaId(String(k.bagliFirmaId));
+      if (k.grupFirmaId) setGrupFirmaId(String(k.grupFirmaId));
+      if (k.gemiId) setGemiId(String(k.gemiId));
+      if (k.faturaAdi) setFaturaAdi(k.faturaAdi);
+      if (k.paraBirimi) setParaBirimi(k.paraBirimi);
+      if (k.notlar) setNotlar(k.notlar);
+      if (k.kalemler?.length) setKalemler(k.kalemler);
+    } catch { /* geçersiz veri */ }
+  }, []);
 
   const { data: catiFirmalar = [] } = useListFirmalar(
     { tip: "cati" },
