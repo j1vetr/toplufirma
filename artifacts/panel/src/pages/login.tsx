@@ -43,14 +43,14 @@ export default function Login({ onLogin }: Props) {
 
         <div className="flex flex-col items-center gap-4">
           <img src={toovBeyaz} alt="TOOV" className="w-52 h-auto" />
-          <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest text-center">
-            Çoklu Firma Yönetim Sistemi
+          <p className="text-[10px] font-bold text-white/30 tracking-widest text-center">
+            Çoklu FİRMA Yönetim Sistemi
           </p>
         </div>
 
         <form onSubmit={girisYap} className="w-full space-y-5">
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-white/50">
+            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-white/70">
               E-posta
             </Label>
             <Input
@@ -61,12 +61,12 @@ export default function Login({ onLogin }: Props) {
               onChange={e => setEmail(e.target.value)}
               autoComplete="email"
               required
-              className="h-11 rounded-none bg-white/5 border-white/10 text-white placeholder:text-white/20 focus-visible:ring-[#ffed00] focus-visible:border-white/30 text-sm"
+              className="h-11 rounded-none bg-white/8 border-white/25 text-white placeholder:text-white/40 focus-visible:ring-[#ffed00] focus-visible:border-white/50 text-sm"
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="parola" className="text-xs font-bold uppercase tracking-wider text-white/50">
+            <Label htmlFor="parola" className="text-xs font-bold uppercase tracking-wider text-white/70">
               Parola
             </Label>
             <Input
@@ -77,7 +77,7 @@ export default function Login({ onLogin }: Props) {
               onChange={e => setParola(e.target.value)}
               autoComplete="current-password"
               required
-              className="h-11 rounded-none bg-white/5 border-white/10 text-white placeholder:text-white/20 focus-visible:ring-[#ffed00] focus-visible:border-white/30 text-sm"
+              className="h-11 rounded-none bg-white/8 border-white/25 text-white placeholder:text-white/40 focus-visible:ring-[#ffed00] focus-visible:border-white/50 text-sm"
             />
           </div>
 
@@ -96,9 +96,6 @@ export default function Login({ onLogin }: Props) {
           </Button>
         </form>
 
-        <p className="text-[10px] text-white/20 font-medium">
-          © {new Date().getFullYear()} TOOV. Tüm hakları saklıdır.
-        </p>
       </div>
     </div>
   );
