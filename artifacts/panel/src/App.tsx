@@ -21,6 +21,7 @@ import Tanimlar from "@/pages/tanimlar";
 import Raporlar from "@/pages/raporlar";
 import Kullanicilar from "@/pages/kullanicilar";
 import TekrarlayanFaturalar from "@/pages/tekrarlayan-faturalar";
+import Teklifler from "@/pages/teklifler";
 import Ayarlar from "@/pages/ayarlar";
 import NotFound from "@/pages/not-found";
 
@@ -145,6 +146,11 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
       <Route path="/tekrarlayan-faturalar">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
           <TekrarlayanFaturalar />
+        </AuthGuard>
+      </Route>
+      <Route path="/teklifler">
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <Teklifler />
         </AuthGuard>
       </Route>
       <Route path="/ayarlar">

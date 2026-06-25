@@ -44,6 +44,7 @@ const navigation = [
   { name: "Gemiler", href: "/gemiler", icon: Ship },
   { name: "Banka Hesapları", href: "/banka-hesaplari", icon: Landmark },
   { name: "Faturalar", href: "/faturalar", icon: FileText },
+  { name: "Teklifler", href: "/teklifler", icon: FileText },
   { name: "Ödemeler", href: "/odemeler", icon: Wallet },
   { name: "Ekipmanlar", href: "/ekipmanlar", icon: HardDrive },
   { name: "Tekrarlayan Faturalar", href: "/tekrarlayan-faturalar", icon: Repeat },

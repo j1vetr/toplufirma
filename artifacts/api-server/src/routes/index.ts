@@ -13,6 +13,7 @@ import kullanicilarRouter from "./kullanicilar";
 import tekrarlayanFaturalarRouter from "./tekrarlayanFaturalar";
 import aramaRouter from "./arama";
 import adminRouter from "./admin";
+import tekliflerRouter from "./teklifler";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(raporlarRouter);
 router.use(kullanicilarRouter);
 router.use(tekrarlayanFaturalarRouter);
 router.use(aramaRouter);
+router.use(tekliflerRouter);
 
 export default router;

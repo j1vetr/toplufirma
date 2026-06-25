@@ -210,6 +210,46 @@ export const tekrarlayanFaturaKalemleri = pgTable("tekrarlayan_fatura_kalemleri"
   kdvOrani: numeric("kdv_orani", { precision: 5, scale: 2 }).notNull().default("0"),
 });
 
+// ── Teklif Durumu ─────────────────────────────────────────────────────────
+export const teklifDurumEnum = pgEnum("teklif_durum", [
+  "taslak",
+  "gonderildi",
+  "onaylandi",
+  "reddedildi",
+]);
+
+// ── Teklifler ─────────────────────────────────────────────────────────────
+export const teklifler = pgTable("teklifler", {
+  id: serial("id").primaryKey(),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
+  gemiId: integer("gemi_id").references(() => gemiler.id),
+  teklifNo: text("teklif_no").notNull(),
+  tarih: date("tarih").notNull(),
+  gecerlilikTarihi: date("gecerlilik_tarihi"),
+  aliciAd: text("alici_ad").notNull(),
+  aliciAdres: text("alici_adres"),
+  aliciTelefon: text("alici_telefon"),
+  paraBirimi: text("para_birimi").notNull().default("USD"),
+  kurNotu: text("kur_notu"),
+  notlar: text("notlar"),
+  kosullar: text("kosullar"),
+  durum: teklifDurumEnum("durum").notNull().default("taslak"),
+  olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
+  guncellenmeTarihi: timestamp("guncellenme_tarihi"),
+});
+
+// ── Teklif Kalemleri ──────────────────────────────────────────────────────
+export const teklifKalemleri = pgTable("teklif_kalemleri", {
+  id: serial("id").primaryKey(),
+  teklifId: integer("teklif_id").notNull().references(() => teklifler.id, { onDelete: "cascade" }),
+  sira: integer("sira").notNull().default(0),
+  aciklama: text("aciklama").notNull(),
+  miktar: numeric("miktar", { precision: 15, scale: 4 }).notNull(),
+  birimFiyat: numeric("birim_fiyat", { precision: 15, scale: 4 }).notNull(),
+  birim: text("birim").notNull().default("Adet"),
+  opsiyonel: boolean("opsiyonel").notNull().default(false),
+});
+
 // ── Kullanıcılar ──────────────────────────────────────────────────────────
 export const kullanicilar = pgTable("kullanicilar", {
   id: serial("id").primaryKey(),
@@ -310,6 +350,16 @@ export const tekrarlayanFaturalarRelations = relations(tekrarlayanFaturalar, ({ 
 
 export const tekrarlayanFaturaKalemleriRelations = relations(tekrarlayanFaturaKalemleri, ({ one }) => ({
   tekrarlayanFatura: one(tekrarlayanFaturalar, { fields: [tekrarlayanFaturaKalemleri.tekrarlayanFaturaId], references: [tekrarlayanFaturalar.id] }),
+}));
+
+export const tekliflerRelations = relations(teklifler, ({ one, many }) => ({
+  catiFirma: one(firmalar, { fields: [teklifler.catiFirmaId], references: [firmalar.id] }),
+  gemi: one(gemiler, { fields: [teklifler.gemiId], references: [gemiler.id] }),
+  kalemler: many(teklifKalemleri),
+}));
+
+export const teklifKalemleriRelations = relations(teklifKalemleri, ({ one }) => ({
+  teklif: one(teklifler, { fields: [teklifKalemleri.teklifId], references: [teklifler.id] }),
 }));
 
 export const kullanicilarRelations = relations(kullanicilar, ({ many }) => ({
