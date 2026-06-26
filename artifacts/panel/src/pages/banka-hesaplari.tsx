@@ -23,7 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Landmark, ChevronRight, TrendingUp, TrendingDown, FileText, Copy, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, Landmark, ChevronRight, FileText, Copy, Check } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
 import { useYetki } from "@/hooks/use-yetki";
 
@@ -40,8 +40,6 @@ interface HesapForm {
 
 const BOSH: HesapForm = { catiFirmaId: "", bankaAdi: "", hesapAdi: "", iban: "", paraBirimi: "TRY", subeAdi: "", aciklama: "", faturadaGoster: true };
 
-const fmt = (n: number, pb = "TRY") =>
-  new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
 
 export default function BankaHesaplari() {
   const { aktifSirketId } = useSirket();
@@ -98,24 +96,9 @@ export default function BankaHesaplari() {
 
   if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 bg-muted rounded-none" />)}</div>;
 
-  const toplamlar = hesaplar.reduce((acc, h) => {
-    const pb = h.paraBirimi;
-    if (!acc[pb]) acc[pb] = 0;
-    acc[pb] += h.bakiye ?? 0;
-    return acc;
-  }, {} as Record<string, number>);
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-3 flex-wrap">
-          {Object.entries(toplamlar).map(([pb, toplam]) => (
-            <div key={pb} className="flex items-center gap-1.5 text-sm bg-primary/10 text-primary px-3 py-1.5 rounded-sm">
-              {toplam >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-              <span className="font-semibold">{fmt(toplam, pb)}</span>
-            </div>
-          ))}
-        </div>
+      <div className="flex items-center justify-end">
         {canWrite && (
           <Button onClick={() => ac()} data-testid="button-hesap-ekle">
             <Plus className="mr-2 h-4 w-4" /> Yeni Hesap
@@ -145,8 +128,7 @@ export default function BankaHesaplari() {
                 )}
               </div>
               <div className="mt-3">
-                <p className="text-2xl font-display font-bold">{fmt(h.bakiye ?? 0, h.paraBirimi)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{h.catiFirmaAd}</p>
+                <p className="text-xs text-muted-foreground">{h.catiFirmaAd}</p>
                 {h.iban && (
                   <div className="flex items-center gap-1.5 mt-0.5 group">
                     <p className="text-xs text-muted-foreground font-mono">{h.iban}</p>
