@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListTekrarlayanFaturalar, getListTekrarlayanFaturalarQueryKey,
@@ -27,10 +27,36 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
-import { Plus, Trash2, RefreshCw, Pencil, Repeat, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Pencil, Repeat, ChevronDown, ChevronUp, Calendar } from "lucide-react";
 
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
+
+const trTarih = (dateStr: string) => {
+  const d = new Date(dateStr + "T12:00:00");
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+};
+
+function sonrakiAyGunuHesapla(mevcutTarih: string, ayinGunu: number): string {
+  const gun = Math.min(Math.max(ayinGunu, 1), 28);
+  const d = new Date(mevcutTarih + "T12:00:00");
+  const nextMonth = d.getMonth() + 1;
+  const nextYear = nextMonth > 11 ? d.getFullYear() + 1 : d.getFullYear();
+  const normalizedMonth = nextMonth > 11 ? 0 : nextMonth;
+  const maxDay = new Date(nextYear, normalizedMonth + 1, 0).getDate();
+  const day = Math.min(gun, maxDay);
+  return `${nextYear}-${String(normalizedMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function onumuzEkiTarih(sonrakiTarih: string, ayinGunu: number, n = 3): string[] {
+  const dates: string[] = [];
+  let current = sonrakiTarih;
+  for (let i = 0; i < n; i++) {
+    dates.push(current);
+    current = sonrakiAyGunuHesapla(current, ayinGunu);
+  }
+  return dates;
+}
 
 interface KalemForm {
   aciklama: string;
@@ -48,6 +74,7 @@ const BOSH_FORM = {
   gemiId: "",
   paraBirimi: "USD",
   sonrakiTarih: new Date().toISOString().split("T")[0],
+  ayinGunu: String(new Date().getDate()),
   aktif: true,
   kalemler: [{ ...BOSH_KALEM }] as KalemForm[],
 };
@@ -111,9 +138,16 @@ export default function TekrarlayanFaturalar() {
   const del = useDeleteTekrarlayanFatura();
   const uret = useUretTekrarlayanFatura();
 
+  const onizlemeTarihleri = useMemo(() => {
+    const gun = Number(form.ayinGunu);
+    if (!form.sonrakiTarih || !gun || gun < 1 || gun > 28) return [];
+    return onumuzEkiTarih(form.sonrakiTarih, gun, 3);
+  }, [form.sonrakiTarih, form.ayinGunu]);
+
   function acModal(tr?: TekrarlayanFatura) {
     if (tr) {
       setDuzenleId(tr.id);
+      const gun = tr.ayinGunu ?? Math.min(new Date(tr.sonrakiTarih + "T12:00:00").getDate(), 28);
       setForm({
         catiFirmaId: String(tr.catiFirmaId),
         bagliFirmaId: String(tr.bagliFirmaId),
@@ -121,6 +155,7 @@ export default function TekrarlayanFaturalar() {
         gemiId: tr.gemiId ? String(tr.gemiId) : "",
         paraBirimi: tr.paraBirimi,
         sonrakiTarih: tr.sonrakiTarih,
+        ayinGunu: String(gun),
         aktif: tr.aktif,
         kalemler: tr.kalemler && tr.kalemler.length
           ? tr.kalemler.map(k => ({ aciklama: k.aciklama, miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: String(k.kdvOrani) }))
@@ -128,10 +163,12 @@ export default function TekrarlayanFaturalar() {
       });
     } else {
       setDuzenleId(null);
+      const today = new Date().toISOString().split("T")[0];
       setForm({
         ...BOSH_FORM,
         catiFirmaId: aktifSirketId ? String(aktifSirketId) : "",
-        sonrakiTarih: new Date().toISOString().split("T")[0],
+        sonrakiTarih: today,
+        ayinGunu: String(new Date().getDate()),
       });
     }
     setModal(true);
@@ -145,6 +182,7 @@ export default function TekrarlayanFaturalar() {
       kdvOrani: Number(k.kdvOrani) || 0,
     }));
     const ilk = kalemler[0];
+    const ayinGunuVal = Math.min(Math.max(Number(form.ayinGunu) || 1, 1), 28);
     const data = {
       catiFirmaId: Number(form.catiFirmaId),
       bagliFirmaId: Number(form.bagliFirmaId),
@@ -155,6 +193,7 @@ export default function TekrarlayanFaturalar() {
       kdvOrani: ilk?.kdvOrani ?? 0,
       paraBirimi: form.paraBirimi,
       sonrakiTarih: form.sonrakiTarih,
+      ayinGunu: ayinGunuVal,
       aktif: form.aktif,
       kalemler,
     };
@@ -231,13 +270,23 @@ export default function TekrarlayanFaturalar() {
     ? liste.filter(t => t.catiFirmaId === aktifSirketId)
     : liste;
 
+  const aktifSayisi = filtreli.filter(t => t.aktif).length;
+  const pasifSayisi = filtreli.filter(t => !t.aktif).length;
 
-  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-none" />)}</div>;
+  if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-none" />)}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <p className="text-sm text-muted-foreground">{filtreli.length} kayıt</p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">{filtreli.length} kayıt</p>
+          {aktifSayisi > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">{aktifSayisi} aktif</span>
+          )}
+          {pasifSayisi > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">{pasifSayisi} pasif</span>
+          )}
+        </div>
         {canWrite && (
           <Button onClick={() => acModal()} data-testid="button-tekrar-yeni">
             <Plus className="mr-2 h-4 w-4" /> Yeni Tanım
@@ -257,26 +306,35 @@ export default function TekrarlayanFaturalar() {
             const kalemler = tr.kalemler && tr.kalemler.length
               ? tr.kalemler
               : [{ aciklama: tr.aciklama, miktar: 1, birimFiyat: tr.birimFiyat, kdvOrani: tr.kdvOrani }];
+            const gun = tr.ayinGunu ?? Math.min(new Date(tr.sonrakiTarih + "T12:00:00").getDate(), 28);
             return (
-              <Card key={tr.id} className={`${!tr.aktif ? "opacity-50" : ""}`}>
+              <Card key={tr.id} className={`${!tr.aktif ? "opacity-60" : ""}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-sm bg-primary/10">
-                      <RefreshCw className="h-4 w-4 text-primary" />
+                    <div className={`p-2 rounded-sm ${tr.aktif ? "bg-primary/10" : "bg-muted"}`}>
+                      <RefreshCw className={`h-4 w-4 ${tr.aktif ? "text-primary" : "text-muted-foreground"}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-sm">{tr.aciklama}</p>
-                        {!tr.aktif && <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Pasif</span>}
+                        {tr.aktif ? (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Aktif</span>
+                        ) : (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Pasif</span>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {tr.catiFirmaAd ?? `Firma #${tr.catiFirmaId}`} → {tr.bagliFirmaAd ?? `Firma #${tr.bagliFirmaId}`}
                         {tr.gemiAd ? ` (${tr.gemiAd})` : ""}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Sonraki: {tr.sonrakiTarih}
-                        {kalemler.length > 1 ? ` · ${kalemler.length} kalem` : ""}
-                      </p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground">
+                          Sonraki: <span className="font-medium text-foreground">{trTarih(tr.sonrakiTarih)}</span>
+                          {" · "}her ayın <span className="font-medium text-foreground">{gun}.</span> günü
+                          {kalemler.length > 1 ? ` · ${kalemler.length} kalem` : ""}
+                        </p>
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-semibold text-sm">{fmt(trToplam(tr), tr.paraBirimi)}</p>
@@ -348,7 +406,7 @@ export default function TekrarlayanFaturalar() {
       )}
 
       <Dialog open={modal} onOpenChange={o => { setModal(o); }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{duzenleId ? "Tekrarlayan Fatura Düzenle" : "Yeni Tekrarlayan Fatura"}</DialogTitle>
           </DialogHeader>
@@ -428,10 +486,51 @@ export default function TekrarlayanFaturalar() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2 space-y-1.5">
+            <div className="space-y-1.5">
               <Label className="text-xs">Sonraki Fatura Tarihi *</Label>
-              <Input className="h-8 text-sm" type="date" value={form.sonrakiTarih} onChange={e => setForm(f => ({ ...f, sonrakiTarih: e.target.value }))} />
+              <Input
+                className="h-8 text-sm"
+                type="date"
+                value={form.sonrakiTarih}
+                onChange={e => {
+                  const tarih = e.target.value;
+                  const gun = tarih ? Math.min(new Date(tarih + "T12:00:00").getDate(), 28) : Number(form.ayinGunu);
+                  setForm(f => ({ ...f, sonrakiTarih: tarih, ayinGunu: String(gun) }));
+                }}
+              />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Ayın Kaçında Oluşsun (1-28)</Label>
+              <Input
+                className="h-8 text-sm"
+                type="number"
+                min={1}
+                max={28}
+                step={1}
+                value={form.ayinGunu}
+                onChange={e => setForm(f => ({ ...f, ayinGunu: e.target.value }))}
+                placeholder="örn. 1"
+                data-testid="input-tekrar-ayin-gunu"
+              />
+            </div>
+            {onizlemeTarihleri.length > 0 && (
+              <div className="col-span-2">
+                <div className="rounded bg-muted/50 border border-dashed p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Tahmini Oluşturma Tarihleri
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    {onizlemeTarihleri.map((t, i) => (
+                      <div key={t} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${i === 0 ? "bg-primary/10 border-primary/30 text-primary font-semibold" : "bg-background text-muted-foreground"}`}>
+                        <span className="text-[10px] font-bold">{i + 1}.</span>
+                        {trTarih(t)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="col-span-2 flex items-center gap-2">
               <input
                 type="checkbox"

@@ -822,6 +822,8 @@ export interface TekrarlayanFatura {
   kdvOrani: number;
   paraBirimi: string;
   sonrakiTarih: string;
+  /** @nullable */
+  ayinGunu?: number | null;
   aktif: boolean;
   kalemler?: TekrarlayanFaturaKalemi[];
   olusturmaTarihi: string;
@@ -846,6 +848,8 @@ export interface TekrarlayanFaturaInput {
   kdvOrani: number;
   paraBirimi: string;
   sonrakiTarih: string;
+  /** @nullable */
+  ayinGunu?: number | null;
   aktif?: boolean;
   kalemler?: TekrarlayanFaturaKalemiInput[];
 }
@@ -861,6 +865,8 @@ export interface TekrarlayanFaturaUpdate {
   kdvOrani?: number;
   paraBirimi?: string;
   sonrakiTarih?: string;
+  /** @nullable */
+  ayinGunu?: number | null;
   aktif?: boolean;
   kalemler?: TekrarlayanFaturaKalemiInput[];
 }

@@ -207,6 +207,7 @@ export const tekrarlayanFaturalar = pgTable("tekrarlayan_faturalar", {
   kdvOrani: numeric("kdv_orani", { precision: 5, scale: 2 }).notNull().default("0"),
   paraBirimi: text("para_birimi").notNull().default("USD"),
   sonrakiTarih: date("sonraki_tarih").notNull(),
+  ayinGunu: integer("ayin_gunu"),
   aktif: boolean("aktif").notNull().default(true),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });

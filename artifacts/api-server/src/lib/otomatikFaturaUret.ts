@@ -3,6 +3,17 @@ import { tekrarlayanFaturalar, tekrarlayanFaturaKalemleri, firmalar, faturalar, 
 import { eq, and, lte } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
+function sonrakiAyGunu(mevcutTarih: string, ayinGunu: number | null | undefined): string {
+  const gun = Math.min(Math.max(ayinGunu ?? new Date(mevcutTarih).getDate(), 1), 28);
+  const d = new Date(mevcutTarih);
+  const nextMonth = d.getMonth() + 1;
+  const nextYear = nextMonth > 11 ? d.getFullYear() + 1 : d.getFullYear();
+  const normalizedMonth = nextMonth > 11 ? 0 : nextMonth;
+  const maxDay = new Date(nextYear, normalizedMonth + 1, 0).getDate();
+  const day = Math.min(gun, maxDay);
+  return `${nextYear}-${String(normalizedMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 export async function tekrarlayandanFaturaUret(
   tr: typeof tekrarlayanFaturalar.$inferSelect,
 ): Promise<typeof faturalar.$inferSelect> {
@@ -63,11 +74,10 @@ export async function tekrarlayandanFaturaUret(
     await db.insert(faturaKalemleri).values({ faturaId: fatura.id, ...k });
   }
 
-  const nextDate = new Date(tr.sonrakiTarih);
-  nextDate.setMonth(nextDate.getMonth() + 1);
+  const nextDate = sonrakiAyGunu(tr.sonrakiTarih, tr.ayinGunu);
   await db
     .update(tekrarlayanFaturalar)
-    .set({ sonrakiTarih: nextDate.toISOString().split("T")[0] })
+    .set({ sonrakiTarih: nextDate })
     .where(eq(tekrarlayanFaturalar.id, tr.id));
 
   return fatura;

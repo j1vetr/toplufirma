@@ -40,18 +40,23 @@ router.get("/tekrarlayan-faturalar", async (req, res) => {
 
 router.post("/tekrarlayan-faturalar", requireYazma, async (req, res) => {
   try {
-    const { catiFirmaId, bagliFirmaId, grupFirmaId, gemiId, aciklama, birimFiyat, kdvOrani, paraBirimi, sonrakiTarih, aktif, kalemler } = req.body;
+    const { catiFirmaId, bagliFirmaId, grupFirmaId, gemiId, aciklama, birimFiyat, kdvOrani, paraBirimi, sonrakiTarih, ayinGunu, aktif, kalemler } = req.body;
     if (!catiFirmaId || !bagliFirmaId || !aciklama || !birimFiyat || !sonrakiTarih) {
       res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
     }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+
+    const hesaplananGun = ayinGunu ?? new Date(sonrakiTarih).getDate();
+    const gecerliGun = Math.min(Math.max(Number(hesaplananGun), 1), 28);
 
     const [row] = await db.insert(tekrarlayanFaturalar).values({
       catiFirmaId, bagliFirmaId, grupFirmaId: grupFirmaId ? Number(grupFirmaId) : null, gemiId: gemiId ?? null,
       aciklama, birimFiyat: String(birimFiyat),
       kdvOrani: String(kdvOrani ?? 0),
       paraBirimi: paraBirimi ?? "USD",
-      sonrakiTarih, aktif: aktif ?? true,
+      sonrakiTarih,
+      ayinGunu: gecerliGun,
+      aktif: aktif ?? true,
     }).returning();
 
     await kalemleriKaydet(row.id, kalemler as KalemInput[] | undefined);
@@ -71,14 +76,25 @@ router.patch("/tekrarlayan-faturalar/:id", requireYazma, async (req, res) => {
     if (!existing) { res.status(404).json({ error: "Tekrarlayan fatura bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
-    const { bagliFirmaId, grupFirmaId, gemiId, aciklama, birimFiyat, kdvOrani, paraBirimi, sonrakiTarih, aktif, kalemler } = req.body;
+    const { bagliFirmaId, grupFirmaId, gemiId, aciklama, birimFiyat, kdvOrani, paraBirimi, sonrakiTarih, ayinGunu, aktif, kalemler } = req.body;
+
+    let gecerliGun: number | undefined;
+    if (ayinGunu !== undefined) {
+      gecerliGun = Math.min(Math.max(Number(ayinGunu), 1), 28);
+    } else if (sonrakiTarih) {
+      gecerliGun = new Date(sonrakiTarih).getDate();
+      gecerliGun = Math.min(gecerliGun, 28);
+    }
+
     const [row] = await db.update(tekrarlayanFaturalar)
       .set({
         bagliFirmaId, grupFirmaId: grupFirmaId === undefined ? undefined : (grupFirmaId === null ? null : Number(grupFirmaId)),
         gemiId: gemiId ?? null, aciklama,
         birimFiyat: birimFiyat ? String(birimFiyat) : undefined,
         kdvOrani: kdvOrani !== undefined ? String(kdvOrani) : undefined,
-        paraBirimi, sonrakiTarih, aktif,
+        paraBirimi, sonrakiTarih,
+        ayinGunu: gecerliGun,
+        aktif,
       })
       .where(eq(tekrarlayanFaturalar.id, id))
       .returning();
@@ -188,6 +204,7 @@ function formatTekrarlayan(
     kdvOrani: Number(t.kdvOrani),
     paraBirimi: t.paraBirimi,
     sonrakiTarih: t.sonrakiTarih,
+    ayinGunu: t.ayinGunu,
     aktif: t.aktif,
     kalemler: kalemler.map(k => ({
       id: k.id,
