@@ -18,6 +18,7 @@ export interface EmailBelgeData {
   kdvTutari?: string | number | null;
   paraBirimi: string;
   gemiAd?: string | null;
+  durum?: string | null;
 }
 
 export interface EmailAliciData {
@@ -60,7 +61,19 @@ export async function emailSablonuOlustur(
 ): Promise<{ subject: string; html: string; text: string }> {
   const isPDF = belge.tip === "fatura";
   const belgeTipiTR = isPDF ? "Fatura" : "Teklif";
-  const belgeTipiEN = isPDF ? "Invoice" : "Quotation";
+  const belgeTipiEN = isPDF ? "Invoice" : "PROFORMA QUOTATION";
+
+  const durumEtiketMap: Record<string, { tr: string; bg: string; color: string }> = {
+    acik:         { tr: "Açık",          bg: "#e3f2fd", color: "#1565c0" },
+    odendi:       { tr: "Ödendi",        bg: "#e8f5e9", color: "#2e7d32" },
+    kismi_odendi: { tr: "Kısmi Ödendi",  bg: "#fff8e1", color: "#e65100" },
+    iptal:        { tr: "İptal",         bg: "#fce4ec", color: "#b71c1c" },
+    taslak:       { tr: "Taslak",        bg: "#f5f5f5", color: "#616161" },
+    gonderildi:   { tr: "Gönderildi",    bg: "#e3f2fd", color: "#1565c0" },
+    onaylandi:    { tr: "Onaylandı",     bg: "#e8f5e9", color: "#2e7d32" },
+    reddedildi:   { tr: "Reddedildi",   bg: "#fce4ec", color: "#b71c1c" },
+  };
+  const durumBilgi = belge.durum ? durumEtiketMap[belge.durum] : null;
   const dosyaAdi = `${belgeTipiTR.toLowerCase()}-${belge.no}.pdf`;
 
   const subject = `${belgeTipiTR} ${belge.no} — ${firma.ad}`;
@@ -150,8 +163,17 @@ export async function emailSablonuOlustur(
               style="background-color:#f8f8f8;border-left:4px solid #ffed00;margin-bottom:28px;">
               <tr>
                 <td style="padding:20px 20px 8px 20px;">
-                  <p style="margin:0 0 4px 0;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;color:#888888;text-transform:uppercase;letter-spacing:0.8px;">${belgeTipiEN}</p>
-                  <p style="margin:0;font-family:Arial,sans-serif;font-size:22px;font-weight:bold;color:#1a1a1a;">${belge.no}</p>
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                      <td>
+                        <p style="margin:0 0 4px 0;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;color:#888888;text-transform:uppercase;letter-spacing:0.8px;">${belgeTipiEN}</p>
+                        <p style="margin:0;font-family:Arial,sans-serif;font-size:22px;font-weight:bold;color:#1a1a1a;">${belge.no}</p>
+                      </td>
+                      ${durumBilgi ? `<td align="right" valign="middle">
+                        <span style="display:inline-block;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;background-color:${durumBilgi.bg};color:${durumBilgi.color};padding:4px 10px;border-radius:3px;white-space:nowrap;">${durumBilgi.tr}</span>
+                      </td>` : ""}
+                    </tr>
+                  </table>
                 </td>
               </tr>
               <tr>

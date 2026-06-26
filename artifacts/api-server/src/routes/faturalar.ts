@@ -592,6 +592,7 @@ router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
       toplamTutar: row.f.genelToplam ?? row.f.toplamTutar,
       paraBirimi: row.f.paraBirimi,
       gemiAd: row.gemiAd,
+      durum: row.f.durum,
     };
     const { subject: autoSubject, html, text } = await emailSablonuOlustur(
       firmaData, belgeData, { ad: aliciAd, eposta: aliciAdres }, mesaj,
@@ -610,7 +611,7 @@ router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
     await transporter.sendMail({
       from: `"${ayarlar.gonderenAd}" <${ayarlar.gonderenAdres}>`,
       to: aliciAd ? `"${aliciAd}" <${aliciAdres}>` : aliciAdres,
-      subject: konu ?? autoSubject,
+      subject: konu?.trim() ? konu : autoSubject,
       html,
       text,
       attachments: [{ filename: `fatura-${faturaNo}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],

@@ -217,7 +217,7 @@ export default function FaturaDetay() {
           >
             <Download className="mr-1 h-4 w-4" /> {pdfIndiriyor ? "İndiriliyor..." : "PDF"}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setGonderModal(true)}>
+          <Button variant="outline" size="sm" onClick={() => { setGonderKonu(`Fatura ${fatura.faturaNo} — ${fatura.catiFirmaAd ?? ""}`); setGonderModal(true); }}>
             <Mail className="mr-1 h-4 w-4" /> E-posta
           </Button>
           {canWrite && fatura.durum === "taslak" && (
