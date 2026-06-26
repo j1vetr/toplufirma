@@ -4,6 +4,7 @@ import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri
 import { eq, sql, and } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import nodemailer from "nodemailer";
+import { emailSablonuOlustur } from "../lib/emailSablonu";
 import ExcelJS from "exceljs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -538,11 +539,21 @@ router.delete("/faturalar/:id", requireYazma, async (req, res) => {
 router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { aliciAdres, aliciAd, konu } = req.body as { aliciAdres?: string; aliciAd?: string; konu?: string };
+    const { aliciAdres, aliciAd, konu, mesaj } = req.body as { aliciAdres?: string; aliciAd?: string; konu?: string; mesaj?: string };
     if (!aliciAdres) { res.status(400).json({ error: "aliciAdres zorunludur" }); return; }
 
     const [row] = await db
-      .select({ f: faturalar, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
+      .select({
+        f: faturalar,
+        gemiAd: gemiler.ad,
+        firmaAd: firmalar.ad,
+        firmaLogo: firmalar.logo,
+        firmaAdres: firmalar.adres,
+        firmaTelefon: firmalar.telefon,
+        firmaEposta: firmalar.eposta,
+        firmaVergiNo: firmalar.vergiNo,
+        firmaVergiDairesi: firmalar.vergiDairesi,
+      })
       .from(faturalar)
       .leftJoin(firmalar, eq(faturalar.catiFirmaId, firmalar.id))
       .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
@@ -564,6 +575,28 @@ router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
     if (!pdfResp.ok) { res.status(500).json({ error: "PDF oluşturulamadı" }); return; }
     const pdfBuffer = Buffer.from(await pdfResp.arrayBuffer());
 
+    const firmaData = {
+      ad: row.firmaAd ?? ayarlar.gonderenAd,
+      logo: row.firmaLogo,
+      adres: row.firmaAdres,
+      telefon: row.firmaTelefon,
+      eposta: row.firmaEposta,
+      vergiNo: row.firmaVergiNo,
+      vergiDairesi: row.firmaVergiDairesi,
+    };
+    const belgeData = {
+      tip: "fatura" as const,
+      no: row.f.faturaNo,
+      tarih: row.f.faturaTarihi,
+      vadeTarihi: row.f.vadeTarihi,
+      toplamTutar: row.f.genelToplam ?? row.f.toplamTutar,
+      paraBirimi: row.f.paraBirimi,
+      gemiAd: row.gemiAd,
+    };
+    const { subject: autoSubject, html, text } = await emailSablonuOlustur(
+      firmaData, belgeData, { ad: aliciAd, eposta: aliciAdres }, mesaj,
+    );
+
     const guvenlik = ayarlar.smtpGuvenlik ?? "starttls";
     const transporter = nodemailer.createTransport({
       host: ayarlar.smtpHost,
@@ -577,8 +610,9 @@ router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
     await transporter.sendMail({
       from: `"${ayarlar.gonderenAd}" <${ayarlar.gonderenAdres}>`,
       to: aliciAd ? `"${aliciAd}" <${aliciAdres}>` : aliciAdres,
-      subject: konu ?? `Fatura ${faturaNo}`,
-      text: `Sayın ${aliciAd ?? aliciAdres},\n\nEkte ${faturaNo} numaralı faturanızı bulabilirsiniz.\n\nSaygılarımızla,\n${ayarlar.gonderenAd}`,
+      subject: konu ?? autoSubject,
+      html,
+      text,
       attachments: [{ filename: `fatura-${faturaNo}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
     });
 

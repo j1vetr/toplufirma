@@ -164,6 +164,7 @@ export default function Teklifler() {
   const [gonderTeklif, setGonderTeklif] = useState<Teklif | null>(null);
   const [gonderEposta, setGonderEposta] = useState<string>("");
   const [gonderKonu, setGonderKonu] = useState<string>("");
+  const [gonderMesaj, setGonderMesaj] = useState<string>("");
   const [gecmisAcik, setGecmisAcik] = useState(false);
   const [kurYukleniyor, setKurYukleniyor] = useState(false);
   const [teklifBankaHesaplari, setTeklifBankaHesaplari] = useState<TeklifBankaHesabi[]>([]);
@@ -324,8 +325,8 @@ export default function Teklifler() {
   });
 
   const gonderMutasyon = useMutation({
-    mutationFn: ({ id, aliciAdres, aliciAd, konu }: { id: number; aliciAdres: string; aliciAd?: string; konu?: string }) =>
-      apiFetch(`/teklifler/${id}/gonder`, { method: "POST", body: JSON.stringify({ aliciAdres, aliciAd, konu }) }),
+    mutationFn: ({ id, aliciAdres, aliciAd, konu, mesaj }: { id: number; aliciAdres: string; aliciAd?: string; konu?: string; mesaj?: string }) =>
+      apiFetch(`/teklifler/${id}/gonder`, { method: "POST", body: JSON.stringify({ aliciAdres, aliciAd, konu, mesaj }) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["teklifler"] });
       qc.invalidateQueries({ queryKey: ["teklif-gonderi-gecmisi", gonderTeklif?.id] });
@@ -893,7 +894,7 @@ export default function Teklifler() {
       </Dialog>
 
       {/* ── E-posta ile Gönder Dialog ── */}
-      <Dialog open={!!gonderTeklif} onOpenChange={o => { if (!o) { setGonderTeklif(null); setGecmisAcik(false); } }}>
+      <Dialog open={!!gonderTeklif} onOpenChange={o => { if (!o) { setGonderTeklif(null); setGecmisAcik(false); setGonderEposta(""); setGonderKonu(""); setGonderMesaj(""); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>
@@ -922,6 +923,15 @@ export default function Teklifler() {
                 placeholder={`Teklif ${gonderTeklif?.teklifNo ?? ""}`}
                 value={gonderKonu}
                 onChange={e => setGonderKonu(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Özel Mesaj <span className="text-xs text-muted-foreground">(opsiyonel)</span></Label>
+              <textarea
+                className="flex min-h-[72px] w-full border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                value={gonderMesaj}
+                onChange={e => setGonderMesaj(e.target.value)}
+                placeholder="Teklif için ek bir notunuz varsa buraya yazın..."
               />
             </div>
             <Collapsible open={gecmisAcik} onOpenChange={setGecmisAcik}>
@@ -962,6 +972,7 @@ export default function Teklifler() {
                 aliciAdres: gonderEposta,
                 aliciAd: gonderTeklif.aliciAd,
                 konu: gonderKonu || undefined,
+                mesaj: gonderMesaj || undefined,
               })}
             >
               <Mail className="mr-2 h-4 w-4" />

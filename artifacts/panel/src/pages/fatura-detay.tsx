@@ -80,6 +80,8 @@ export default function FaturaDetay() {
   const [gonderModal, setGonderModal] = useState(false);
   const [aliciAdres, setAliciAdres] = useState("");
   const [aliciAd, setAliciAd] = useState("");
+  const [gonderKonu, setGonderKonu] = useState("");
+  const [gonderMesaj, setGonderMesaj] = useState("");
   const [gecmisAcik, setGecmisAcik] = useState(false);
   const [gonderiyor, setGonderiyor] = useState(false);
   const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
@@ -142,7 +144,12 @@ export default function FaturaDetay() {
       const resp = await fetch(`${apiBase()}/faturalar/${id}/gonder`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ aliciAdres, aliciAd: aliciAd || undefined }),
+        body: JSON.stringify({
+          aliciAdres,
+          aliciAd: aliciAd || undefined,
+          konu: gonderKonu || undefined,
+          mesaj: gonderMesaj || undefined,
+        }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error ?? "Gönderim başarısız");
@@ -419,19 +426,34 @@ export default function FaturaDetay() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={gonderModal} onOpenChange={o => { setGonderModal(o); if (!o) { setAliciAdres(""); setAliciAd(""); } }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Faturayı E-posta ile Gönder</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+      <Dialog open={gonderModal} onOpenChange={o => { setGonderModal(o); if (!o) { setAliciAdres(""); setAliciAd(""); setGonderKonu(""); setGonderMesaj(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Mail className="h-4 w-4" />Faturayı E-posta ile Gönder</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-1">
+            <p className="text-sm text-muted-foreground">
+              Fatura PDF eki ile çatı firmanın SMTP ayarları üzerinden gönderilir.
+            </p>
             <div className="space-y-1.5">
-              <Label>Alıcı E-posta *</Label>
+              <Label>Alıcı E-posta <span className="text-destructive">*</span></Label>
               <Input type="email" value={aliciAdres} onChange={e => setAliciAdres(e.target.value)} placeholder="musteri@firma.com" />
             </div>
             <div className="space-y-1.5">
               <Label>Alıcı Ad</Label>
               <Input value={aliciAd} onChange={e => setAliciAd(e.target.value)} placeholder="Firma / Kişi adı (opsiyonel)" />
             </div>
-            <p className="text-xs text-muted-foreground">Fatura PDF eki ile çatı firmanın SMTP ayarları üzerinden gönderilir.</p>
+            <div className="space-y-1.5">
+              <Label>E-posta Konusu</Label>
+              <Input value={gonderKonu} onChange={e => setGonderKonu(e.target.value)} placeholder={`Fatura ${fatura?.faturaNo ?? ""} — ${fatura?.catiFirmaAd ?? ""}`} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Özel Mesaj <span className="text-xs text-muted-foreground">(opsiyonel)</span></Label>
+              <textarea
+                className="flex min-h-[72px] w-full border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                value={gonderMesaj}
+                onChange={e => setGonderMesaj(e.target.value)}
+                placeholder="Fatura için ek bir notunuz varsa buraya yazın..."
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setGonderModal(false)}>İptal</Button>
