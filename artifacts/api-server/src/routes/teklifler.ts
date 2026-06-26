@@ -745,9 +745,12 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
           { canvas: [{ type: "line", x1: 40, y1: 0, x2: 555, y2: 0, lineWidth: 0.5, lineColor: "#e8eaf0" }] },
           {
             columns: [
-              { text: `${catiFirmaRow?.ad ?? ""}${catiFirmaRow?.adres ? "  ·  " + catiFirmaRow.adres : ""}`, fontSize: 7.5, color: "#aaa", alignment: "left", margin: [40, 4, 0, 0] },
-              { text: "< TOOV />", fontSize: 8, bold: true, color: "#0070d1", alignment: "center", margin: [0, 4, 0, 0] },
-              { text: `${currentPage} / ${pageCount}`, fontSize: 7.5, color: "#aaa", alignment: "right", margin: [0, 4, 40, 0] },
+              { text: "", width: 50 },
+              {
+                text: `${catiFirmaRow?.ad ?? ""}${catiFirmaRow?.adres ? "  ·  " + catiFirmaRow.adres : ""}`,
+                fontSize: 7.5, color: "#aaa", alignment: "center", width: "*", margin: [0, 4, 0, 0],
+              },
+              { text: `${currentPage} / ${pageCount}`, fontSize: 7.5, color: "#aaa", alignment: "right", width: 50, margin: [0, 4, 40, 0] },
             ],
           },
         ],
