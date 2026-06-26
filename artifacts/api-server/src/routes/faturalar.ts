@@ -381,7 +381,6 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
                 { text: "BILL TO", style: "bolumBaslik" },
                 { text: bagliFirmaAd ?? "-", bold: true, marginTop: 4 },
                 ...(bagliFirmaAdres ? [{ text: bagliFirmaAdres, color: "#555", fontSize: 9, marginTop: 2 }] : []),
-                ...(f.faturaAdi ? [{ text: f.faturaAdi, color: "#555", fontSize: 9, marginTop: 2 }] : []),
                 { text: `INVOICE  ${f.faturaNo}`, fontSize: 8, bold: true, color: "#0070d1", marginTop: 8, characterSpacing: 0.5 },
               ],
             },
@@ -392,13 +391,13 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
                 {
                   marginTop: 6,
                   table: {
-                    widths: ["auto", "*"],
+                    widths: ["auto", "auto"],
                     body: ([
-                      [{ text: "Invoice Date:", bold: true }, { text: f.faturaTarihi, alignment: "right" }],
-                      ...(gemiAd ? [[{ text: "Ship Name:", bold: true }, { text: gemiAd, alignment: "right" }]] : []),
-                      ...(gemiImo ? [[{ text: "Ship IMO:", bold: true }, { text: String(gemiImo), alignment: "right" }]] : []),
-                      [{ text: "Due Date:", bold: true }, { text: f.vadeTarihi, alignment: "right" }],
-                      [{ text: "Currency:", bold: true }, { text: f.paraBirimi, alignment: "right" }],
+                      [{ text: "Invoice Date:", bold: true }, { text: f.faturaTarihi }],
+                      ...(gemiAd ? [[{ text: "Ship Name:", bold: true }, { text: gemiAd }]] : []),
+                      ...(gemiImo ? [[{ text: "Ship IMO:", bold: true }, { text: String(gemiImo) }]] : []),
+                      [{ text: "Due Date:", bold: true }, { text: f.vadeTarihi }],
+                      [{ text: "Currency:", bold: true }, { text: f.paraBirimi }],
                     ] as TableCell[][]),
                   },
                   layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingTop: (i: number) => i === 0 ? 0 : 3, paddingBottom: () => 3 },
@@ -489,8 +488,8 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
         { text: `Amount in words: ${tutarYazi}`, italics: true, color: "#555", fontSize: 9, marginBottom: bankaIcerikleri.length > 0 ? 16 : 0 },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...(bankaIcerikleri.length > 0 ? [
-          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: "#e8eaf0" }] } as unknown as import("pdfmake/interfaces").Content,
-          { text: "PAYMENT DETAILS", style: "bolumBaslik", marginBottom: 8 } as unknown as import("pdfmake/interfaces").Content,
+          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: "#e8eaf0" }], marginTop: 10 } as unknown as import("pdfmake/interfaces").Content,
+          { text: "PAYMENT DETAILS", bold: true, fontSize: 11, color: "#222", marginTop: 10, marginBottom: 10 } as unknown as import("pdfmake/interfaces").Content,
           ...bankaIcerikleri as unknown as import("pdfmake/interfaces").Content[],
         ] : []),
         ...(f.aciklama ? [{ text: f.aciklama, marginTop: 16, color: "#555", italics: true }] : []),

@@ -652,10 +652,10 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
                 {
                   marginTop: 6,
                   table: {
-                    widths: ["auto", "*"],
+                    widths: ["auto", "auto"],
                     body: ([
-                      [{ text: "Ship Name:", bold: true }, { text: row.gemiAd, alignment: "right" }],
-                      ...(row.gemiImo ? [[{ text: "Ship IMO:", bold: true }, { text: String(row.gemiImo), alignment: "right" }]] : []),
+                      [{ text: "Ship Name:", bold: true }, { text: row.gemiAd }],
+                      ...(row.gemiImo ? [[{ text: "Ship IMO:", bold: true }, { text: String(row.gemiImo) }]] : []),
                     ] as TableCell[][]),
                   },
                   layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingTop: (i: number) => i === 0 ? 0 : 3, paddingBottom: () => 3 },
@@ -733,8 +733,8 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
         },
         { text: `Amount in words: ${toplamYazi}`, italics: true, color: "#555", fontSize: 9, marginBottom: bankaIcerikleri.length > 0 ? 16 : 0 },
         ...(bankaIcerikleri.length > 0 ? [
-          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: "#e8eaf0" }] } as unknown as import("pdfmake/interfaces").Content,
-          { text: "BANK DETAILS", style: "bolumBaslik", marginBottom: 8 } as unknown as import("pdfmake/interfaces").Content,
+          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: "#e8eaf0" }], marginTop: 10 } as unknown as import("pdfmake/interfaces").Content,
+          { text: "BANK DETAILS", bold: true, fontSize: 11, color: "#222", marginTop: 10, marginBottom: 10 } as unknown as import("pdfmake/interfaces").Content,
           ...bankaIcerikleri as unknown as import("pdfmake/interfaces").Content[],
         ] : []),
         ...(t.notlar ? [{ text: t.notlar, marginTop: 16, color: "#555", italics: true, fontSize: 9 }] : []),
