@@ -56,6 +56,8 @@ function isLogoUrlAllowed(raw: string): boolean {
 
 async function logoBase64(url: string | null | undefined): Promise<string | null> {
   if (!url) return null;
+  // DB'de zaten base64 data URL olarak saklanıyor — direkt kullan
+  if (/^data:image\/(png|jpeg|gif|webp|svg\+xml);base64,/i.test(url)) return url;
   if (!isLogoUrlAllowed(url)) return null;
   try {
     const resp = await fetch(url, { signal: AbortSignal.timeout(4000) });
@@ -79,6 +81,7 @@ export async function emailSablonuOlustur(
   const isPDF = belge.tip === "fatura";
   const belgeTipiTR = isPDF ? "Fatura" : "Teklif";
   const belgeTipiEN = isPDF ? "Invoice" : "PROFORMA QUOTATION";
+  const belgeTipiAccusative = isPDF ? "faturayı" : "teklifi";
 
   const durumEtiketMap: Record<string, { tr: string; bg: string; color: string }> = {
     acik:         { tr: "Açık",          bg: "#e3f2fd", color: "#1565c0" },
@@ -100,7 +103,7 @@ export async function emailSablonuOlustur(
   const selamlama = alici.ad ? `Sayın ${alici.ad},` : "Merhaba,";
   const mesaj = ozelMesaj
     ? ozelMesaj.replace(/\n/g, "<br>")
-    : `Ekte <strong>${belge.no}</strong> numaralı ${belgeTipiTR.toLowerCase()}yi bulabilirsiniz.`;
+    : `Ekte <strong>${belge.no}</strong> numaralı ${belgeTipiAccusative} bulabilirsiniz.`;
 
   const sonTarihLabel = isPDF ? "Vade Tarihi" : "Geçerlilik Tarihi";
   const sonTarih = isPDF ? belge.vadeTarihi : belge.gecerlilikTarihi;
@@ -238,7 +241,7 @@ export async function emailSablonuOlustur(
         <tr>
           <td style="background-color:#1a1a1a;padding:20px 32px;">
             ${footerSatirlar.map((s, i) =>
-              `<p style="margin:0${i > 0 ? " 0 0 0;margin-top:4px" : ""};font-family:Arial,sans-serif;font-size:${i === 0 ? "12px;font-weight:bold;color:#ffffff" : "11px;color:#999999"};">${s}</p>`
+              `<p style="margin:${i > 0 ? "4px 0 0 0" : "0"};font-family:Arial,sans-serif;font-size:${i === 0 ? "12px;font-weight:bold;color:#ffffff" : "11px;color:#999999"};">${s}</p>`
             ).join("\n            ")}
           </td>
         </tr>
@@ -258,7 +261,7 @@ export async function emailSablonuOlustur(
   const text = [
     selamlama,
     "",
-    ozelMesaj ?? `Ekte ${belge.no} numaralı ${belgeTipiTR.toLowerCase()}yi bulabilirsiniz.`,
+    ozelMesaj ?? `Ekte ${belge.no} numaralı ${belgeTipiAccusative} bulabilirsiniz.`,
     "",
     `${belgeTipiEN}: ${belge.no}`,
     `Tarih: ${formatTarih(belge.tarih)}`,
