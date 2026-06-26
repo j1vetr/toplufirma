@@ -8,9 +8,10 @@
 
 export interface BankaHesabiInput {
   catiFirmaId: number;
-  bankaAdi: string;
+  bankaAdi?: string;
   hesapAdi: string;
   iban?: string;
+  swift?: string;
   paraBirimi: string;
   subeAdi?: string;
   aciklama?: string;

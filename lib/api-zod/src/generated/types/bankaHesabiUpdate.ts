@@ -10,6 +10,7 @@ export interface BankaHesabiUpdate {
   bankaAdi?: string;
   hesapAdi?: string;
   iban?: string;
+  swift?: string;
   paraBirimi?: string;
   subeAdi?: string;
   aciklama?: string;

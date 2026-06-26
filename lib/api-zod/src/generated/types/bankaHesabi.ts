@@ -11,10 +11,13 @@ export interface BankaHesabi {
   catiFirmaId: number;
   /** @nullable */
   catiFirmaAd?: string | null;
-  bankaAdi: string;
+  /** @nullable */
+  bankaAdi?: string | null;
   hesapAdi: string;
   /** @nullable */
   iban?: string | null;
+  /** @nullable */
+  swift?: string | null;
   paraBirimi: string;
   /** @nullable */
   subeAdi?: string | null;

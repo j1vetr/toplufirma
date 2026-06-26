@@ -325,9 +325,10 @@ export default function FaturaDetay() {
                 <div className="space-y-2">
                   {bankalarGruplu[pb].map(b => (
                     <div key={b.id} className="text-sm p-3 bg-muted/50 rounded-none border">
-                      <p className="font-medium">{b.bankaAdi}</p>
+                      {b.bankaAdi && <p className="font-medium">{b.bankaAdi}</p>}
                       <p className="text-muted-foreground">{b.hesapAdi}</p>
                       {b.iban && <p className="font-mono text-xs mt-1">{b.iban}</p>}
+                      {(b as unknown as Record<string,unknown>).swift && <p className="font-mono text-xs text-muted-foreground">SWIFT: {String((b as unknown as Record<string,unknown>).swift)}</p>}
                     </div>
                   ))}
                 </div>

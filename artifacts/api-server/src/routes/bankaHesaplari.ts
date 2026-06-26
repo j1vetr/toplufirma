@@ -48,11 +48,11 @@ router.get("/banka-hesaplari", async (req, res) => {
 
 router.post("/banka-hesaplari", requireYazma, async (req, res) => {
   try {
-    const { catiFirmaId, bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster } = req.body;
-    if (!catiFirmaId || !bankaAdi || !hesapAdi) { res.status(400).json({ error: "catiFirmaId, bankaAdi ve hesapAdi zorunludur" }); return; }
+    const { catiFirmaId, bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster } = req.body;
+    if (!catiFirmaId || !hesapAdi) { res.status(400).json({ error: "catiFirmaId ve hesapAdi zorunludur" }); return; }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     const [row] = await db.insert(bankaHesaplari).values({
-      catiFirmaId, bankaAdi, hesapAdi, iban, paraBirimi: paraBirimi ?? "USD",
+      catiFirmaId, bankaAdi, hesapAdi, iban, swift, paraBirimi: paraBirimi ?? "USD",
       subeAdi, aciklama, aktif: aktif ?? true, faturadaGoster: faturadaGoster ?? true,
     }).returning();
     res.status(201).json(formatHesap(row, null, 0));
@@ -85,9 +85,9 @@ router.patch("/banka-hesaplari/:id", requireYazma, async (req, res) => {
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
-    const { bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster } = req.body;
+    const { bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster } = req.body;
     const [row] = await db.update(bankaHesaplari)
-      .set({ bankaAdi, hesapAdi, iban, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster })
+      .set({ bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster })
       .where(eq(bankaHesaplari.id, id)).returning();
     const bakiyeler = await hesaplaHesapBakiyeleri();
     res.json(formatHesap(row, null, bakiyeler[id] ?? 0));
@@ -228,7 +228,7 @@ async function hesaplaHesapBakiyeleri(): Promise<Record<number, number>> {
 function formatHesap(h: typeof bankaHesaplari.$inferSelect, catiFirmaAd: string | null | undefined, bakiye: number) {
   return {
     id: h.id, catiFirmaId: h.catiFirmaId, catiFirmaAd: catiFirmaAd ?? null,
-    bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, iban: h.iban,
+    bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, iban: h.iban, swift: h.swift,
     paraBirimi: h.paraBirimi, subeAdi: h.subeAdi, aciklama: h.aciklama,
     aktif: h.aktif, faturadaGoster: h.faturadaGoster, bakiye, olusturmaTarihi: h.olusturmaTarihi,
   };

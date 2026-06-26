@@ -32,13 +32,14 @@ interface HesapForm {
   bankaAdi: string;
   hesapAdi: string;
   iban: string;
+  swift: string;
   paraBirimi: string;
   subeAdi: string;
   aciklama: string;
   faturadaGoster: boolean;
 }
 
-const BOSH: HesapForm = { catiFirmaId: "", bankaAdi: "", hesapAdi: "", iban: "", paraBirimi: "TRY", subeAdi: "", aciklama: "", faturadaGoster: true };
+const BOSH: HesapForm = { catiFirmaId: "", bankaAdi: "", hesapAdi: "", iban: "", swift: "", paraBirimi: "TRY", subeAdi: "", aciklama: "", faturadaGoster: true };
 
 
 export default function BankaHesaplari() {
@@ -70,7 +71,7 @@ export default function BankaHesaplari() {
     if (id) {
       const h = hesaplar.find(h => h.id === id);
       if (!h) return;
-      setForm({ catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, iban: h.iban ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "", faturadaGoster: h.faturadaGoster ?? true });
+      setForm({ catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi ?? "", hesapAdi: h.hesapAdi, iban: h.iban ?? "", swift: (h as unknown as Record<string,unknown>).swift as string ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "", faturadaGoster: h.faturadaGoster ?? true });
       setDuzenleId(id);
     } else {
       setForm({ ...BOSH, catiFirmaId: catiFirmalar[0] ? String(catiFirmalar[0].id) : "" });
@@ -82,7 +83,7 @@ export default function BankaHesaplari() {
   function acKopya(id: number) {
     const h = hesaplar.find(h => h.id === id);
     if (!h) return;
-    setForm({ catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi + " (Kopya)", iban: h.iban ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "", faturadaGoster: h.faturadaGoster ?? true });
+    setForm({ catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi ?? "", hesapAdi: h.hesapAdi + " (Kopya)", iban: h.iban ?? "", swift: (h as unknown as Record<string,unknown>).swift as string ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "", faturadaGoster: h.faturadaGoster ?? true });
     setDuzenleId(null);
     setKopyaModu(true);
     setModalAcik(true);
@@ -91,7 +92,7 @@ export default function BankaHesaplari() {
   function kapat() { setModalAcik(false); setDuzenleId(null); setKopyaModu(false); setForm(BOSH); }
 
   function kaydet() {
-    const data = { catiFirmaId: Number(form.catiFirmaId), bankaAdi: form.bankaAdi, hesapAdi: form.hesapAdi, iban: form.iban || undefined, paraBirimi: form.paraBirimi, subeAdi: form.subeAdi || undefined, aciklama: form.aciklama || undefined, aktif: true, faturadaGoster: form.faturadaGoster };
+    const data = { catiFirmaId: Number(form.catiFirmaId), bankaAdi: form.bankaAdi || undefined, hesapAdi: form.hesapAdi, iban: form.iban || undefined, swift: form.swift || undefined, paraBirimi: form.paraBirimi, subeAdi: form.subeAdi || undefined, aciklama: form.aciklama || undefined, aktif: true, faturadaGoster: form.faturadaGoster };
     if (duzenleId) {
       updateHesap.mutate({ id: duzenleId, data }, {
         onSuccess: () => { qc.invalidateQueries({ queryKey: getListBankaHesaplariQueryKey() }); kapat(); toast({ title: "Hesap güncellendi" }); },
@@ -141,15 +142,19 @@ export default function BankaHesaplari() {
               </div>
               <div className="mt-3">
                 <p className="text-xs text-muted-foreground">{h.catiFirmaAd}</p>
+                {(h as unknown as Record<string,unknown>).swift && (
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">SWIFT: {String((h as unknown as Record<string,unknown>).swift)}</p>
+                )}
                 {h.iban && (
                   <div className="flex items-center gap-1.5 mt-0.5 group">
                     <p className="text-xs text-muted-foreground font-mono">{h.iban}</p>
                     <button
                       onClick={() => {
                         const metin = [
-                          `Banka: ${h.bankaAdi}`,
+                          h.bankaAdi ? `Banka: ${h.bankaAdi}` : null,
                           `Hesap Adı: ${h.hesapAdi}`,
-                          `IBAN: ${h.iban}`,
+                          h.iban ? `IBAN: ${h.iban}` : null,
+                          (h as unknown as Record<string,unknown>).swift ? `SWIFT: ${String((h as unknown as Record<string,unknown>).swift)}` : null,
                           `Para Birimi: ${h.paraBirimi}`,
                           h.subeAdi ? `Şube: ${h.subeAdi}` : null,
                         ].filter(Boolean).join("\n");
@@ -208,7 +213,7 @@ export default function BankaHesaplari() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Banka Adı *</Label>
+              <Label>Banka Adı</Label>
               <Input value={form.bankaAdi} onChange={e => setForm(f => ({...f, bankaAdi: e.target.value}))} data-testid="input-hesap-banka-adi" />
             </div>
             <div className="space-y-1.5">
@@ -230,6 +235,10 @@ export default function BankaHesaplari() {
               <Label>IBAN</Label>
               <Input value={form.iban} onChange={e => setForm(f => ({...f, iban: e.target.value.toUpperCase()}))} placeholder="TR00 0000 0000 0000 0000 0000 00" data-testid="input-hesap-iban" />
             </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>SWIFT / BIC Kodu</Label>
+              <Input value={form.swift} onChange={e => setForm(f => ({...f, swift: e.target.value.toUpperCase()}))} placeholder="GARAN2AXXX" data-testid="input-hesap-swift" />
+            </div>
             <div className="col-span-2">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
@@ -248,7 +257,7 @@ export default function BankaHesaplari() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={kapat}>İptal</Button>
-            <Button onClick={kaydet} disabled={!form.catiFirmaId || !form.bankaAdi || !form.hesapAdi} data-testid="button-hesap-kaydet">Kaydet</Button>
+            <Button onClick={kaydet} disabled={!form.catiFirmaId || !form.hesapAdi} data-testid="button-hesap-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

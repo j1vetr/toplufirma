@@ -1693,7 +1693,7 @@ components:
     # ── Banka Hesabı ──────────────────────────────────────────────────────
     BankaHesabi:
       type: object
-      required: [id, catiFirmaId, bankaAdi, hesapAdi, paraBirimi, olusturmaTarihi]
+      required: [id, catiFirmaId, hesapAdi, paraBirimi, olusturmaTarihi]
       properties:
         id:
           type: integer
@@ -1702,10 +1702,12 @@ components:
         catiFirmaAd:
           type: ["string", "null"]
         bankaAdi:
-          type: string
+          type: ["string", "null"]
         hesapAdi:
           type: string
         iban:
+          type: ["string", "null"]
+        swift:
           type: ["string", "null"]
         paraBirimi:
           type: string
@@ -1726,7 +1728,7 @@ components:
 
     BankaHesabiInput:
       type: object
-      required: [catiFirmaId, bankaAdi, hesapAdi, paraBirimi]
+      required: [catiFirmaId, hesapAdi, paraBirimi]
       properties:
         catiFirmaId:
           type: integer
@@ -1735,6 +1737,8 @@ components:
         hesapAdi:
           type: string
         iban:
+          type: string
+        swift:
           type: string
         paraBirimi:
           type: string
@@ -1755,6 +1759,8 @@ components:
         hesapAdi:
           type: string
         iban:
+          type: string
+        swift:
           type: string
         paraBirimi:
           type: string

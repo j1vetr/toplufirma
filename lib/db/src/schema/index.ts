@@ -89,9 +89,10 @@ export const gemiler = pgTable("gemiler", {
 export const bankaHesaplari = pgTable("banka_hesaplari", {
   id: serial("id").primaryKey(),
   catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
-  bankaAdi: text("banka_adi").notNull(),
+  bankaAdi: text("banka_adi"),
   hesapAdi: text("hesap_adi").notNull(),
   iban: text("iban"),
+  swift: text("swift"),
   paraBirimi: text("para_birimi").notNull().default("TRY"),
   subeAdi: text("sube_adi"),
   aciklama: text("aciklama"),

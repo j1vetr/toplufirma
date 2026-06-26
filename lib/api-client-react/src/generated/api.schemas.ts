@@ -351,10 +351,13 @@ export interface BankaHesabi {
   catiFirmaId: number;
   /** @nullable */
   catiFirmaAd?: string | null;
-  bankaAdi: string;
+  /** @nullable */
+  bankaAdi?: string | null;
   hesapAdi: string;
   /** @nullable */
   iban?: string | null;
+  /** @nullable */
+  swift?: string | null;
   paraBirimi: string;
   /** @nullable */
   subeAdi?: string | null;
@@ -368,9 +371,10 @@ export interface BankaHesabi {
 
 export interface BankaHesabiInput {
   catiFirmaId: number;
-  bankaAdi: string;
+  bankaAdi?: string;
   hesapAdi: string;
   iban?: string;
+  swift?: string;
   paraBirimi: string;
   subeAdi?: string;
   aciklama?: string;
@@ -382,6 +386,7 @@ export interface BankaHesabiUpdate {
   bankaAdi?: string;
   hesapAdi?: string;
   iban?: string;
+  swift?: string;
   paraBirimi?: string;
   subeAdi?: string;
   aciklama?: string;
