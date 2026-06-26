@@ -60,30 +60,43 @@ router.get("/faturalar", async (req, res) => {
 router.post("/faturalar", requireYazma, async (req, res) => {
   try {
     const { catiFirmaId, bagliFirmaId, grupFirmaId, gemiId, faturaSerisiId, faturaAdi, faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama, kalemler, tekrarlat } = req.body;
+    req.log.info({ catiFirmaId, bagliFirmaId, grupFirmaId, gemiId, faturaTarihi, vadeTarihi, kalemSayisi: kalemler?.length }, "[fatura-yeni] body alındı");
     if (!catiFirmaId || !bagliFirmaId || !faturaTarihi || !vadeTarihi || !kalemler?.length) {
+      req.log.warn({ catiFirmaId, bagliFirmaId, faturaTarihi, vadeTarihi, kalemSayisi: kalemler?.length }, "[fatura-yeni] zorunlu alan eksik");
       res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
     }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
     const [bagliFirma] = await db.select({ uid: firmalar.ustFirmaId }).from(firmalar).where(eq(firmalar.id, Number(bagliFirmaId)));
-    if (!bagliFirma || (bagliFirma.uid !== null && bagliFirma.uid !== Number(catiFirmaId))) { res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return; }
+    req.log.info({ bagliFirmaId, bulunanUstFirmaId: bagliFirma?.uid ?? null, catiFirmaId }, "[fatura-yeni] bağlı firma kontrolü");
+    if (!bagliFirma || (bagliFirma.uid !== null && bagliFirma.uid !== Number(catiFirmaId))) {
+      req.log.warn({ bagliFirmaId, bulunanUstFirmaId: bagliFirma?.uid ?? null, catiFirmaId }, "[fatura-yeni] bağlı firma eşleşmedi");
+      res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return;
+    }
 
     if (grupFirmaId) {
       const [grup] = await db.select({ tip: firmalar.tip }).from(firmalar).where(eq(firmalar.id, Number(grupFirmaId)));
-      if (!grup || grup.tip !== "grup") { res.status(400).json({ error: "Belirtilen çatı (grup) firma geçersiz" }); return; }
+      if (!grup || grup.tip !== "grup") {
+        req.log.warn({ grupFirmaId, tip: grup?.tip }, "[fatura-yeni] grup firma geçersiz");
+        res.status(400).json({ error: "Belirtilen çatı (grup) firma geçersiz" }); return;
+      }
     }
 
     if (gemiId) {
       const [gemiRow] = await db.select({ uid: firmalar.ustFirmaId })
         .from(gemiler).leftJoin(firmalar, eq(gemiler.firmaId, firmalar.id))
         .where(eq(gemiler.id, Number(gemiId)));
-      if (!gemiRow || gemiRow.uid !== Number(catiFirmaId)) { res.status(400).json({ error: "Belirtilen gemi bu firmaya ait değil" }); return; }
+      if (!gemiRow || gemiRow.uid !== Number(catiFirmaId)) {
+        req.log.warn({ gemiId, gemiUstFirmaId: gemiRow?.uid ?? null, catiFirmaId }, "[fatura-yeni] gemi eşleşmedi");
+        res.status(400).json({ error: "Belirtilen gemi bu firmaya ait değil" }); return;
+      }
     }
 
     let faturaNo = "";
     if (faturaSerisiId) {
       const [seri] = await db.select().from(faturaSerileri).where(eq(faturaSerileri.id, faturaSerisiId));
       if (!seri || seri.catiFirmaId !== Number(catiFirmaId)) {
+        req.log.warn({ faturaSerisiId, seriCatiFirmaId: seri?.catiFirmaId, catiFirmaId }, "[fatura-yeni] seri eşleşmedi");
         res.status(400).json({ error: "Belirtilen fatura serisi bu firmaya ait değil" }); return;
       }
       faturaNo = `${seri.onek}${String(seri.sonrakiNo).padStart(6, "0")}`;
