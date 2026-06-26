@@ -45,6 +45,7 @@ export interface Firma {
   /** @nullable */
   logoUrl?: string | null;
   aktif?: boolean;
+  gorunurSirketIds?: number[];
   olusturmaTarihi: string;
 }
 
@@ -212,6 +213,7 @@ export interface FirmaInput {
   etiket?: string;
   logoUrl?: string;
   aktif?: boolean;
+  gorunurSirketIds?: number[];
 }
 
 export interface FirmaUpdate {
@@ -227,6 +229,7 @@ export interface FirmaUpdate {
   etiket?: string;
   logoUrl?: string;
   aktif?: boolean;
+  gorunurSirketIds?: number[];
 }
 
 export interface FirmaEkstre {

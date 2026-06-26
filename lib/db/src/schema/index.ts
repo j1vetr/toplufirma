@@ -85,6 +85,13 @@ export const gemiler = pgTable("gemiler", {
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 
+// ── Firma Şirket Görünürlük ───────────────────────────────────────────────
+export const firmaSirketGorunurluk = pgTable("firma_sirket_gorunurluk", {
+  id: serial("id").primaryKey(),
+  firmaId: integer("firma_id").notNull().references(() => firmalar.id, { onDelete: "cascade" }),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id, { onDelete: "cascade" }),
+});
+
 // ── Banka Hesapları ───────────────────────────────────────────────────────
 export const bankaHesaplari = pgTable("banka_hesaplari", {
   id: serial("id").primaryKey(),

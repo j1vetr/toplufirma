@@ -43,6 +43,7 @@ export const ListFirmalarResponseItem = zod.object({
   "etiket": zod.string().nullish(),
   "logoUrl": zod.string().nullish(),
   "aktif": zod.boolean().default(listFirmalarResponseAktifDefault),
+  "gorunurSirketIds": zod.array(zod.number()).optional(),
   "olusturmaTarihi": zod.coerce.date()
 })
 export const ListFirmalarResponse = zod.array(ListFirmalarResponseItem)
@@ -64,7 +65,8 @@ export const CreateFirmaBody = zod.object({
   "seriOneki": zod.string().optional(),
   "etiket": zod.string().optional(),
   "logoUrl": zod.string().optional(),
-  "aktif": zod.boolean().optional()
+  "aktif": zod.boolean().optional(),
+  "gorunurSirketIds": zod.array(zod.number()).optional()
 })
 
 
@@ -112,6 +114,7 @@ export const GetFirmaResponse = zod.object({
   "etiket": zod.string().nullish(),
   "logoUrl": zod.string().nullish(),
   "aktif": zod.boolean().default(getFirmaResponseBagliSirketlerItemAktifDefault),
+  "gorunurSirketIds": zod.array(zod.number()).optional(),
   "olusturmaTarihi": zod.coerce.date()
 })).optional(),
   "acikFaturalar": zod.array(zod.object({
@@ -187,7 +190,8 @@ export const UpdateFirmaBody = zod.object({
   "seriOneki": zod.string().optional(),
   "etiket": zod.string().optional(),
   "logoUrl": zod.string().optional(),
-  "aktif": zod.boolean().optional()
+  "aktif": zod.boolean().optional(),
+  "gorunurSirketIds": zod.array(zod.number()).optional()
 })
 
 export const updateFirmaResponseAktifDefault = true;
@@ -208,6 +212,7 @@ export const UpdateFirmaResponse = zod.object({
   "etiket": zod.string().nullish(),
   "logoUrl": zod.string().nullish(),
   "aktif": zod.boolean().default(updateFirmaResponseAktifDefault),
+  "gorunurSirketIds": zod.array(zod.number()).optional(),
   "olusturmaTarihi": zod.coerce.date()
 })
 
@@ -1426,6 +1431,7 @@ export const GlobalAramaResponse = zod.object({
   "etiket": zod.string().nullish(),
   "logoUrl": zod.string().nullish(),
   "aktif": zod.boolean().default(globalAramaResponseFirmalarItemAktifDefault),
+  "gorunurSirketIds": zod.array(zod.number()).optional(),
   "olusturmaTarihi": zod.coerce.date()
 })),
   "gemiler": zod.array(zod.object({

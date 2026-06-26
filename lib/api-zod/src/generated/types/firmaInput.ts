@@ -22,4 +22,5 @@ export interface FirmaInput {
   etiket?: string;
   logoUrl?: string;
   aktif?: boolean;
+  gorunurSirketIds?: number[];
 }

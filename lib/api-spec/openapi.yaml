@@ -1357,6 +1357,10 @@ components:
         aktif:
           type: boolean
           default: true
+        gorunurSirketIds:
+          type: array
+          items:
+            type: integer
         olusturmaTarihi:
           type: string
           format: date-time
@@ -1453,6 +1457,10 @@ components:
           type: string
         aktif:
           type: boolean
+        gorunurSirketIds:
+          type: array
+          items:
+            type: integer
 
     FirmaUpdate:
       type: object
@@ -1479,6 +1487,10 @@ components:
           type: string
         aktif:
           type: boolean
+        gorunurSirketIds:
+          type: array
+          items:
+            type: integer
 
     FirmaEkstre:
       type: object

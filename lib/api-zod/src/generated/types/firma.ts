@@ -34,5 +34,6 @@ export interface Firma {
   /** @nullable */
   logoUrl?: string | null;
   aktif?: boolean;
+  gorunurSirketIds?: number[];
   olusturmaTarihi: Date;
 }

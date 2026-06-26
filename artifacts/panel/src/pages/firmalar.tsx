@@ -93,9 +93,9 @@ const fmt = (n: number, pb = "USD") =>
 interface FirmaForm {
   ad: string; vergiNo: string; vergiDairesi: string;
   adres: string; telefon: string; eposta: string; seriOneki: string; logoUrl: string;
-  etiket: string; grupFirmaId: string;
+  etiket: string; grupFirmaId: string; gorunurSirketIds: number[];
 }
-const BOSH_FORMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", eposta: "", seriOneki: "", logoUrl: "", etiket: "", grupFirmaId: "" };
+const BOSH_FORMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", eposta: "", seriOneki: "", logoUrl: "", etiket: "", grupFirmaId: "", gorunurSirketIds: [] };
 
 interface SmtpForm {
   smtpHost: string; smtpPort: string; smtpGuvenlik: string;
@@ -183,6 +183,8 @@ export default function Firmalar() {
         logoUrl: (f as unknown as Record<string, unknown>).logoUrl as string ?? "",
         grupFirmaId: (f as unknown as Record<string, unknown>).grupFirmaId != null
           ? String((f as unknown as Record<string, unknown>).grupFirmaId) : "",
+        gorunurSirketIds: Array.isArray((f as unknown as Record<string, unknown>).gorunurSirketIds)
+          ? (f as unknown as Record<string, unknown>).gorunurSirketIds as number[] : [],
       });
       setDuzenleId(id);
     } else {
@@ -221,6 +223,7 @@ export default function Firmalar() {
       ...(form.etiket && { etiket: form.etiket }),
       ...(form.logoUrl && { logoUrl: form.logoUrl }),
       ...(modalTip === "bagli" && form.grupFirmaId && { grupFirmaId: Number(form.grupFirmaId) }),
+      ...(modalTip === "grup" && { gorunurSirketIds: form.gorunurSirketIds }),
       aktif: true,
     };
     if (duzenleId) {
@@ -376,10 +379,21 @@ export default function Firmalar() {
                       {(grup as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((grup as unknown as Record<string, unknown>).etiket)}</Badge>}
                       {!grup.aktif && <Badge variant="secondary">Pasif</Badge>}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
                       {grup.vergiNo && <span>VKN: {grup.vergiNo}</span>}
                       {grup.eposta && <span>{grup.eposta}</span>}
                       <span className="flex items-center gap-1"><Users className="h-3 w-3" />{bagliler.length} bağlı firma</span>
+                      {(() => {
+                        const ids = (grup as unknown as Record<string, unknown>).gorunurSirketIds;
+                        if (!Array.isArray(ids) || ids.length === 0) return null;
+                        const adlar = ids.map((sid: number) => catiFirmalar.find(c => c.id === sid)?.ad ?? `#${sid}`);
+                        return (
+                          <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            {adlar.join(", ")}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                   {acik ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
@@ -494,6 +508,39 @@ export default function Firmalar() {
               <div className="space-y-1.5">
                 <Label>Fatura Seri Öneki</Label>
                 <Input value={form.seriOneki} onChange={e => setForm(f => ({ ...f, seriOneki: e.target.value.toUpperCase() }))} maxLength={6} placeholder="LAC" data-testid="input-firma-seri" />
+              </div>
+            )}
+            {modalTip === "grup" && (
+              <div className="col-span-2 space-y-1.5">
+                <Label>Hangi Şirketlerimizde Görünsün? <span className="text-xs text-muted-foreground">(boş bırakılırsa hepsinde)</span></Label>
+                <div className="border rounded-none p-3 space-y-2 max-h-40 overflow-y-auto bg-background">
+                  {catiFirmalar.length === 0 && <p className="text-xs text-muted-foreground">Şirket bulunamadı.</p>}
+                  {catiFirmalar.map(s => {
+                    const secili = form.gorunurSirketIds.includes(s.id);
+                    return (
+                      <label key={s.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={secili}
+                          onChange={() => setForm(f => ({
+                            ...f,
+                            gorunurSirketIds: secili
+                              ? f.gorunurSirketIds.filter(id => id !== s.id)
+                              : [...f.gorunurSirketIds, s.id],
+                          }))}
+                          className="h-4 w-4 accent-[#ffed00]"
+                        />
+                        <span className="text-sm">{s.ad}</span>
+                        {(s as unknown as Record<string, unknown>).etiket && (
+                          <span className="text-[10px] font-bold bg-[#ffed00] text-black px-1.5 py-0.5 leading-none">{String((s as unknown as Record<string, unknown>).etiket)}</span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+                {form.gorunurSirketIds.length > 0 && (
+                  <p className="text-xs text-muted-foreground">{form.gorunurSirketIds.length} şirket seçildi — sadece bu şirketlerde görünür</p>
+                )}
               </div>
             )}
             {modalTip === "bagli" && (

@@ -19,4 +19,5 @@ export interface FirmaUpdate {
   etiket?: string;
   logoUrl?: string;
   aktif?: boolean;
+  gorunurSirketIds?: number[];
 }
