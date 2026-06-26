@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListFirmalar, getListFirmalarQueryKey,
@@ -340,6 +341,11 @@ export default function Firmalar() {
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           )}
+                          <Link href={`/firmalar/bagli/${b.id}`}>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Firma Detayı">
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                     ))}

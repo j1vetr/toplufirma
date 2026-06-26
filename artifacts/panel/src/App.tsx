@@ -22,6 +22,7 @@ import TekrarlayanFaturalar from "@/pages/tekrarlayan-faturalar";
 import Teklifler from "@/pages/teklifler";
 import Ayarlar from "@/pages/ayarlar";
 import GonderiGecmisi from "@/pages/gonderi-gecmisi";
+import BagliFirmaDetay from "@/pages/bagli-firma-detay";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -75,6 +76,11 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
       <Route path="/dashboard">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
           <Dashboard />
+        </AuthGuard>
+      </Route>
+      <Route path="/firmalar/bagli/:id">
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <BagliFirmaDetay />
         </AuthGuard>
       </Route>
       <Route path="/firmalar">
