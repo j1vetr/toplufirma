@@ -275,7 +275,7 @@ router.get("/faturalar/:id", async (req, res) => {
       bagliFirmaAdres,
       gemiAdImo: row.gemiAd ? `${row.gemiAd}${row.gemiImo ? ` (${row.gemiImo})` : ""}` : null,
       kalemler: kalemler.map(k => ({
-        id: k.id, faturaId: k.faturaId, aciklama: k.aciklama,
+        id: k.id, faturaId: k.faturaId, aciklama: k.aciklama, birim: k.birim,
         miktar: Number(k.miktar), birimFiyat: Number(k.birimFiyat),
         kdvOrani: Number(k.kdvOrani), araToplam: Number(k.araToplam),
         kdvTutari: Number(k.kdvTutari), genelToplam: Number(k.genelToplam),
@@ -529,6 +529,74 @@ router.patch("/faturalar/:id", requireYazma, async (req, res) => {
     res.json(formatFatura(row, null, null, null, 0));
   } catch {
     res.status(500).json({ error: "Fatura güncellenemedi" });
+  }
+});
+
+router.put("/faturalar/:id", requireYazma, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const [existing] = await db.select().from(faturalar).where(eq(faturalar.id, id));
+    if (!existing) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
+    if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
+    if (existing.durum === "odendi" || existing.durum === "iptal") {
+      res.status(400).json({ error: "Ödenmiş veya iptal edilmiş fatura düzenlenemez" }); return;
+    }
+
+    const { bagliFirmaId, grupFirmaId, gemiId, faturaAdi, faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama, kalemler: kalemlerInput } = req.body;
+    if (!faturaTarihi || !vadeTarihi) { res.status(400).json({ error: "Fatura tarihi ve vade tarihi zorunludur" }); return; }
+    if (!Array.isArray(kalemlerInput) || kalemlerInput.length === 0) { res.status(400).json({ error: "En az bir kalem zorunludur" }); return; }
+
+    let toplamTutar = 0;
+    let kdvToplam = 0;
+    const kalemlerHazir = (kalemlerInput as { aciklama: string; birim?: string; miktar: number; birimFiyat: number; kdvOrani: number }[]).map(k => {
+      const ara = Number(k.miktar) * Number(k.birimFiyat);
+      const kdv = ara * (Number(k.kdvOrani) / 100);
+      toplamTutar += ara;
+      kdvToplam += kdv;
+      return {
+        faturaId: id,
+        aciklama: k.aciklama,
+        birim: k.birim || "Pcs",
+        miktar: String(k.miktar),
+        birimFiyat: String(k.birimFiyat),
+        kdvOrani: String(k.kdvOrani),
+        araToplam: ara.toFixed(2),
+        kdvTutari: kdv.toFixed(2),
+        genelToplam: (ara + kdv).toFixed(2),
+      };
+    });
+    const genelToplam = toplamTutar + kdvToplam;
+
+    await db.update(faturalar).set({
+      ...(bagliFirmaId != null ? { bagliFirmaId: Number(bagliFirmaId) } : {}),
+      grupFirmaId: grupFirmaId != null ? Number(grupFirmaId) : null,
+      gemiId: gemiId != null && gemiId !== "none" ? Number(gemiId) : null,
+      faturaAdi: faturaAdi || null,
+      faturaTarihi,
+      vadeTarihi,
+      paraBirimi: paraBirimi || existing.paraBirimi,
+      notlar: notlar || null,
+      aciklama: aciklama || null,
+      toplamTutar: toplamTutar.toFixed(2),
+      kdvTutari: kdvToplam.toFixed(2),
+      genelToplam: genelToplam.toFixed(2),
+    }).where(eq(faturalar.id, id));
+
+    await db.delete(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
+    await db.insert(faturaKalemleri).values(kalemlerHazir);
+
+    const [updated] = await db
+      .select({ f: faturalar, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
+      .from(faturalar)
+      .leftJoin(firmalar, eq(faturalar.catiFirmaId, firmalar.id))
+      .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
+      .where(eq(faturalar.id, id));
+
+    res.json(formatFatura(updated.f, updated.catiFirmaAd, null, updated.gemiAd, 0));
+  } catch (err) {
+    console.error("[faturalar/put] error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Fatura güncellenemedi" });
   }
 });
 

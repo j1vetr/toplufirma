@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
-import { ArrowLeft, Plus, Download, Mail, CheckCircle2, Copy, ChevronDown, ChevronUp, Eye, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Download, Mail, CheckCircle2, Copy, ChevronDown, ChevronUp, Eye, Loader2, SquarePen } from "lucide-react";
 import { useLocation } from "wouter";
 
 const fmt = (n: number, pb = "USD") =>
@@ -206,6 +206,13 @@ export default function FaturaDetay() {
           <p className="text-xs text-muted-foreground">{fatura.catiFirmaAd}</p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
+          {canWrite && !["odendi", "iptal"].includes(fatura.durum) && (
+            <Link href={`/faturalar/${id}/duzenle`}>
+              <Button variant="outline" size="sm">
+                <SquarePen className="mr-1 h-4 w-4" /> Düzenle
+              </Button>
+            </Link>
+          )}
           {canWrite && (
             <Button
               variant="outline" size="sm"

@@ -14,6 +14,7 @@ import BankaHesabiDetay from "@/pages/banka-hesabi-detay";
 import Faturalar from "@/pages/faturalar";
 import FaturaYeni from "@/pages/fatura-yeni";
 import FaturaDetay from "@/pages/fatura-detay";
+import FaturaDuzenle from "@/pages/fatura-duzenle";
 import Odemeler from "@/pages/odemeler";
 import Ekipmanlar from "@/pages/ekipmanlar";
 import Raporlar from "@/pages/raporlar";
@@ -109,6 +110,11 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
       <Route path="/faturalar/yeni">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
           <FaturaYeni />
+        </AuthGuard>
+      </Route>
+      <Route path="/faturalar/:id/duzenle">
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <FaturaDuzenle />
         </AuthGuard>
       </Route>
       <Route path="/faturalar/:id">
