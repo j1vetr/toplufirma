@@ -486,19 +486,29 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
     const opsToplamTutar = opsKalemler.reduce((s, k) => s + Number(k.miktar) * Number(k.birimFiyat), 0);
     const toplamYazi = sayiyiIngilizceYaz(araToplam, t.paraBirimi);
 
-    const bankaBilgileri = bankalar.map(b => {
+    const bankaIcerikleri = bankalar.map(b => {
       const ibanlar = (b.ibanlar && Object.keys(b.ibanlar as Record<string, string>).length > 0)
         ? (b.ibanlar as Record<string, string>)
         : (b.iban && b.paraBirimi ? { [b.paraBirimi]: b.iban } : {});
-      const satirlar: string[] = [];
-      if (b.bankaAdi) satirlar.push(`Bank Name    : ${b.bankaAdi}`);
-      if (b.hesapAdi) satirlar.push(`Account Name : ${b.hesapAdi}`);
+      const satirlar: [string, string][] = [];
+      if (b.bankaAdi) satirlar.push(["Bank Name", b.bankaAdi]);
+      if (b.hesapAdi) satirlar.push(["Account Name", b.hesapAdi]);
       for (const [pb, iban] of Object.entries(ibanlar)) {
-        satirlar.push(`${pb} IBAN     : ${iban}`);
+        satirlar.push([`${pb} IBAN`, iban]);
       }
-      if (b.swift) satirlar.push(`SWIFT        : ${b.swift}`);
-      return satirlar.join("\n");
-    }).join("\n\n");
+      if (b.swift) satirlar.push(["SWIFT", b.swift]);
+      return {
+        table: {
+          widths: [90, "*"],
+          body: satirlar.map(([label, value]) => [
+            { text: label, bold: true, fontSize: 10 },
+            { text: value, fontSize: 10 },
+          ]),
+        },
+        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingTop: (i: number) => i === 0 ? 0 : 2, paddingBottom: () => 2 },
+        marginBottom: 12,
+      };
+    });
 
     let satirNo = 0;
     const kalemSatiri = (k: typeof kalemler[number]): TableCell[] => {
@@ -539,6 +549,7 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
             {
               stack: [
                 { text: catiFirmaRow?.ad ?? row.catiFirmaAd ?? "", style: "sirketAd", alignment: "right" },
+                ...(catiFirmaRow?.adres ? [{ text: catiFirmaRow.adres, color: "#555", fontSize: 9, marginTop: 2, alignment: "right" }] : []),
                 ...((catiFirmaRow?.telefon || catiFirmaRow?.eposta) ? [{ text: [catiFirmaRow?.telefon, catiFirmaRow?.eposta].filter(Boolean).join("  |  "), color: "#555", fontSize: 9, marginTop: 1, alignment: "right" }] : []),
                 ...(catiFirmaRow?.vergiNo ? [{ text: `Tax No: ${catiFirmaRow.vergiNo}${catiFirmaRow.vergiDairesi ? ` — ${catiFirmaRow.vergiDairesi}` : ""}`, color: "#555", fontSize: 9, marginTop: 1, alignment: "right" }] : []),
               ],
@@ -585,8 +596,17 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
               width: "*",
               stack: [
                 { text: "VESSEL", style: "bolumBaslik" },
-                { text: row.gemiAd, bold: true, marginTop: 4 },
-                ...(row.gemiImo ? [{ text: `IMO: ${row.gemiImo}`, color: "#555", fontSize: 9, marginTop: 1 }] : []),
+                {
+                  marginTop: 6,
+                  table: {
+                    widths: ["auto", "*"],
+                    body: ([
+                      [{ text: "Ship Name:", bold: true }, { text: row.gemiAd, alignment: "right" }],
+                      ...(row.gemiImo ? [[{ text: "Ship IMO:", bold: true }, { text: String(row.gemiImo), alignment: "right" }]] : []),
+                    ] as TableCell[][]),
+                  },
+                  layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingTop: (i: number) => i === 0 ? 0 : 3, paddingBottom: () => 3 },
+                },
               ],
               alignment: "right",
             }] : []),
@@ -658,11 +678,11 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
           ],
           marginBottom: 8,
         },
-        { text: `Amount in words: ${toplamYazi}`, italics: true, color: "#555", fontSize: 9, marginBottom: 16 },
-        ...(bankaBilgileri ? [
+        { text: `Amount in words: ${toplamYazi}`, italics: true, color: "#555", fontSize: 9, marginBottom: bankaIcerikleri.length > 0 ? 16 : 0 },
+        ...(bankaIcerikleri.length > 0 ? [
           { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: "#e8eaf0" }] } as unknown as import("pdfmake/interfaces").Content,
-          { text: "BANK DETAILS", style: "bolumBaslik", marginBottom: 6 },
-          { text: bankaBilgileri, fontSize: 9, color: "#333", lineHeight: 1.4 },
+          { text: "BANK DETAILS", style: "bolumBaslik", marginBottom: 8 } as unknown as import("pdfmake/interfaces").Content,
+          ...bankaIcerikleri as unknown as import("pdfmake/interfaces").Content[],
         ] : []),
         ...(t.notlar ? [{ text: t.notlar, marginTop: 16, color: "#555", italics: true, fontSize: 9 }] : []),
         ...(t.kosullar ? [
