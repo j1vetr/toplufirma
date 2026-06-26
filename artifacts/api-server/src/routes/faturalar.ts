@@ -86,7 +86,7 @@ router.post("/faturalar", requireYazma, async (req, res) => {
       const [gemiRow] = await db.select({ uid: firmalar.ustFirmaId })
         .from(gemiler).leftJoin(firmalar, eq(gemiler.firmaId, firmalar.id))
         .where(eq(gemiler.id, Number(gemiId)));
-      if (!gemiRow || gemiRow.uid !== Number(catiFirmaId)) {
+      if (!gemiRow || (gemiRow.uid !== null && gemiRow.uid !== Number(catiFirmaId))) {
         req.log.warn({ gemiId, gemiUstFirmaId: gemiRow?.uid ?? null, catiFirmaId }, "[fatura-yeni] gemi eşleşmedi");
         res.status(400).json({ error: "Belirtilen gemi bu firmaya ait değil" }); return;
       }
