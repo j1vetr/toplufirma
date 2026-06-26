@@ -23,7 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Landmark, ChevronRight, FileText, Copy, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, Landmark, ChevronRight, FileText, Copy, Check, CopyPlus } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
 import { useYetki } from "@/hooks/use-yetki";
 
@@ -51,6 +51,7 @@ export default function BankaHesaplari() {
   const [form, setForm] = useState<HesapForm>(BOSH);
   const [silId, setSilId] = useState<number | null>(null);
   const [kopyalandıId, setKopyalandıId] = useState<number | null>(null);
+  const [kopyaModu, setKopyaModu] = useState(false);
 
   const { data: hesaplar = [], isLoading } = useListBankaHesaplari(
     aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined,
@@ -65,6 +66,7 @@ export default function BankaHesaplari() {
   const deleteHesap = useDeleteBankaHesabi();
 
   function ac(id?: number) {
+    setKopyaModu(false);
     if (id) {
       const h = hesaplar.find(h => h.id === id);
       if (!h) return;
@@ -77,7 +79,16 @@ export default function BankaHesaplari() {
     setModalAcik(true);
   }
 
-  function kapat() { setModalAcik(false); setDuzenleId(null); setForm(BOSH); }
+  function acKopya(id: number) {
+    const h = hesaplar.find(h => h.id === id);
+    if (!h) return;
+    setForm({ catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi + " (Kopya)", iban: h.iban ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "", faturadaGoster: h.faturadaGoster ?? true });
+    setDuzenleId(null);
+    setKopyaModu(true);
+    setModalAcik(true);
+  }
+
+  function kapat() { setModalAcik(false); setDuzenleId(null); setKopyaModu(false); setForm(BOSH); }
 
   function kaydet() {
     const data = { catiFirmaId: Number(form.catiFirmaId), bankaAdi: form.bankaAdi, hesapAdi: form.hesapAdi, iban: form.iban || undefined, paraBirimi: form.paraBirimi, subeAdi: form.subeAdi || undefined, aciklama: form.aciklama || undefined, aktif: true, faturadaGoster: form.faturadaGoster };
@@ -122,8 +133,9 @@ export default function BankaHesaplari() {
                 </div>
                 {canWrite && (
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => ac(h.id)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(h.id)}><Trash2 className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" title="Kopyala" onClick={() => acKopya(h.id)}><CopyPlus className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" title="Düzenle" onClick={() => ac(h.id)}><Pencil className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Sil" onClick={() => setSilId(h.id)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 )}
               </div>
@@ -177,7 +189,7 @@ export default function BankaHesaplari() {
 
       <Dialog open={modalAcik} onOpenChange={setModalAcik}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{duzenleId ? "Hesabı Düzenle" : "Yeni Banka Hesabı"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{duzenleId ? "Hesabı Düzenle" : kopyaModu ? "Hesabı Kopyala" : "Yeni Banka Hesabı"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
               <Label>Çatı Firma *</Label>
