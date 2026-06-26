@@ -3,12 +3,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useListFirmalar, getListFirmalarQueryKey,
   useCreateFirma, useUpdateFirma, useDeleteFirma,
-  useGetFirmaEpostaAyarlari, getGetFirmaEpostaAyarlariQueryKey, useUpsertFirmaEpostaAyarlari,
   useGetFirmaEkstre, getGetFirmaEkstreQueryKey,
 } from "@workspace/api-client-react";
-import type { Firma } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import {
   Plus, Pencil, Trash2, Building2, ChevronDown, ChevronRight,
-  Mail, FileBarChart, Users, Download,
+  FileBarChart, Users, Download,
 } from "lucide-react";
 
 const apiBase = () => {
@@ -92,16 +90,10 @@ const fmt = (n: number, pb = "USD") =>
 
 interface FirmaForm {
   ad: string; vergiNo: string; vergiDairesi: string;
-  adres: string; telefon: string; eposta: string; seriOneki: string; logoUrl: string;
+  adres: string; telefon: string; eposta: string; logoUrl: string;
   etiket: string; grupFirmaId: string; gorunurSirketIds: number[];
 }
-const BOSH_FORMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", eposta: "", seriOneki: "", logoUrl: "", etiket: "", grupFirmaId: "", gorunurSirketIds: [] };
-
-interface SmtpForm {
-  smtpHost: string; smtpPort: string; smtpGuvenlik: string;
-  smtpKullanici: string; smtpSifre: string; gonderenAd: string; gonderenAdres: string;
-}
-const BOSH_SMTP: SmtpForm = { smtpHost: "", smtpPort: "587", smtpGuvenlik: "starttls", smtpKullanici: "", smtpSifre: "", gonderenAd: "", gonderenAdres: "" };
+const BOSH_FORMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", eposta: "", logoUrl: "", etiket: "", grupFirmaId: "", gorunurSirketIds: [] };
 
 export default function Firmalar() {
   const qc = useQueryClient();
@@ -111,12 +103,9 @@ export default function Firmalar() {
   const [acikGrupFirmaId, setAcikGrupFirmaId] = useState<number | null>(null);
   const [firmaModal, setFirmaModal] = useState(false);
   const [duzenleId, setDuzenleId] = useState<number | null>(null);
-  const [modalTip, setModalTip] = useState<"cati" | "grup" | "bagli">("grup");
+  const [modalTip, setModalTip] = useState<"grup" | "bagli">("grup");
   const [form, setForm] = useState<FirmaForm>(BOSH_FORMA);
   const [silId, setSilId] = useState<number | null>(null);
-
-  const [smtpFirmaId, setSmtpFirmaId] = useState<number | null>(null);
-  const [smtpForm, setSmtpForm] = useState<SmtpForm>(BOSH_SMTP);
 
   const [ekstreFirmaId, setEkstreFirmaId] = useState<number | null>(null);
   const [ekstreFirmaAd, setEkstreFirmaAd] = useState("");
@@ -126,7 +115,7 @@ export default function Firmalar() {
   });
   const [ekstreBitis, setEkstreBitis] = useState(new Date().toISOString().split("T")[0]);
 
-  const { data: catiFirmalar = [], isLoading } = useListFirmalar(
+  const { data: catiFirmalar = [] } = useListFirmalar(
     { tip: "cati" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
   );
@@ -134,30 +123,10 @@ export default function Firmalar() {
     { tip: "bagli" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
   );
-  const { data: grupFirmalar = [] } = useListFirmalar(
+  const { data: grupFirmalar = [], isLoading } = useListFirmalar(
     { tip: "grup" as import("@workspace/api-client-react").ListFirmalarTip },
     { query: { queryKey: [...getListFirmalarQueryKey(), "grup"] } },
   );
-
-  const { data: smtpData } = useGetFirmaEpostaAyarlari(smtpFirmaId!, {
-    query: { enabled: !!smtpFirmaId, queryKey: getGetFirmaEpostaAyarlariQueryKey(smtpFirmaId!) },
-  });
-
-  useEffect(() => {
-    if (smtpData) {
-      setSmtpForm({
-        smtpHost: smtpData.smtpHost ?? "",
-        smtpPort: String(smtpData.smtpPort ?? 587),
-        smtpGuvenlik: smtpData.smtpGuvenlik ?? "starttls",
-        smtpKullanici: smtpData.smtpKullanici ?? "",
-        smtpSifre: "",
-        gonderenAd: smtpData.gonderenAd ?? "",
-        gonderenAdres: smtpData.gonderenAdres ?? "",
-      });
-    }
-  }, [smtpData]);
-
-  const upsertSmtp = useUpsertFirmaEpostaAyarlari();
 
   const { data: ekstreData, isLoading: ekstreYukleniyor } = useGetFirmaEkstre(
     ekstreFirmaId!,
@@ -169,16 +138,15 @@ export default function Firmalar() {
   const updateFirma = useUpdateFirma();
   const deleteFirma = useDeleteFirma();
 
-  function acFirmaModal(tip: "cati" | "grup" | "bagli", preGrupId?: number, id?: number) {
+  function acFirmaModal(tip: "grup" | "bagli", preGrupId?: number, id?: number) {
     setModalTip(tip);
     if (id) {
-      const tum = [...catiFirmalar, ...bagliFirmalar, ...grupFirmalar];
+      const tum = [...bagliFirmalar, ...grupFirmalar];
       const f = tum.find(x => x.id === id);
       if (!f) return;
       setForm({
         ad: f.ad, vergiNo: f.vergiNo ?? "", vergiDairesi: f.vergiDairesi ?? "",
         adres: f.adres ?? "", telefon: f.telefon ?? "", eposta: f.eposta ?? "",
-        seriOneki: f.seriOneki ?? "",
         etiket: (f as unknown as Record<string, unknown>).etiket as string ?? "",
         logoUrl: (f as unknown as Record<string, unknown>).logoUrl as string ?? "",
         grupFirmaId: (f as unknown as Record<string, unknown>).grupFirmaId != null
@@ -219,7 +187,6 @@ export default function Firmalar() {
       ...(form.adres && { adres: form.adres }),
       ...(form.telefon && { telefon: form.telefon }),
       ...(form.eposta && { eposta: form.eposta }),
-      ...(form.seriOneki && { seriOneki: form.seriOneki }),
       ...(form.etiket && { etiket: form.etiket }),
       ...(form.logoUrl && { logoUrl: form.logoUrl }),
       ...(modalTip === "bagli" && form.grupFirmaId && { grupFirmaId: Number(form.grupFirmaId) }),
@@ -247,34 +214,6 @@ export default function Firmalar() {
     }
   }
 
-  function acSmtpModal(firma: Firma) {
-    setSmtpFirmaId(firma.id);
-    setSmtpForm(BOSH_SMTP);
-  }
-
-  function kaydetSmtp() {
-    if (!smtpFirmaId) return;
-    upsertSmtp.mutate({
-      id: smtpFirmaId,
-      data: {
-        smtpHost: smtpForm.smtpHost,
-        smtpPort: Number(smtpForm.smtpPort),
-        smtpGuvenlik: smtpForm.smtpGuvenlik as import("@workspace/api-client-react").FirmaEpostaAyarlariInputSmtpGuvenlik,
-        smtpKullanici: smtpForm.smtpKullanici,
-        smtpSifre: smtpForm.smtpSifre || undefined,
-        gonderenAd: smtpForm.gonderenAd,
-        gonderenAdres: smtpForm.gonderenAdres,
-        aktif: true,
-      },
-    }, {
-      onSuccess: () => {
-        setSmtpFirmaId(null);
-        toast({ title: "SMTP ayarları kaydedildi" });
-      },
-      onError: () => toast({ title: "Hata", variant: "destructive" }),
-    });
-  }
-
   const bagliFirmaFor = (grupId: number) =>
     bagliFirmalar.filter(b => (b as unknown as Record<string, unknown>).grupFirmaId === grupId);
 
@@ -288,72 +227,16 @@ export default function Firmalar() {
     <div className="space-y-4">
       {canWrite && (
         <div className="flex justify-end gap-2">
-          <Button onClick={() => acFirmaModal("cati")} variant="outline" data-testid="button-cati-firma-ekle">
-            <Plus className="mr-2 h-4 w-4" /> Firmanız Ekle
-          </Button>
           <Button onClick={() => acFirmaModal("grup")} data-testid="button-grup-firma-ekle">
             <Plus className="mr-2 h-4 w-4" /> Çatı Firma Ekle
           </Button>
         </div>
       )}
 
-      {/* Firmanız (cati) — faturayı kesen, ayrı basit bölüm */}
-      {catiFirmalar.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" /> Firmanız
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 border-t">
-            <div className="divide-y">
-              {catiFirmalar.map(cati => (
-                <div key={cati.id} className="flex items-center gap-3 px-4 py-3" data-testid={`card-cati-${cati.id}`}>
-                  <div className="w-9 h-9 rounded-sm bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
-                    {cati.logoUrl ? <img src={cati.logoUrl} alt={cati.ad} className="w-full h-full object-contain" /> : <Building2 className="h-4 w-4 text-primary" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-sm">{cati.ad}</p>
-                      <Badge variant="outline" className="text-xs">Firmanız</Badge>
-                      {(cati as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((cati as unknown as Record<string, unknown>).etiket)}</Badge>}
-                      {!cati.aktif && <Badge variant="secondary" className="text-xs">Pasif</Badge>}
-                    </div>
-                    <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
-                      {cati.vergiNo && <span>VKN: {cati.vergiNo}</span>}
-                      {cati.eposta && <span>{cati.eposta}</span>}
-                      {cati.seriOneki && <span>Seri: {cati.seriOneki}</span>}
-                    </div>
-                  </div>
-                  <div className="flex gap-1 shrink-0">
-                    {canWrite && (
-                      <Button size="icon" variant="ghost" className="h-7 w-7" title="SMTP Ayarları" onClick={() => acSmtpModal(cati)}>
-                        <Mail className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    {canWrite && (
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => acFirmaModal("cati", undefined, cati.id)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    {canWrite && (
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setSilId(cati.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Çatı Firma (grup) — expandable, altında Bağlı Firmalar */}
-      {grupFirmalar.length === 0 && catiFirmalar.length === 0 && (
+      {grupFirmalar.length === 0 && (
         <div className="text-center text-muted-foreground py-20">
           <Building2 className="h-14 w-14 mx-auto mb-4 opacity-20" />
-          <p className="text-lg font-medium">Henüz firma eklenmemiş.</p>
+          <p className="text-lg font-medium">Henüz müşteri firması eklenmemiş.</p>
           <p className="text-sm mt-1">Çatı firma ekleyerek başlayın.</p>
         </div>
       )}
@@ -362,59 +245,57 @@ export default function Firmalar() {
         const bagliler = bagliFirmaFor(grup.id);
         const acik = acikGrupFirmaId === grup.id;
         return (
-          <Card key={grup.id} className="overflow-hidden" data-testid={`card-grup-${grup.id}`}>
-            <CardHeader className="p-0">
-              <div className="flex items-center gap-3 p-4">
-                <button
-                  onClick={() => setAcikGrupFirmaId(acik ? null : grup.id)}
-                  className="flex items-center gap-3 flex-1 text-left"
-                >
-                  <div className="w-10 h-10 rounded-sm bg-amber-500/10 flex items-center justify-center shrink-0 overflow-hidden">
-                    {grup.logoUrl ? <img src={grup.logoUrl} alt={grup.ad} className="w-full h-full object-contain" /> : <Building2 className="h-5 w-5 text-amber-600" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-base">{grup.ad}</h3>
-                      <Badge variant="outline" className="text-xs">Çatı Firma</Badge>
-                      {(grup as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((grup as unknown as Record<string, unknown>).etiket)}</Badge>}
-                      {!grup.aktif && <Badge variant="secondary">Pasif</Badge>}
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                      {grup.vergiNo && <span>VKN: {grup.vergiNo}</span>}
-                      {grup.eposta && <span>{grup.eposta}</span>}
-                      <span className="flex items-center gap-1"><Users className="h-3 w-3" />{bagliler.length} bağlı firma</span>
-                      {(() => {
-                        const ids = (grup as unknown as Record<string, unknown>).gorunurSirketIds;
-                        if (!Array.isArray(ids) || ids.length === 0) return null;
-                        const adlar = ids.map((sid: number) => catiFirmalar.find(c => c.id === sid)?.ad ?? `#${sid}`);
-                        return (
-                          <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
-                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                            {adlar.join(", ")}
-                          </span>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                  {acik ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                </button>
-                <div className="flex gap-1 shrink-0">
-                  {canWrite && (
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => acFirmaModal("grup", undefined, grup.id)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {canWrite && (
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(grup.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
+          <div key={grup.id} className="border bg-card overflow-hidden" data-testid={`card-grup-${grup.id}`}>
+            <div className="flex items-center gap-3 p-4">
+              <button
+                onClick={() => setAcikGrupFirmaId(acik ? null : grup.id)}
+                className="flex items-center gap-3 flex-1 text-left"
+              >
+                <div className="w-10 h-10 rounded-sm bg-amber-500/10 flex items-center justify-center shrink-0 overflow-hidden">
+                  {grup.logoUrl ? <img src={grup.logoUrl} alt={grup.ad} className="w-full h-full object-contain" /> : <Building2 className="h-5 w-5 text-amber-600" />}
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-base">{grup.ad}</h3>
+                    <Badge variant="outline" className="text-xs">Çatı Firma</Badge>
+                    {(grup as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((grup as unknown as Record<string, unknown>).etiket)}</Badge>}
+                    {!grup.aktif && <Badge variant="secondary">Pasif</Badge>}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                    {grup.vergiNo && <span>VKN: {grup.vergiNo}</span>}
+                    {grup.eposta && <span>{grup.eposta}</span>}
+                    <span className="flex items-center gap-1"><Users className="h-3 w-3" />{bagliler.length} bağlı firma</span>
+                    {(() => {
+                      const ids = (grup as unknown as Record<string, unknown>).gorunurSirketIds;
+                      if (!Array.isArray(ids) || ids.length === 0) return null;
+                      const adlar = ids.map((sid: number) => catiFirmalar.find(c => c.id === sid)?.ad ?? `#${sid}`);
+                      return (
+                        <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          {adlar.join(", ")}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </div>
+                {acik ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+              </button>
+              <div className="flex gap-1 shrink-0">
+                {canWrite && (
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => acFirmaModal("grup", undefined, grup.id)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+                {canWrite && (
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(grup.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
-            </CardHeader>
+            </div>
 
             {acik && (
-              <CardContent className="p-0 border-t bg-muted/30">
+              <div className="border-t bg-muted/30">
                 <div className="px-4 py-3 flex items-center justify-between">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Bağlı Firmalar</p>
                   {canWrite && (
@@ -464,16 +345,16 @@ export default function Firmalar() {
                     ))}
                   </div>
                 )}
-              </CardContent>
+              </div>
             )}
-          </Card>
+          </div>
         );
       })}
 
       <Dialog open={firmaModal} onOpenChange={setFirmaModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{duzenleId ? "Firmayı Düzenle" : modalTip === "cati" ? "Yeni Firmanız" : modalTip === "grup" ? "Yeni Çatı Firma" : "Yeni Bağlı Firma"}</DialogTitle>
+            <DialogTitle>{duzenleId ? "Firmayı Düzenle" : modalTip === "grup" ? "Yeni Çatı Firma" : "Yeni Bağlı Firma"}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
@@ -504,12 +385,6 @@ export default function Firmalar() {
               <Label>Etiket <span className="text-xs text-muted-foreground">(opsiyonel — ülke, bölge vb.)</span></Label>
               <Input value={form.etiket} onChange={e => setForm(f => ({ ...f, etiket: e.target.value }))} placeholder="Örn: İngiltere, Kıbrıs, Hollanda" data-testid="input-firma-etiket" />
             </div>
-            {modalTip === "cati" && (
-              <div className="space-y-1.5">
-                <Label>Fatura Seri Öneki</Label>
-                <Input value={form.seriOneki} onChange={e => setForm(f => ({ ...f, seriOneki: e.target.value.toUpperCase() }))} maxLength={6} placeholder="LAC" data-testid="input-firma-seri" />
-              </div>
-            )}
             {modalTip === "grup" && (
               <div className="col-span-2 space-y-1.5">
                 <Label>Hangi Şirketlerimizde Görünsün? <span className="text-xs text-muted-foreground">(boş bırakılırsa hepsinde)</span></Label>
@@ -560,9 +435,9 @@ export default function Firmalar() {
                 </Select>
               </div>
             )}
-            {modalTip === "cati" && (
+            {modalTip === "grup" && (
               <div className="col-span-2 space-y-1.5">
-                <Label>Logo <span className="text-xs text-muted-foreground">(faturada görünür)</span></Label>
+                <Label>Logo <span className="text-xs text-muted-foreground">(opsiyonel)</span></Label>
                 <div className="flex items-center gap-3">
                   {form.logoUrl && (
                     <img src={form.logoUrl} alt="logo" className="h-12 w-12 rounded object-contain border bg-white" />
@@ -583,67 +458,6 @@ export default function Firmalar() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!smtpFirmaId} onOpenChange={o => !o && setSmtpFirmaId(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>SMTP / E-posta Ayarları</DialogTitle></DialogHeader>
-          {smtpData && (
-            <div className="text-xs text-muted-foreground bg-muted/50 rounded-none border p-3 mb-2">
-              Mevcut: {smtpData.smtpHost}:{smtpData.smtpPort} — {smtpData.gonderenAdres}
-            </div>
-          )}
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">SMTP Host *</Label>
-                <Input className="h-8 text-sm" value={smtpForm.smtpHost} onChange={e => setSmtpForm(f => ({ ...f, smtpHost: e.target.value }))} placeholder="mail.example.com" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Port</Label>
-                <Input className="h-8 text-sm" type="number" value={smtpForm.smtpPort} onChange={e => setSmtpForm(f => ({ ...f, smtpPort: e.target.value }))} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Güvenlik</Label>
-              <Select value={smtpForm.smtpGuvenlik} onValueChange={v => setSmtpForm(f => ({ ...f, smtpGuvenlik: v }))}>
-                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="starttls">STARTTLS</SelectItem>
-                  <SelectItem value="ssl">SSL/TLS</SelectItem>
-                  <SelectItem value="none">Yok</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Kullanıcı *</Label>
-                <Input className="h-8 text-sm" value={smtpForm.smtpKullanici} onChange={e => setSmtpForm(f => ({ ...f, smtpKullanici: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Şifre</Label>
-                <Input className="h-8 text-sm" type="password" value={smtpForm.smtpSifre} onChange={e => setSmtpForm(f => ({ ...f, smtpSifre: e.target.value }))} placeholder="Değiştirmek için girin" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Gönderen Ad *</Label>
-                <Input className="h-8 text-sm" value={smtpForm.gonderenAd} onChange={e => setSmtpForm(f => ({ ...f, gonderenAd: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Gönderen Adres *</Label>
-                <Input className="h-8 text-sm" type="email" value={smtpForm.gonderenAdres} onChange={e => setSmtpForm(f => ({ ...f, gonderenAdres: e.target.value }))} />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSmtpFirmaId(null)}>İptal</Button>
-            <Button
-              onClick={kaydetSmtp}
-              disabled={!smtpForm.smtpHost || !smtpForm.smtpKullanici || !smtpForm.gonderenAd || !smtpForm.gonderenAdres || upsertSmtp.isPending}
-            >Kaydet</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={!!ekstreFirmaId} onOpenChange={o => !o && setEkstreFirmaId(null)}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{ekstreFirmaAd} — Cari Ekstre</DialogTitle></DialogHeader>
@@ -658,33 +472,13 @@ export default function Firmalar() {
             </div>
             {ekstreData && (ekstreData.kalemler ?? []).length > 0 && (
               <div className="ml-auto flex gap-1.5 flex-wrap">
-                <Button
-                  size="sm" variant="outline"
-                  className="gap-1.5 text-xs h-8"
-                  onClick={() => ekstreCsvIndir(ekstreData, ekstreFirmaAd ?? "ekstre")}
-                >
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8" onClick={() => ekstreCsvIndir(ekstreData, ekstreFirmaAd ?? "ekstre")}>
                   <Download className="h-3.5 w-3.5" />CSV İndir
                 </Button>
-                <Button
-                  size="sm" variant="outline"
-                  className="gap-1.5 text-xs h-8"
-                  onClick={() => {
-                    if (!ekstreFirmaId) return;
-                    ekstreExcelIndir(ekstreFirmaId, ekstreFirmaAd ?? "ekstre", ekstreBaslangic, ekstreBitis)
-                      .catch(() => {});
-                  }}
-                >
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8" onClick={() => { if (!ekstreFirmaId) return; ekstreExcelIndir(ekstreFirmaId, ekstreFirmaAd ?? "ekstre", ekstreBaslangic, ekstreBitis).catch(() => {}); }}>
                   <Download className="h-3.5 w-3.5" />Excel İndir
                 </Button>
-                <Button
-                  size="sm" variant="outline"
-                  className="gap-1.5 text-xs h-8"
-                  onClick={() => {
-                    if (!ekstreFirmaId) return;
-                    ekstrePdfIndir(ekstreFirmaId, ekstreFirmaAd ?? "ekstre", ekstreBaslangic, ekstreBitis)
-                      .catch(() => {});
-                  }}
-                >
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8" onClick={() => { if (!ekstreFirmaId) return; ekstrePdfIndir(ekstreFirmaId, ekstreFirmaAd ?? "ekstre", ekstreBaslangic, ekstreBitis).catch(() => {}); }}>
                   <Download className="h-3.5 w-3.5" />PDF İndir
                 </Button>
               </div>
@@ -695,9 +489,9 @@ export default function Firmalar() {
           ) : ekstreData ? (
             <div className="space-y-4 mt-2">
               <div className="grid grid-cols-3 gap-3 text-sm">
-                <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Toplam Borç</p><p className="font-bold text-red-500">{fmt(ekstreData.toplamBorc)}</p></CardContent></Card>
-                <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Toplam Alacak</p><p className="font-bold text-green-600">{fmt(ekstreData.toplamAlacak)}</p></CardContent></Card>
-                <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Kalan Bakiye</p><p className={`font-bold ${ekstreData.kalanBakiye > 0 ? "text-red-500" : "text-blue-600"}`}>{fmt(ekstreData.kalanBakiye)}</p></CardContent></Card>
+                <div className="border p-3"><p className="text-xs text-muted-foreground">Toplam Borç</p><p className="font-bold text-red-500">{fmt(ekstreData.toplamBorc)}</p></div>
+                <div className="border p-3"><p className="text-xs text-muted-foreground">Toplam Alacak</p><p className="font-bold text-green-600">{fmt(ekstreData.toplamAlacak)}</p></div>
+                <div className="border p-3"><p className="text-xs text-muted-foreground">Kalan Bakiye</p><p className={`font-bold ${ekstreData.kalanBakiye > 0 ? "text-red-500" : "text-blue-600"}`}>{fmt(ekstreData.kalanBakiye)}</p></div>
               </div>
               <div className="space-y-1">
                 {(ekstreData.kalemler ?? []).map((k, i) => (

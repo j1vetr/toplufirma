@@ -72,7 +72,7 @@ export default function BankaHesabiDetay() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/banka-hesaplari"><Button variant="ghost" size="icon" className="rounded-sm"><ArrowLeft className="h-4 w-4" /></Button></Link>
+        <Link href="/ayarlar"><Button variant="ghost" size="icon" className="rounded-sm"><ArrowLeft className="h-4 w-4" /></Button></Link>
         <div>
           <h2 className="text-xl font-display font-semibold">{hesap.bankaAdi} - {hesap.hesapAdi}</h2>
           <p className="text-sm text-muted-foreground">{hesap.catiFirmaAd}</p>

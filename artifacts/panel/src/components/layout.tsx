@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Building2,
   Ship,
-  Landmark,
   FileText,
   Wallet,
   HardDrive,
@@ -43,7 +42,6 @@ const navigation = [
   { name: "Ana Sayfa", href: "/dashboard", icon: LayoutDashboard },
   { name: "Firmalar", href: "/firmalar", icon: Building2 },
   { name: "Gemiler", href: "/gemiler", icon: Ship },
-  { name: "Banka Hesapları", href: "/banka-hesaplari", icon: Landmark },
   { name: "Faturalar", href: "/faturalar", icon: FileText },
   { name: "Teklifler", href: "/teklifler", icon: FileText },
   { name: "Ödemeler", href: "/odemeler", icon: Wallet },
@@ -51,7 +49,7 @@ const navigation = [
   { name: "Tekrarlayan Faturalar", href: "/tekrarlayan-faturalar", icon: Repeat },
   { name: "Gönderim Geçmişi", href: "/gonderi-gecmisi", icon: Send },
   { name: "Raporlar", href: "/raporlar", icon: PieChart },
-  { name: "Tanımlar", href: "/tanimlar", icon: Settings },
+  { name: "Ayarlarımız", href: "/ayarlar", icon: Settings },
 ];
 
 interface LayoutProps {

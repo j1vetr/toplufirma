@@ -10,14 +10,12 @@ import Dashboard from "@/pages/dashboard";
 import Firmalar from "@/pages/firmalar";
 import Gemiler from "@/pages/gemiler";
 import GemiDetay from "@/pages/gemi-detay";
-import BankaHesaplari from "@/pages/banka-hesaplari";
 import BankaHesabiDetay from "@/pages/banka-hesabi-detay";
 import Faturalar from "@/pages/faturalar";
 import FaturaYeni from "@/pages/fatura-yeni";
 import FaturaDetay from "@/pages/fatura-detay";
 import Odemeler from "@/pages/odemeler";
 import Ekipmanlar from "@/pages/ekipmanlar";
-import Tanimlar from "@/pages/tanimlar";
 import Raporlar from "@/pages/raporlar";
 import Kullanicilar from "@/pages/kullanicilar";
 import TekrarlayanFaturalar from "@/pages/tekrarlayan-faturalar";
@@ -95,9 +93,7 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
         </AuthGuard>
       </Route>
       <Route path="/banka-hesaplari">
-        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
-          <BankaHesaplari />
-        </AuthGuard>
+        <Redirect to="/ayarlar" />
       </Route>
       <Route path="/banka-hesaplari/:id">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
@@ -130,9 +126,7 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
         </AuthGuard>
       </Route>
       <Route path="/tanimlar">
-        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
-          <Tanimlar />
-        </AuthGuard>
+        <Redirect to="/ayarlar" />
       </Route>
       <Route path="/raporlar">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
