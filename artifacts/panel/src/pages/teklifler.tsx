@@ -198,13 +198,18 @@ export default function Teklifler() {
     { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
   );
 
+  const { data: grupFirmalar = [] } = useListFirmalar(
+    { tip: "grup" },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "grup"] } },
+  );
+
   const { data: gemiler = [] } = useQuery<Gemi[]>({
-    queryKey: ["gemiler"],
-    queryFn: () => apiFetch("/gemiler"),
+    queryKey: ["gemiler", form.catiFirmaId],
+    queryFn: () => apiFetch(`/gemiler${form.catiFirmaId ? `?catiFirmaId=${form.catiFirmaId}` : ""}`),
   });
 
   const filtrelenmis = durumFiltre === "tumu" ? teklifListesi : teklifListesi.filter(t => t.durum === durumFiltre);
-  const firmaGemileri = gemiler.filter(g => g.catiFirmaId === Number(form.catiFirmaId));
+  const firmaGemileri = gemiler;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -864,7 +869,19 @@ export default function Teklifler() {
                 </SelectTrigger>
                 <SelectContent>
                   {bagliFirmalar
-                    .filter(f => !donusturTeklif || f.ustFirmaId === donusturTeklif.catiFirmaId)
+                    .filter(f => {
+                      if (!donusturTeklif) return true;
+                      const cid = donusturTeklif.catiFirmaId;
+                      const fb = f as unknown as Record<string, unknown>;
+                      if (fb.ustFirmaId === cid) return true;
+                      const gfid = fb.grupFirmaId as number | null;
+                      if (gfid == null) return false;
+                      const gf = grupFirmalar.find(g => g.id === gfid);
+                      if (!gf) return false;
+                      const gorunurIds = ((gf as unknown as Record<string, unknown>).gorunurSirketIds as number[]) ?? [];
+                      if (gorunurIds.length === 0) return true;
+                      return gorunurIds.includes(cid);
+                    })
                     .map(f => (
                       <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>
                     ))

@@ -230,7 +230,18 @@ export default function TekrarlayanFaturalar() {
     : liste;
 
   const filtreliBagli = form.catiFirmaId
-    ? bagliFirmalar.filter(f => f.ustFirmaId === Number(form.catiFirmaId))
+    ? bagliFirmalar.filter(f => {
+        const cid = Number(form.catiFirmaId);
+        const fb = f as unknown as Record<string, unknown>;
+        if (fb.ustFirmaId === cid) return true;
+        const gfid = fb.grupFirmaId as number | null;
+        if (gfid == null) return false;
+        const gf = grupFirmalar.find(g => g.id === gfid);
+        if (!gf) return false;
+        const gorunurIds = ((gf as unknown as Record<string, unknown>).gorunurSirketIds as number[]) ?? [];
+        if (gorunurIds.length === 0) return true;
+        return gorunurIds.includes(cid);
+      })
     : bagliFirmalar;
 
   if (isLoading) return <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-none" />)}</div>;

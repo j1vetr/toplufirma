@@ -83,7 +83,19 @@ export default function FaturaYeni() {
   const { data: kdvOranlari = [] } = useListKdvOranlari(undefined, { query: { queryKey: getListKdvOranlariQueryKey() } });
   const createFatura = useCreateFatura();
 
-  const filtrelenmisCariler = bagliFirmalar.filter(f => !catiFirmaId || f.ustFirmaId === Number(catiFirmaId));
+  const filtrelenmisCariler = bagliFirmalar.filter(f => {
+    if (!catiFirmaId) return true;
+    const cid = Number(catiFirmaId);
+    const fb = f as unknown as Record<string, unknown>;
+    if (fb.ustFirmaId === cid) return true;
+    const gfid = fb.grupFirmaId as number | null;
+    if (gfid == null) return false;
+    const gf = grupFirmalar.find(g => g.id === gfid);
+    if (!gf) return false;
+    const gorunurIds = ((gf as unknown as Record<string, unknown>).gorunurSirketIds as number[]) ?? [];
+    if (gorunurIds.length === 0) return true;
+    return gorunurIds.includes(cid);
+  });
   const filtrelenmisGemiler = gemiler.filter(g => !bagliFirmaId || g.firmaId === Number(bagliFirmaId));
   const filtrelenmisSeriler = seriler.filter(s => !catiFirmaId || s.catiFirmaId === Number(catiFirmaId));
   const filtrelenmisKdv = kdvOranlari.filter(k => !catiFirmaId || k.catiFirmaId === Number(catiFirmaId));

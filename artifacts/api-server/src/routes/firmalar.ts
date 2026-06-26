@@ -45,10 +45,19 @@ router.get("/firmalar", async (req, res) => {
         if (f.tip === "cati") return izinli.includes(f.id);
         if (f.tip === "grup") {
           const gorunur = gorunurlukMap.get(f.id);
-          if (!gorunur || gorunur.length === 0) return true; // kısıtlanmamış → herkese görünür
+          if (!gorunur || gorunur.length === 0) return true;
           return gorunur.some(id => izinli.includes(id));
         }
-        return f.ustFirmaId != null && izinli.includes(f.ustFirmaId);
+        if (f.tip === "bagli") {
+          if (f.ustFirmaId != null && izinli.includes(f.ustFirmaId)) return true;
+          if (f.grupFirmaId != null) {
+            const gorunur = gorunurlukMap.get(f.grupFirmaId);
+            if (!gorunur || gorunur.length === 0) return true;
+            return gorunur.some(id => izinli.includes(id));
+          }
+          return false;
+        }
+        return false;
       });
     }
     if (tip) filtered = filtered.filter(f => f.tip === tip);
