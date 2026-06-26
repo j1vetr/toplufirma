@@ -35,7 +35,7 @@ import { useSirket } from "@/contexts/sirket-context";
 import {
   Plus, Pencil, Trash2, Building2, Mail, Landmark, FileText,
   Download, Upload, ShieldAlert, DatabaseBackup, CheckCircle2, Loader2,
-  Copy, Check, CopyPlus, ChevronRight,
+  Copy, Check, CopyPlus, ChevronRight, X,
 } from "lucide-react";
 
 function getToken() {
@@ -55,12 +55,22 @@ interface SmtpForm {
 }
 const BOSH_SMTP: SmtpForm = { smtpHost: "", smtpPort: "587", smtpGuvenlik: "starttls", smtpKullanici: "", smtpSifre: "", gonderenAd: "", gonderenAdres: "" };
 
+const PARA_BIRIMLERI = ["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "CAD", "AUD", "NOK", "SEK", "DKK"];
+
+interface IbanGiris { pb: string; iban: string; }
+
 interface HesapForm {
   catiFirmaId: string; bankaAdi: string; hesapAdi: string;
-  iban: string; swift: string; paraBirimi: string; subeAdi: string;
-  aciklama: string; faturadaGoster: boolean;
+  swift: string; subeAdi: string; aciklama: string;
+  faturadaGoster: boolean; ibanGirisler: IbanGiris[];
 }
-const BOSH_HESAP: HesapForm = { catiFirmaId: "", bankaAdi: "", hesapAdi: "", iban: "", swift: "", paraBirimi: "TRY", subeAdi: "", aciklama: "", faturadaGoster: true };
+const BOSH_HESAP: HesapForm = { catiFirmaId: "", bankaAdi: "", hesapAdi: "", swift: "", subeAdi: "", aciklama: "", faturadaGoster: true, ibanGirisler: [{ pb: "TRY", iban: "" }] };
+
+function hesapIbanGirisler(ibanlar?: Record<string, string> | null, legacyIban?: string | null, legacyPb?: string | null): IbanGiris[] {
+  if (ibanlar && Object.keys(ibanlar).length > 0) return Object.entries(ibanlar).map(([pb, iban]) => ({ pb, iban }));
+  if (legacyIban && legacyPb) return [{ pb: legacyPb, iban: legacyIban }];
+  return [{ pb: "TRY", iban: "" }];
+}
 
 export default function Ayarlar() {
   const qc = useQueryClient();
@@ -222,7 +232,13 @@ export default function Ayarlar() {
     if (id) {
       const h = hesaplar.find(h => h.id === id);
       if (!h) return;
-      setHesapForm({ catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi ?? "", hesapAdi: h.hesapAdi, iban: h.iban ?? "", swift: (h as unknown as Record<string, unknown>).swift as string ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "", faturadaGoster: h.faturadaGoster ?? true });
+      setHesapForm({
+        catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi ?? "",
+        hesapAdi: h.hesapAdi, swift: (h as unknown as Record<string, unknown>).swift as string ?? "",
+        subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "",
+        faturadaGoster: h.faturadaGoster ?? true,
+        ibanGirisler: hesapIbanGirisler(h.ibanlar, h.iban, h.paraBirimi),
+      });
       setDuzenleHesapId(id);
     } else {
       setHesapForm({ ...BOSH_HESAP, catiFirmaId: catiFirmalar[0] ? String(catiFirmalar[0].id) : "" });
@@ -234,7 +250,13 @@ export default function Ayarlar() {
   function acKopya(id: number) {
     const h = hesaplar.find(h => h.id === id);
     if (!h) return;
-    setHesapForm({ catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi ?? "", hesapAdi: h.hesapAdi + " (Kopya)", iban: h.iban ?? "", swift: (h as unknown as Record<string, unknown>).swift as string ?? "", paraBirimi: h.paraBirimi, subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "", faturadaGoster: h.faturadaGoster ?? true });
+    setHesapForm({
+      catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi ?? "",
+      hesapAdi: h.hesapAdi + " (Kopya)", swift: (h as unknown as Record<string, unknown>).swift as string ?? "",
+      subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "",
+      faturadaGoster: h.faturadaGoster ?? true,
+      ibanGirisler: hesapIbanGirisler(h.ibanlar, h.iban, h.paraBirimi),
+    });
     setDuzenleHesapId(null);
     setKopyaModu(true);
     setHesapModal(true);
@@ -242,8 +264,16 @@ export default function Ayarlar() {
 
   function kapatHesap() { setHesapModal(false); setDuzenleHesapId(null); setKopyaModu(false); setHesapForm(BOSH_HESAP); }
 
+  function ibanEkle() { setHesapForm(f => ({ ...f, ibanGirisler: [...f.ibanGirisler, { pb: "USD", iban: "" }] })); }
+  function ibanGuncelle(i: number, field: keyof IbanGiris, value: string) {
+    setHesapForm(f => { const g = [...f.ibanGirisler]; g[i] = { ...g[i], [field]: value }; return { ...f, ibanGirisler: g }; });
+  }
+  function ibanSil(i: number) { setHesapForm(f => ({ ...f, ibanGirisler: f.ibanGirisler.filter((_, idx) => idx !== i) })); }
+
   function kaydetHesap() {
-    const data = { catiFirmaId: Number(hesapForm.catiFirmaId), bankaAdi: hesapForm.bankaAdi || undefined, hesapAdi: hesapForm.hesapAdi, iban: hesapForm.iban || undefined, swift: hesapForm.swift || undefined, paraBirimi: hesapForm.paraBirimi, subeAdi: hesapForm.subeAdi || undefined, aciklama: hesapForm.aciklama || undefined, aktif: true, faturadaGoster: hesapForm.faturadaGoster };
+    const ibanlar: Record<string, string> = {};
+    for (const g of hesapForm.ibanGirisler) { if (g.pb && g.iban.trim()) ibanlar[g.pb] = g.iban.trim(); }
+    const data = { catiFirmaId: Number(hesapForm.catiFirmaId), bankaAdi: hesapForm.bankaAdi || undefined, hesapAdi: hesapForm.hesapAdi, swift: hesapForm.swift || undefined, subeAdi: hesapForm.subeAdi || undefined, aciklama: hesapForm.aciklama || undefined, aktif: true, faturadaGoster: hesapForm.faturadaGoster, ibanlar };
     if (duzenleHesapId) {
       updateHesap.mutate({ id: duzenleHesapId, data }, {
         onSuccess: () => { qc.invalidateQueries({ queryKey: getListBankaHesaplariQueryKey() }); kapatHesap(); toast({ title: "Hesap güncellendi" }); },
@@ -441,71 +471,83 @@ export default function Ayarlar() {
             <div className="animate-pulse space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 bg-muted rounded-none" />)}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {hesaplar.map(h => (
-                <Card key={h.id} data-testid={`card-hesap-${h.id}`}>
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-sm bg-green-500/10 flex items-center justify-center">
-                          <Landmark className="h-5 w-5 text-green-600" />
+              {hesaplar.map(h => {
+                const ibanlar = (h.ibanlar && Object.keys(h.ibanlar).length > 0)
+                  ? h.ibanlar
+                  : (h.iban && h.paraBirimi ? { [h.paraBirimi]: h.iban } : {});
+                const swift = (h as unknown as Record<string, unknown>).swift as string | undefined;
+                const ibanGirisler = Object.entries(ibanlar);
+                return (
+                  <Card key={h.id} data-testid={`card-hesap-${h.id}`}>
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-sm bg-green-500/10 flex items-center justify-center">
+                            <Landmark className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">{h.bankaAdi || "—"}</h3>
+                            <p className="text-xs text-muted-foreground">{h.hesapAdi}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-semibold">{h.bankaAdi}</h3>
-                          <p className="text-xs text-muted-foreground">{h.hesapAdi}</p>
-                        </div>
+                        {canWrite && (
+                          <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" className="h-8 w-8" title="Kopyala" onClick={() => acKopya(h.id)}><CopyPlus className="h-4 w-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8" title="Düzenle" onClick={() => acHesap(h.id)}><Pencil className="h-4 w-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Sil" onClick={() => setSilHesapId(h.id)}><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        )}
                       </div>
-                      {canWrite && (
-                        <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" className="h-8 w-8" title="Kopyala" onClick={() => acKopya(h.id)}><CopyPlus className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8" title="Düzenle" onClick={() => acHesap(h.id)}><Pencil className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Sil" onClick={() => setSilHesapId(h.id)}><Trash2 className="h-4 w-4" /></Button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-3">
-                      <p className="text-xs text-muted-foreground">{h.catiFirmaAd}</p>
-                      {(h as unknown as Record<string, unknown>).swift && (
-                        <p className="text-xs text-muted-foreground font-mono mt-0.5">SWIFT: {String((h as unknown as Record<string, unknown>).swift)}</p>
-                      )}
-                      {h.iban && (
-                        <div className="flex items-center gap-1.5 mt-0.5 group">
-                          <p className="text-xs text-muted-foreground font-mono">{h.iban}</p>
-                          <button
-                            onClick={() => {
-                              const metin = [
-                                h.bankaAdi ? `Banka: ${h.bankaAdi}` : null,
-                                `Hesap Adı: ${h.hesapAdi}`,
-                                h.iban ? `IBAN: ${h.iban}` : null,
-                                (h as unknown as Record<string, unknown>).swift ? `SWIFT: ${String((h as unknown as Record<string, unknown>).swift)}` : null,
-                                `Para Birimi: ${h.paraBirimi}`,
-                                h.subeAdi ? `Şube: ${h.subeAdi}` : null,
-                              ].filter(Boolean).join("\n");
-                              navigator.clipboard.writeText(metin);
-                              setKopyalandıId(h.id);
-                              setTimeout(() => setKopyalandıId(null), 2000);
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                            title="Hesap bilgilerini kopyala"
-                          >
-                            {kopyalandıId === h.id ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-3 flex items-center gap-2 flex-wrap">
-                      <Badge variant={h.aktif ? "default" : "secondary"}>{h.aktif ? "Aktif" : "Pasif"}</Badge>
-                      {h.faturadaGoster !== false && (
-                        <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-sm">
-                          <FileText className="h-3 w-3" /> Faturada Göster
-                        </span>
-                      )}
-                      <Link href={`/banka-hesaplari/${h.id}`} className="ml-auto">
-                        <Button size="icon" variant="ghost" className="h-7 w-7"><ChevronRight className="h-4 w-4" /></Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="mt-3 space-y-0.5">
+                        <p className="text-xs text-muted-foreground">{h.catiFirmaAd}</p>
+                        {swift && <p className="text-xs text-muted-foreground font-mono">SWIFT: {swift}</p>}
+                        {ibanGirisler.length > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {ibanGirisler.map(([pb, iban]) => (
+                              <p key={pb} className="text-xs font-mono text-muted-foreground">
+                                <span className="font-semibold text-foreground">{pb}</span> {iban}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            const metin = [
+                              h.bankaAdi ? `Banka: ${h.bankaAdi}` : null,
+                              `Hesap Adı: ${h.hesapAdi}`,
+                              ...Object.entries(ibanlar).map(([pb, iban]) => `${pb} IBAN: ${iban}`),
+                              swift ? `SWIFT: ${swift}` : null,
+                              h.subeAdi ? `Şube: ${h.subeAdi}` : null,
+                            ].filter(Boolean).join("\n");
+                            navigator.clipboard.writeText(metin);
+                            setKopyalandıId(h.id);
+                            setTimeout(() => setKopyalandıId(null), 2000);
+                          }}
+                          className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                          title="Hesap bilgilerini kopyala"
+                        >
+                          {kopyalandıId === h.id
+                            ? <><Check className="h-3.5 w-3.5 text-green-500" /> Kopyalandı</>
+                            : <><Copy className="h-3.5 w-3.5" /> Kopyala</>}
+                        </button>
+                      </div>
+                      <div className="mt-3 flex items-center gap-2 flex-wrap">
+                        <Badge variant={h.aktif ? "default" : "secondary"}>{h.aktif ? "Aktif" : "Pasif"}</Badge>
+                        {h.faturadaGoster !== false && (
+                          <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-0.5 rounded-sm">
+                            <FileText className="h-3 w-3" /> Faturada Göster
+                          </span>
+                        )}
+                        <Link href={`/banka-hesaplari/${h.id}`} className="ml-auto">
+                          <Button size="icon" variant="ghost" className="h-7 w-7"><ChevronRight className="h-4 w-4" /></Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
               {hesaplar.length === 0 && (
                 <div className="col-span-3 text-center text-muted-foreground py-16">
                   <Landmark className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -760,7 +802,7 @@ export default function Ayarlar() {
       </Dialog>
 
       <Dialog open={hesapModal} onOpenChange={setHesapModal}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{duzenleHesapId ? "Hesabı Düzenle" : kopyaModu ? "Hesabı Kopyala" : "Yeni Banka Hesabı"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
@@ -788,23 +830,43 @@ export default function Ayarlar() {
               <Input value={hesapForm.hesapAdi} onChange={e => setHesapForm(f => ({ ...f, hesapAdi: e.target.value }))} data-testid="input-hesap-ad" />
             </div>
             <div className="space-y-1.5">
-              <Label>Para Birimi</Label>
-              <Select value={hesapForm.paraBirimi} onValueChange={v => setHesapForm(f => ({ ...f, paraBirimi: v }))}>
-                <SelectTrigger data-testid="select-hesap-pb"><SelectValue /></SelectTrigger>
-                <SelectContent>{["TRY","USD","EUR","GBP"].map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
               <Label>Şube</Label>
               <Input value={hesapForm.subeAdi} onChange={e => setHesapForm(f => ({ ...f, subeAdi: e.target.value }))} data-testid="input-hesap-sube" />
             </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label>IBAN</Label>
-              <Input value={hesapForm.iban} onChange={e => setHesapForm(f => ({ ...f, iban: e.target.value.toUpperCase() }))} placeholder="TR00 0000 0000 0000 0000 0000 00" data-testid="input-hesap-iban" />
-            </div>
-            <div className="col-span-2 space-y-1.5">
+            <div className="space-y-1.5">
               <Label>SWIFT / BIC Kodu</Label>
               <Input value={hesapForm.swift} onChange={e => setHesapForm(f => ({ ...f, swift: e.target.value.toUpperCase() }))} placeholder="GARAN2AXXX" data-testid="input-hesap-swift" />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>IBAN&apos;lar</Label>
+                <Button type="button" variant="outline" size="sm" onClick={ibanEkle}>
+                  <Plus className="mr-1 h-3.5 w-3.5" /> IBAN Ekle
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {hesapForm.ibanGirisler.map((g, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <Select value={g.pb} onValueChange={v => ibanGuncelle(i, "pb", v)}>
+                      <SelectTrigger className="w-24 shrink-0"><SelectValue /></SelectTrigger>
+                      <SelectContent>{PARA_BIRIMLERI.map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Input
+                      value={g.iban}
+                      onChange={e => ibanGuncelle(i, "iban", e.target.value.toUpperCase())}
+                      placeholder="TR00 0000 0000 0000 0000 0000 00"
+                      className="flex-1 font-mono text-sm"
+                      data-testid={`input-iban-${i}`}
+                    />
+                    {hesapForm.ibanGirisler.length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => ibanSil(i)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">Her banka hesabına birden fazla para birimi IBAN eklenebilir.</p>
             </div>
             <div className="col-span-2">
               <label className="flex items-center gap-3 cursor-pointer">
