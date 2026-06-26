@@ -1,29 +1,78 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { gemiler, firmalar, faturalar, ekipmanlar } from "@workspace/db";
+import { gemiler, firmalar, faturalar, ekipmanlar, firmaSirketGorunurluk } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, firmaYazmaDenetimi } from "../middleware/auth";
 
 const router = Router();
+
+/**
+ * Verilen catiFirmaId'ye görünür olan tüm bagli firma ID'lerini döner.
+ * Bir bagli firma şu durumlarda görünür:
+ *   1. bagli.ustFirmaId === catiFirmaId (doğrudan atanmış)
+ *   2. bagli.grupFirmaId → o grup firmanın görünürlüğü catiFirmaId'yi kapsıyor
+ *      (firmaSirketGorunurluk'ta kayıt varsa o listede, kayıt yoksa = herkese görünür)
+ */
+async function gorunurBagliFirmaIds(catiFirmaIdNum: number): Promise<number[]> {
+  const tumFirmalar = await db.select().from(firmalar);
+  const gorunurlukRows = await db.select().from(firmaSirketGorunurluk);
+
+  const gorunurlukMap = new Map<number, number[]>();
+  for (const g of gorunurlukRows) {
+    if (!gorunurlukMap.has(g.firmaId)) gorunurlukMap.set(g.firmaId, []);
+    gorunurlukMap.get(g.firmaId)!.push(g.catiFirmaId);
+  }
+
+  const gorunurGrupIds = new Set<number>();
+  for (const f of tumFirmalar) {
+    if (f.tip !== "grup") continue;
+    const gorunur = gorunurlukMap.get(f.id);
+    if (!gorunur || gorunur.length === 0) {
+      gorunurGrupIds.add(f.id);
+    } else if (gorunur.includes(catiFirmaIdNum)) {
+      gorunurGrupIds.add(f.id);
+    }
+  }
+
+  const ids: number[] = [];
+  for (const f of tumFirmalar) {
+    if (f.tip !== "bagli") continue;
+    if (f.ustFirmaId === catiFirmaIdNum) { ids.push(f.id); continue; }
+    if (f.grupFirmaId != null && gorunurGrupIds.has(f.grupFirmaId)) ids.push(f.id);
+  }
+  return ids;
+}
 
 router.get("/gemiler", async (req, res) => {
   try {
     const { firmaId, catiFirmaId } = req.query as Record<string, string>;
 
     const rows = await db
-      .select({ g: gemiler, firmaAd: firmalar.ad, ustFirmaId: firmalar.ustFirmaId })
+      .select({ g: gemiler, firmaAd: firmalar.ad, ustFirmaId: firmalar.ustFirmaId, grupFirmaId: firmalar.grupFirmaId })
       .from(gemiler)
       .leftJoin(firmalar, eq(gemiler.firmaId, firmalar.id))
       .orderBy(gemiler.ad);
 
-    const izinli = req.izinliSirketler ?? [];
     let filtered = rows;
 
     if (catiFirmaId) {
-      if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
-      filtered = rows.filter(r => r.ustFirmaId === Number(catiFirmaId));
+      const catiFirmaIdNum = Number(catiFirmaId);
+      if (!sirketErisimKontrol(catiFirmaIdNum, req)) {
+        res.status(403).json({ error: "Bu firmaya erişim izniniz yok" });
+        return;
+      }
+      const izinliBagliFirmaIds = await gorunurBagliFirmaIds(catiFirmaIdNum);
+      const idSet = new Set(izinliBagliFirmaIds);
+      filtered = rows.filter(r => idSet.has(r.g.firmaId));
     } else if (req.kullanici?.rol !== "yonetici") {
-      filtered = rows.filter(r => r.ustFirmaId != null && izinli.includes(r.ustFirmaId));
+      const izinli = req.izinliSirketler ?? [];
+      const tumIds: number[] = [];
+      for (const cid of izinli) {
+        const ids = await gorunurBagliFirmaIds(cid);
+        tumIds.push(...ids);
+      }
+      const idSet = new Set(tumIds);
+      filtered = rows.filter(r => idSet.has(r.g.firmaId));
     }
 
     if (firmaId) filtered = filtered.filter(r => r.g.firmaId === Number(firmaId));
@@ -47,8 +96,8 @@ router.post("/gemiler", requireYazma, async (req, res) => {
     const [firma] = await db.select().from(firmalar).where(eq(firmalar.id, Number(firmaId)));
     if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
     if (firma.tip !== "bagli") { res.status(400).json({ error: "Gemi yalnızca bağlı firmaya eklenebilir" }); return; }
-    if (!sirketErisimKontrol(firma.ustFirmaId!, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
-    if (!firmaYazmaDenetimi(firma.ustFirmaId!, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
+    if (firma.ustFirmaId && !sirketErisimKontrol(firma.ustFirmaId!, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+    if (firma.ustFirmaId && !firmaYazmaDenetimi(firma.ustFirmaId!, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const [row] = await db.insert(gemiler).values({
       firmaId, ad, imoNumarasi, bayrakDevleti, notlar, aktif: aktif ?? true,
