@@ -357,6 +357,59 @@ router.post("/teklifler/:id/gonder", requireYazma, async (req, res) => {
   }
 });
 
+// ── E-POSTA ÖNİZLEME ─────────────────────────────────────────────────────
+router.get("/teklifler/:id/email-onizleme", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { aliciAd, mesaj } = req.query as Record<string, string>;
+
+    const [row] = await db
+      .select({
+        t: teklifler,
+        gemiAd: gemiler.ad,
+        firmaAd: firmalar.ad,
+        firmaLogo: firmalar.logo,
+        firmaAdres: firmalar.adres,
+        firmaTelefon: firmalar.telefon,
+        firmaEposta: firmalar.eposta,
+        firmaVergiNo: firmalar.vergiNo,
+        firmaVergiDairesi: firmalar.vergiDairesi,
+      })
+      .from(teklifler)
+      .leftJoin(firmalar, eq(teklifler.catiFirmaId, firmalar.id))
+      .leftJoin(gemiler, eq(teklifler.gemiId, gemiler.id))
+      .where(eq(teklifler.id, id));
+    if (!row) { res.status(404).json({ error: "Teklif bulunamadı" }); return; }
+    if (!sirketErisimKontrol(row.t.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+
+    const firmaData = {
+      ad: row.firmaAd ?? "",
+      logo: row.firmaLogo,
+      adres: row.firmaAdres,
+      telefon: row.firmaTelefon,
+      eposta: row.firmaEposta,
+      vergiNo: row.firmaVergiNo,
+      vergiDairesi: row.firmaVergiDairesi,
+    };
+    const belgeData = {
+      tip: "teklif" as const,
+      no: row.t.teklifNo,
+      tarih: row.t.teklifTarihi ?? "",
+      gecerlilikTarihi: row.t.gecerlilikTarihi,
+      toplamTutar: row.t.toplamTutar ?? 0,
+      paraBirimi: row.t.paraBirimi ?? "USD",
+      gemiAd: row.gemiAd,
+      durum: row.t.durum,
+    };
+    const { subject, html } = await emailSablonuOlustur(
+      firmaData, belgeData, { ad: aliciAd || undefined, eposta: "onizleme@example.com" }, mesaj || undefined,
+    );
+    res.json({ subject, html });
+  } catch {
+    res.status(500).json({ error: "E-posta önizlemesi oluşturulamadı" });
+  }
+});
+
 // ── GÖNDERIM GEÇMİŞİ ─────────────────────────────────────────────────────
 router.get("/teklifler/:id/gonderi-gecmisi", async (req, res) => {
   try {

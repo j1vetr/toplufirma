@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
-import { ArrowLeft, Plus, Download, Mail, CheckCircle2, Copy, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Plus, Download, Mail, CheckCircle2, Copy, ChevronDown, ChevronUp, Eye, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
 const fmt = (n: number, pb = "USD") =>
@@ -85,6 +85,9 @@ export default function FaturaDetay() {
   const [gecmisAcik, setGecmisAcik] = useState(false);
   const [gonderiyor, setGonderiyor] = useState(false);
   const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
+  const [onizlemeAcik, setOnizlemeAcik] = useState(false);
+  const [onizlemeHtml, setOnizlemeHtml] = useState<string | null>(null);
+  const [onizlemeYukleniyor, setOnizlemeYukleniyor] = useState(false);
   const [, navigate] = useLocation();
 
   const { data: fatura, isLoading } = useGetFatura(id, { query: { enabled: !!id, queryKey: getGetFaturaQueryKey(id) } });
@@ -160,6 +163,27 @@ export default function FaturaDetay() {
       toast({ title: err instanceof Error ? err.message : "Hata", variant: "destructive" });
     } finally {
       setGonderiyor(false);
+    }
+  }
+
+  async function onizleFatura() {
+    setOnizlemeYukleniyor(true);
+    try {
+      const token = localStorage.getItem("panel_token");
+      const params = new URLSearchParams();
+      if (aliciAd) params.set("aliciAd", aliciAd);
+      if (gonderMesaj) params.set("mesaj", gonderMesaj);
+      const resp = await fetch(`${apiBase()}/faturalar/${id}/email-onizleme?${params}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error ?? "Önizleme alınamadı");
+      setOnizlemeHtml(data.html);
+      setOnizlemeAcik(true);
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Önizleme hatası", variant: "destructive" });
+    } finally {
+      setOnizlemeYukleniyor(false);
     }
   }
 
@@ -455,12 +479,37 @@ export default function FaturaDetay() {
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setGonderModal(false)}>İptal</Button>
+            <Button variant="outline" onClick={onizleFatura} disabled={onizlemeYukleniyor}>
+              {onizlemeYukleniyor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+              <span className="ml-1.5">Önizle</span>
+            </Button>
             <Button onClick={gonderFatura} disabled={!aliciAdres || gonderiyor}>
               {gonderiyor ? "Gönderiliyor..." : "Gönder"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={onizlemeAcik} onOpenChange={setOnizlemeAcik}>
+        <DialogContent className="max-w-2xl w-full p-0 overflow-hidden">
+          <DialogHeader className="px-4 py-3 border-b">
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Eye className="h-4 w-4" />
+              E-posta Önizlemesi
+            </DialogTitle>
+          </DialogHeader>
+          <div className="h-[70vh] overflow-hidden">
+            {onizlemeHtml && (
+              <iframe
+                srcDoc={onizlemeHtml}
+                sandbox="allow-same-origin"
+                className="w-full h-full border-0"
+                title="E-posta önizlemesi"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

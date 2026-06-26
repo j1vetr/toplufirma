@@ -652,6 +652,58 @@ router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
   }
 });
 
+router.get("/faturalar/:id/email-onizleme", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { aliciAd, mesaj } = req.query as Record<string, string>;
+
+    const [row] = await db
+      .select({
+        f: faturalar,
+        gemiAd: gemiler.ad,
+        firmaAd: firmalar.ad,
+        firmaLogo: firmalar.logo,
+        firmaAdres: firmalar.adres,
+        firmaTelefon: firmalar.telefon,
+        firmaEposta: firmalar.eposta,
+        firmaVergiNo: firmalar.vergiNo,
+        firmaVergiDairesi: firmalar.vergiDairesi,
+      })
+      .from(faturalar)
+      .leftJoin(firmalar, eq(faturalar.catiFirmaId, firmalar.id))
+      .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
+      .where(eq(faturalar.id, id));
+    if (!row) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
+    if (!sirketErisimKontrol(row.f.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+
+    const firmaData = {
+      ad: row.firmaAd ?? "",
+      logo: row.firmaLogo,
+      adres: row.firmaAdres,
+      telefon: row.firmaTelefon,
+      eposta: row.firmaEposta,
+      vergiNo: row.firmaVergiNo,
+      vergiDairesi: row.firmaVergiDairesi,
+    };
+    const belgeData = {
+      tip: "fatura" as const,
+      no: row.f.faturaNo,
+      tarih: row.f.faturaTarihi,
+      vadeTarihi: row.f.vadeTarihi,
+      toplamTutar: row.f.genelToplam ?? row.f.toplamTutar,
+      paraBirimi: row.f.paraBirimi,
+      gemiAd: row.gemiAd,
+      durum: row.f.durum,
+    };
+    const { subject, html } = await emailSablonuOlustur(
+      firmaData, belgeData, { ad: aliciAd || undefined, eposta: "onizleme@example.com" }, mesaj || undefined,
+    );
+    res.json({ subject, html });
+  } catch {
+    res.status(500).json({ error: "E-posta önizlemesi oluşturulamadı" });
+  }
+});
+
 router.get("/faturalar/:id/gonderi-gecmisi", async (req, res) => {
   try {
     const id = Number(req.params.id);

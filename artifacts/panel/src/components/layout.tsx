@@ -192,6 +192,8 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
     { tip: "cati" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
   );
+  const aktifFirma = firmalar.find(f => f.id === aktifSirketId);
+  const aktifFirmaEtiket = (aktifFirma as unknown as Record<string, unknown>)?.etiket as string | null | undefined;
 
   const isYonetici = kullanici?.rol === "yonetici";
 
@@ -221,8 +223,15 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
           <p className="text-[10px] text-sidebar-foreground/40 px-2 mb-1.5 font-bold uppercase tracking-widest">Aktif Firma</p>
           <DropdownMenu>
             <DropdownMenuTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-none bg-sidebar-accent hover:bg-sidebar-accent/80 text-sm font-medium transition-colors text-sidebar-foreground border border-sidebar-border" data-testid="sirket-secici">
-              <span className="truncate">{aktifSirketAd}</span>
-              <ChevronDown className="h-4 w-4 text-sidebar-foreground/40 shrink-0 ml-2" />
+              <span className="truncate text-[13px]">{aktifSirketAd}</span>
+              <span className="flex items-center gap-1.5 shrink-0 ml-1.5">
+                {aktifFirmaEtiket && (
+                  <span className="text-[9px] font-bold bg-[#ffed00] text-black px-1 py-0.5 leading-none whitespace-nowrap">
+                    {aktifFirmaEtiket}
+                  </span>
+                )}
+                <ChevronDown className="h-4 w-4 text-sidebar-foreground/40" />
+              </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem
@@ -293,8 +302,15 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
             <p className="text-[10px] text-sidebar-foreground/40 px-2 mb-1.5 font-bold uppercase tracking-widest">Aktif Firma</p>
             <DropdownMenu>
               <DropdownMenuTrigger className="w-full flex items-center justify-between px-3 py-2 rounded-none bg-sidebar-accent hover:bg-sidebar-accent/80 text-sm font-medium transition-colors text-sidebar-foreground border border-sidebar-border">
-                <span className="truncate">{aktifSirketAd}</span>
-                <ChevronDown className="h-4 w-4 text-sidebar-foreground/40 shrink-0 ml-2" />
+                <span className="truncate text-[13px]">{aktifSirketAd}</span>
+                <span className="flex items-center gap-1.5 shrink-0 ml-1.5">
+                  {aktifFirmaEtiket && (
+                    <span className="text-[9px] font-bold bg-[#ffed00] text-black px-1 py-0.5 leading-none whitespace-nowrap">
+                      {aktifFirmaEtiket}
+                    </span>
+                  )}
+                  <ChevronDown className="h-4 w-4 text-sidebar-foreground/40" />
+                </span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuItem onClick={() => setAktifSirketId(null)} className={cn("cursor-pointer", aktifSirketId === null && "font-bold text-primary")}>

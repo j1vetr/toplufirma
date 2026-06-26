@@ -59,6 +59,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Eye,
 } from "lucide-react";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
@@ -166,6 +167,9 @@ export default function Teklifler() {
   const [gonderKonu, setGonderKonu] = useState<string>("");
   const [gonderMesaj, setGonderMesaj] = useState<string>("");
   const [gecmisAcik, setGecmisAcik] = useState(false);
+  const [onizlemeAcik, setOnizlemeAcik] = useState(false);
+  const [onizlemeHtml, setOnizlemeHtml] = useState<string | null>(null);
+  const [onizlemeYukleniyor, setOnizlemeYukleniyor] = useState(false);
   const [kurYukleniyor, setKurYukleniyor] = useState(false);
   const [teklifBankaHesaplari, setTeklifBankaHesaplari] = useState<TeklifBankaHesabi[]>([]);
 
@@ -323,6 +327,23 @@ export default function Teklifler() {
     },
     enabled: !!gonderTeklif,
   });
+
+  async function onizleTeklif() {
+    if (!gonderTeklif) return;
+    setOnizlemeYukleniyor(true);
+    try {
+      const params = new URLSearchParams();
+      if (gonderTeklif.aliciAd) params.set("aliciAd", gonderTeklif.aliciAd);
+      if (gonderMesaj) params.set("mesaj", gonderMesaj);
+      const data = await apiFetch(`/teklifler/${gonderTeklif.id}/email-onizleme?${params}`);
+      setOnizlemeHtml(data.html);
+      setOnizlemeAcik(true);
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Önizleme hatası", variant: "destructive" });
+    } finally {
+      setOnizlemeYukleniyor(false);
+    }
+  }
 
   const gonderMutasyon = useMutation({
     mutationFn: ({ id, aliciAdres, aliciAd, konu, mesaj }: { id: number; aliciAdres: string; aliciAd?: string; konu?: string; mesaj?: string }) =>
@@ -593,7 +614,18 @@ export default function Teklifler() {
                 <Select value={String(form.catiFirmaId)} onValueChange={v => setForm(f => ({ ...f, catiFirmaId: v, gemiId: "" }))}>
                   <SelectTrigger><SelectValue placeholder="Seçiniz…" /></SelectTrigger>
                   <SelectContent>
-                    {firmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}
+                    {firmalar.map(f => (
+                      <SelectItem key={f.id} value={String(f.id)}>
+                        <span className="flex items-center gap-2">
+                          <span className="truncate">{f.ad}</span>
+                          {(f as unknown as Record<string, unknown>).etiket && (
+                            <span className="shrink-0 text-[9px] font-bold bg-[#ffed00] text-black px-1 py-0.5 leading-none">
+                              {String((f as unknown as Record<string, unknown>).etiket)}
+                            </span>
+                          )}
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -963,8 +995,12 @@ export default function Teklifler() {
               </CollapsibleContent>
             </Collapsible>
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setGonderTeklif(null)}>İptal</Button>
+            <Button variant="outline" onClick={onizleTeklif} disabled={onizlemeYukleniyor}>
+              {onizlemeYukleniyor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+              <span className="ml-1.5">Önizle</span>
+            </Button>
             <Button
               disabled={!gonderEposta || gonderMutasyon.isPending}
               onClick={() => gonderTeklif && gonderMutasyon.mutate({
@@ -979,6 +1015,28 @@ export default function Teklifler() {
               {gonderMutasyon.isPending ? "Gönderiliyor…" : "Gönder"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── E-posta Önizleme Dialog ── */}
+      <Dialog open={onizlemeAcik} onOpenChange={setOnizlemeAcik}>
+        <DialogContent className="max-w-2xl w-full p-0 overflow-hidden">
+          <DialogHeader className="px-4 py-3 border-b">
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Eye className="h-4 w-4" />
+              E-posta Önizlemesi
+            </DialogTitle>
+          </DialogHeader>
+          <div className="h-[70vh] overflow-hidden">
+            {onizlemeHtml && (
+              <iframe
+                srcDoc={onizlemeHtml}
+                sandbox="allow-same-origin"
+                className="w-full h-full border-0"
+                title="E-posta önizlemesi"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
