@@ -155,10 +155,16 @@ export async function emailSablonuOlustur(
             <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 <td align="center" style="padding-bottom:24px;">
-                  ${logDataUrl
-                    ? `<img src="${logDataUrl}" alt="${firma.ad}" style="max-height:56px;max-width:220px;height:auto;display:block;margin:0 auto;" />`
-                    : `<p style="margin:0;font-family:Arial,sans-serif;font-size:22px;font-weight:bold;color:#ffffff;letter-spacing:0.5px;">${firma.ad}</p>`
-                  }
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border:3px solid #ffed00;background-color:#f8f8f5;">
+                    <tr>
+                      <td style="padding:12px 24px;">
+                        ${logDataUrl
+                          ? `<img src="${logDataUrl}" alt="${firma.ad}" style="max-height:56px;max-width:200px;height:auto;display:block;margin:0 auto;" />`
+                          : `<p style="margin:0;font-family:Arial,sans-serif;font-size:20px;font-weight:bold;color:#111111;letter-spacing:0.5px;">${firma.ad}</p>`
+                        }
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
             </table>
