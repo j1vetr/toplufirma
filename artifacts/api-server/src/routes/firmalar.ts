@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import ExcelJS from "exceljs";
+import nodemailer from "nodemailer";
 
 const _reqPdf = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -435,6 +436,83 @@ router.put("/firmalar/:id/eposta-ayarlari", requireYonetici, async (req, res) =>
     res.json({ ...row, smtpSifre: row.smtpSifre ? "••••••••" : null });
   } catch {
     res.status(500).json({ error: "E-posta ayarları kaydedilemedi" });
+  }
+});
+
+router.post("/firmalar/:id/eposta-ayarlari/test", requireYonetici, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { aliciAdres } = req.body as { aliciAdres?: string };
+    if (!aliciAdres || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(aliciAdres)) {
+      res.status(400).json({ error: "Geçerli bir alıcı e-posta adresi gereklidir" }); return;
+    }
+
+    const [firma] = await db.select().from(firmalar).where(eq(firmalar.id, id));
+    if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
+
+    const [ayarlar] = await db.select().from(firmaEpostaAyarlari).where(eq(firmaEpostaAyarlari.firmaId, id));
+    if (!ayarlar || !ayarlar.smtpSifre) {
+      res.status(422).json({ error: "Bu firma için kayıtlı SMTP ayarları bulunamadı veya şifre eksik" }); return;
+    }
+
+    const guvenlik = ayarlar.smtpGuvenlik ?? "starttls";
+    const transporter = nodemailer.createTransport({
+      host: ayarlar.smtpHost,
+      port: ayarlar.smtpPort ?? 587,
+      secure: guvenlik === "ssl",
+      requireTLS: guvenlik === "starttls",
+      auth: { user: ayarlar.smtpKullanici, pass: ayarlar.smtpSifre },
+    });
+
+    await transporter.verify();
+
+    const now = new Date().toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" });
+    const html = `<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>SMTP Test</title></head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;font-family:Arial,sans-serif;">
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f0f0f0;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
+      <tr><td style="background-color:#000000;padding:24px 32px 0 32px;">
+        <p style="margin:0;font-family:Arial,sans-serif;font-size:20px;font-weight:bold;color:#ffffff;">${firma.ad}</p>
+      </td></tr>
+      <tr><td style="background-color:#ffed00;height:4px;font-size:4px;line-height:4px;">&nbsp;</td></tr>
+      <tr><td style="background-color:#ffffff;padding:32px;">
+        <p style="margin:0 0 12px 0;font-size:16px;font-weight:bold;color:#1a1a1a;">✅ SMTP Bağlantısı Başarılı</p>
+        <p style="margin:0 0 20px 0;font-size:14px;color:#444444;line-height:1.6;">Bu e-posta, SMTP ayarlarınızın doğru çalıştığını doğrulamak için gönderilmiştir.</p>
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8f8f8;border-left:4px solid #ffed00;margin-bottom:20px;">
+          <tr><td style="padding:16px 20px;">
+            <p style="margin:0 0 6px 0;font-size:12px;color:#888888;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;">SMTP Sunucu Bilgileri</p>
+            <p style="margin:0 0 4px 0;font-size:13px;color:#1a1a1a;"><strong>Host:</strong> ${ayarlar.smtpHost}:${ayarlar.smtpPort ?? 587}</p>
+            <p style="margin:0 0 4px 0;font-size:13px;color:#1a1a1a;"><strong>Güvenlik:</strong> ${(ayarlar.smtpGuvenlik ?? "starttls").toUpperCase()}</p>
+            <p style="margin:0 0 4px 0;font-size:13px;color:#1a1a1a;"><strong>Kullanıcı:</strong> ${ayarlar.smtpKullanici}</p>
+            <p style="margin:0;font-size:13px;color:#1a1a1a;"><strong>Gönderilme:</strong> ${now}</p>
+          </td></tr>
+        </table>
+        <p style="margin:0;font-size:13px;color:#888888;">Bu e-postayı aldıysanız e-posta ayarlarınız doğru yapılandırılmıştır.</p>
+      </td></tr>
+      <tr><td style="background-color:#1a1a1a;padding:16px 32px;">
+        <p style="margin:0;font-family:Arial,sans-serif;font-size:11px;color:#999999;">${firma.ad} — SMTP Test Maili</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+
+    await transporter.sendMail({
+      from: `"${ayarlar.gonderenAd}" <${ayarlar.gonderenAdres}>`,
+      to: aliciAdres,
+      subject: `SMTP Test — ${firma.ad}`,
+      html,
+      text: `SMTP Bağlantısı Başarılı\n\nBu e-posta, SMTP ayarlarınızın doğru çalıştığını doğrulamak için gönderilmiştir.\n\nHost: ${ayarlar.smtpHost}:${ayarlar.smtpPort ?? 587}\nGüvenlik: ${(ayarlar.smtpGuvenlik ?? "starttls").toUpperCase()}\nKullanıcı: ${ayarlar.smtpKullanici}\nGönderilme: ${now}\n\n${firma.ad}`,
+    });
+
+    res.json({ mesaj: "Test e-postası başarıyla gönderildi" });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
+    res.status(500).json({ error: `Test e-postası gönderilemedi: ${msg}` });
   }
 });
 

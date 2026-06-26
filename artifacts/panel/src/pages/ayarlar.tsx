@@ -110,6 +110,8 @@ export default function Ayarlar() {
 
   const [smtpFirmaId, setSmtpFirmaId] = useState<number | null>(null);
   const [smtpForm, setSmtpForm] = useState<SmtpForm>(BOSH_SMTP);
+  const [smtpTestAdres, setSmtpTestAdres] = useState("");
+  const [smtpTestYukleniyor, setSmtpTestYukleniyor] = useState(false);
   const { data: smtpData } = useGetFirmaEpostaAyarlari(smtpFirmaId!, {
     query: { enabled: !!smtpFirmaId, queryKey: getGetFirmaEpostaAyarlariQueryKey(smtpFirmaId!) },
   });
@@ -204,6 +206,28 @@ export default function Ayarlar() {
         onSuccess: () => { qc.invalidateQueries({ queryKey: getListFirmalarQueryKey() }); setFirmaModal(false); toast({ title: "Şirket oluşturuldu" }); },
         onError: () => toast({ title: "Hata", variant: "destructive" }),
       });
+    }
+  }
+
+  async function testSmtpGonder() {
+    if (!smtpFirmaId || !smtpTestAdres) return;
+    setSmtpTestYukleniyor(true);
+    try {
+      const r = await fetch(`/api/firmalar/${smtpFirmaId}/eposta-ayarlari/test`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ aliciAdres: smtpTestAdres }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast({ title: "Test e-postası gönderilemedi", description: j.error ?? "Bilinmeyen hata", variant: "destructive" });
+      } else {
+        toast({ title: "Test e-postası gönderildi", description: `${smtpTestAdres} adresine gönderildi` });
+      }
+    } catch {
+      toast({ title: "Bağlantı hatası", description: "Sunucuya bağlanılamadı", variant: "destructive" });
+    } finally {
+      setSmtpTestYukleniyor(false);
     }
   }
 
@@ -743,7 +767,7 @@ export default function Ayarlar() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!smtpFirmaId} onOpenChange={o => !o && setSmtpFirmaId(null)}>
+      <Dialog open={!!smtpFirmaId} onOpenChange={o => { if (!o) { setSmtpFirmaId(null); setSmtpTestAdres(""); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>SMTP / E-posta Ayarları</DialogTitle></DialogHeader>
           {smtpData && (
@@ -793,9 +817,35 @@ export default function Ayarlar() {
                 <Input className="h-8 text-sm" type="email" value={smtpForm.gonderenAdres} onChange={e => setSmtpForm(f => ({ ...f, gonderenAdres: e.target.value }))} />
               </div>
             </div>
+            {smtpData && smtpData.smtpHost && (
+              <div className="border rounded-none p-3 space-y-2 bg-muted/20">
+                <p className="text-xs font-medium text-muted-foreground">Test E-postası Gönder</p>
+                <div className="flex gap-2">
+                  <Input
+                    className="h-8 text-sm flex-1"
+                    type="email"
+                    placeholder="test@example.com"
+                    value={smtpTestAdres}
+                    onChange={e => setSmtpTestAdres(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 shrink-0"
+                    onClick={testSmtpGonder}
+                    disabled={!smtpTestAdres || smtpTestYukleniyor}
+                  >
+                    {smtpTestYukleniyor ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                    <span className="ml-1.5">Test Gönder</span>
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Kayıtlı SMTP ayarlarıyla belirtilen adrese test e-postası gönderir.</p>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSmtpFirmaId(null)}>İptal</Button>
+            <Button variant="outline" onClick={() => { setSmtpFirmaId(null); setSmtpTestAdres(""); }}>İptal</Button>
             <Button onClick={kaydetSmtp} disabled={!smtpForm.smtpHost || !smtpForm.smtpKullanici || !smtpForm.gonderenAd || !smtpForm.gonderenAdres || upsertSmtp.isPending}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
