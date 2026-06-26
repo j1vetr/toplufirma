@@ -718,7 +718,7 @@ export default function Teklifler() {
                 </Table>
               </div>
               {zorunluKalemler.length > 0 && (
-                <div className="text-right text-sm font-semibold text-primary pr-1">
+                <div className="text-right text-sm font-semibold text-foreground pr-1">
                   Ara Toplam: {araToplam.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {form.paraBirimi}
                 </div>
               )}
