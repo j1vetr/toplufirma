@@ -22,10 +22,26 @@ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 
 interface Kalem {
   aciklama: string;
+  birim: string;
   miktar: number;
   birimFiyat: number;
   kdvOrani: number;
 }
+
+const BIRIMLER: { tr: string; en: string }[] = [
+  { tr: "Adet", en: "Pcs" },
+  { tr: "Saat", en: "Hour" },
+  { tr: "Gün", en: "Day" },
+  { tr: "Ay", en: "Month" },
+  { tr: "Yıl", en: "Year" },
+  { tr: "Sefer", en: "Trip" },
+  { tr: "Paket", en: "Package" },
+  { tr: "Ton", en: "MT" },
+  { tr: "Litre", en: "Liter" },
+  { tr: "Metre", en: "Meter" },
+  { tr: "Kilogram", en: "kg" },
+];
+const BIRIM_EN_SET = new Set(BIRIMLER.map(b => b.en));
 
 const fmt = (n: number) => new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n);
 
@@ -46,7 +62,7 @@ export default function FaturaYeni() {
   const [notlar, setNotlar] = useState("");
   const [tekrarlat, setTekrarlat] = useState(false);
   const [kalemler, setKalemler] = useState<Kalem[]>([
-    { aciklama: "", miktar: 1, birimFiyat: 0, kdvOrani: 0 },
+    { aciklama: "", birim: "Pcs", miktar: 1, birimFiyat: 0, kdvOrani: 0 },
   ]);
 
   useEffect(() => {
@@ -62,7 +78,7 @@ export default function FaturaYeni() {
       if (k.faturaAdi) setFaturaAdi(k.faturaAdi);
       if (k.paraBirimi) setParaBirimi(k.paraBirimi);
       if (k.notlar) setNotlar(k.notlar);
-      if (k.kalemler?.length) setKalemler(k.kalemler);
+      if (k.kalemler?.length) setKalemler(k.kalemler.map((km: Kalem) => ({ ...km, birim: km.birim ?? "Pcs" })));
     } catch { /* geçersiz veri */ }
   }, []);
 
@@ -88,12 +104,16 @@ export default function FaturaYeni() {
   const filtrelenmisKdv = kdvOranlari.filter(k => !catiFirmaId || k.catiFirmaId === Number(catiFirmaId));
 
   function kalemGuncelle(idx: number, alan: keyof Kalem, deger: string | number) {
-    setKalemler(prev => prev.map((k, i) => i === idx ? { ...k, [alan]: typeof deger === "string" && alan !== "aciklama" ? Number(deger) : deger } : k));
+    setKalemler(prev => prev.map((k, i) => {
+      if (i !== idx) return k;
+      if (alan === "aciklama" || alan === "birim") return { ...k, [alan]: String(deger) };
+      return { ...k, [alan]: Number(deger) };
+    }));
   }
 
   function kalemEkle() {
     const varsayilanKdv = filtrelenmisKdv.find(k => k.varsayilan)?.oran ?? 0;
-    setKalemler(prev => [...prev, { aciklama: "", miktar: 1, birimFiyat: 0, kdvOrani: Number(varsayilanKdv) }]);
+    setKalemler(prev => [...prev, { aciklama: "", birim: "Pcs", miktar: 1, birimFiyat: 0, kdvOrani: Number(varsayilanKdv) }]);
   }
 
   function kalemSil(idx: number) {
@@ -119,7 +139,7 @@ export default function FaturaYeni() {
         gemiId: gemiId && gemiId !== "none" ? Number(gemiId) : undefined,
         faturaSerisiId: serisiId && serisiId !== "none" ? Number(serisiId) : undefined,
         faturaTarihi, vadeTarihi, paraBirimi, notlar, tekrarlat,
-        kalemler: kalemler.map(k => ({ aciklama: k.aciklama, miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani })),
+        kalemler: kalemler.map(k => ({ aciklama: k.aciklama, birim: k.birim || "Pcs", miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani })),
       },
     }, {
       onSuccess: (fatura) => {
@@ -232,9 +252,10 @@ export default function FaturaYeni() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground px-1 font-medium">
-            <span className="col-span-4">Açıklama</span>
-            <span className="col-span-2">Miktar</span>
-            <span className="col-span-2">Birim Fiyat</span>
+            <span className="col-span-3">Açıklama</span>
+            <span className="col-span-2">Birim</span>
+            <span className="col-span-1">Miktar</span>
+            <span className="col-span-2">B.Fiyat</span>
             <span className="col-span-2">KDV %</span>
             <span className="col-span-1 text-right">Toplam</span>
             <span className="col-span-1" />
@@ -242,10 +263,29 @@ export default function FaturaYeni() {
           {kalemler.map((k, i) => {
             const ara = k.miktar * k.birimFiyat;
             const kdv = ara * (k.kdvOrani / 100);
+            const isOzel = !BIRIM_EN_SET.has(k.birim);
             return (
               <div key={i} className="grid grid-cols-12 gap-2 items-center" data-testid={`kalem-${i}`}>
-                <Input className="col-span-4 text-sm h-9" value={k.aciklama} onChange={e => kalemGuncelle(i, "aciklama", e.target.value)} placeholder="Açıklama" data-testid={`input-kalem-aciklama-${i}`} />
-                <Input className="col-span-2 text-sm h-9" type="number" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", e.target.value)} min="0.01" step="0.01" data-testid={`input-kalem-miktar-${i}`} />
+                <Input className="col-span-3 text-sm h-9" value={k.aciklama} onChange={e => kalemGuncelle(i, "aciklama", e.target.value)} placeholder="Açıklama" data-testid={`input-kalem-aciklama-${i}`} />
+                {isOzel ? (
+                  <Input
+                    className="col-span-2 text-sm h-9"
+                    value={k.birim}
+                    onChange={e => kalemGuncelle(i, "birim", e.target.value)}
+                    placeholder="Birim"
+                    onBlur={e => { if (!e.target.value) kalemGuncelle(i, "birim", "Pcs"); }}
+                    data-testid={`input-kalem-birim-${i}`}
+                  />
+                ) : (
+                  <Select value={k.birim} onValueChange={v => kalemGuncelle(i, "birim", v === "_ozel" ? "" : v)}>
+                    <SelectTrigger className="col-span-2 h-9 text-sm" data-testid={`select-kalem-birim-${i}`}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {BIRIMLER.map(b => <SelectItem key={b.en} value={b.en}>{b.tr}</SelectItem>)}
+                      <SelectItem value="_ozel">Özel...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                <Input className="col-span-1 text-sm h-9" type="number" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", e.target.value)} min="0.01" step="0.01" data-testid={`input-kalem-miktar-${i}`} />
                 <Input className="col-span-2 text-sm h-9" type="number" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", e.target.value)} min="0" step="0.01" data-testid={`input-kalem-fiyat-${i}`} />
                 <Select value={String(k.kdvOrani)} onValueChange={v => kalemGuncelle(i, "kdvOrani", Number(v))}>
                   <SelectTrigger className="col-span-2 h-9 text-sm" data-testid={`select-kalem-kdv-${i}`}><SelectValue /></SelectTrigger>
@@ -264,10 +304,12 @@ export default function FaturaYeni() {
               <span className="text-muted-foreground">Ara Toplam</span>
               <span className="font-medium w-28 text-right">{fmt(toplamlar.toplamTutar)} {paraBirimi}</span>
             </div>
-            <div className="flex justify-end gap-8">
-              <span className="text-muted-foreground">KDV</span>
-              <span className="font-medium w-28 text-right">{fmt(toplamlar.kdvTutari)} {paraBirimi}</span>
-            </div>
+            {toplamlar.kdvTutari > 0 && (
+              <div className="flex justify-end gap-8">
+                <span className="text-muted-foreground">KDV</span>
+                <span className="font-medium w-28 text-right">{fmt(toplamlar.kdvTutari)} {paraBirimi}</span>
+              </div>
+            )}
             <div className="flex justify-end gap-8 text-base">
               <span className="font-semibold">Genel Toplam</span>
               <span className="font-bold w-28 text-right">{fmt(toplamlar.toplamTutar + toplamlar.kdvTutari)} {paraBirimi}</span>

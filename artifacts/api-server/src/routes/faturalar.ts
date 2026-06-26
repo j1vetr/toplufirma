@@ -66,7 +66,7 @@ router.post("/faturalar", requireYazma, async (req, res) => {
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
     const [bagliFirma] = await db.select({ uid: firmalar.ustFirmaId }).from(firmalar).where(eq(firmalar.id, Number(bagliFirmaId)));
-    if (!bagliFirma || bagliFirma.uid !== Number(catiFirmaId)) { res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return; }
+    if (!bagliFirma || (bagliFirma.uid !== null && bagliFirma.uid !== Number(catiFirmaId))) { res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return; }
 
     if (grupFirmaId) {
       const [grup] = await db.select({ tip: firmalar.tip }).from(firmalar).where(eq(firmalar.id, Number(grupFirmaId)));
@@ -98,11 +98,11 @@ router.post("/faturalar", requireYazma, async (req, res) => {
 
     let toplamTutar = 0, kdvTutari = 0;
     const kalemRows = [];
-    for (const k of kalemler as { aciklama: string; miktar: number; birimFiyat: number; kdvOrani: number }[]) {
+    for (const k of kalemler as { aciklama: string; miktar: number; birimFiyat: number; kdvOrani: number; birim?: string }[]) {
       const ara = k.miktar * k.birimFiyat;
       const kdv = ara * (k.kdvOrani / 100);
       toplamTutar += ara; kdvTutari += kdv;
-      kalemRows.push({ aciklama: k.aciklama, miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: String(k.kdvOrani), araToplam: String(ara), kdvTutari: String(kdv), genelToplam: String(ara + kdv) });
+      kalemRows.push({ aciklama: k.aciklama, birim: k.birim ?? "Pcs", miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: String(k.kdvOrani), araToplam: String(ara), kdvTutari: String(kdv), genelToplam: String(ara + kdv) });
     }
 
     const [fatura] = await db.insert(faturalar).values({
@@ -131,10 +131,11 @@ router.post("/faturalar", requireYazma, async (req, res) => {
         aktif: true,
       }).returning();
 
-      for (const k of kalemler as { aciklama: string; miktar: number; birimFiyat: number; kdvOrani: number }[]) {
+      for (const k of kalemler as { aciklama: string; miktar: number; birimFiyat: number; kdvOrani: number; birim?: string }[]) {
         await db.insert(tekrarlayanFaturaKalemleri).values({
           tekrarlayanFaturaId: tr.id,
           aciklama: k.aciklama,
+          birim: k.birim ?? "Pcs",
           miktar: String(k.miktar),
           birimFiyat: String(k.birimFiyat),
           kdvOrani: String(k.kdvOrani),
@@ -374,35 +375,56 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
           ],
           marginBottom: 20,
         },
-        {
-          table: {
-            headerRows: 1,
-            widths: ["*", 55, 70, 40, 70],
-            body: ([
-              [
+        (() => {
+          const kdvYok = kalemler.every(k => Number(k.kdvOrani) === 0);
+          const tableWidths = kdvYok ? ["*", 35, 45, 70, 70] : ["*", 35, 45, 65, 40, 65];
+          const headerRow = kdvYok
+            ? [
                 { text: "Description", style: "tabloBaslik" },
+                { text: "Unit", style: "tabloBaslik" },
+                { text: "Qty", style: "tabloBaslik", alignment: "right" },
+                { text: "Unit Price", style: "tabloBaslik", alignment: "right" },
+                { text: "Total", style: "tabloBaslik", alignment: "right" },
+              ]
+            : [
+                { text: "Description", style: "tabloBaslik" },
+                { text: "Unit", style: "tabloBaslik" },
                 { text: "Qty", style: "tabloBaslik", alignment: "right" },
                 { text: "Unit Price", style: "tabloBaslik", alignment: "right" },
                 { text: "VAT %", style: "tabloBaslik", alignment: "right" },
                 { text: "Total", style: "tabloBaslik", alignment: "right" },
-              ],
-              ...kalemler.map(k => [
+              ];
+          const dataRows = kalemler.map(k => kdvYok
+            ? [
                 { text: k.aciklama },
+                { text: k.birim ?? "Pcs" },
+                { text: Number(k.miktar).toFixed(2), alignment: "right" },
+                { text: Number(k.birimFiyat).toFixed(2), alignment: "right" },
+                { text: Number(k.genelToplam).toFixed(2), alignment: "right" },
+              ]
+            : [
+                { text: k.aciklama },
+                { text: k.birim ?? "Pcs" },
                 { text: Number(k.miktar).toFixed(2), alignment: "right" },
                 { text: Number(k.birimFiyat).toFixed(2), alignment: "right" },
                 { text: `${Number(k.kdvOrani).toFixed(0)}%`, alignment: "right" },
                 { text: Number(k.genelToplam).toFixed(2), alignment: "right" },
-              ]),
-            ] as unknown as TableCell[][]),
-          },
-          layout: {
-            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === 1 || i === node.table.body.length ? 1 : 0.5),
-            vLineWidth: () => 0,
-            hLineColor: (i: number) => (i === 0 || i === 1 ? "#0070d1" : "#e8eaf0"),
-            fillColor: (i: number) => (i === 0 ? "#0070d1" : i % 2 === 0 ? "#f9fafc" : null),
-          },
-          marginBottom: 16,
-        },
+              ]);
+          return {
+            table: {
+              headerRows: 1,
+              widths: tableWidths,
+              body: ([headerRow, ...dataRows] as unknown as TableCell[][]),
+            },
+            layout: {
+              hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === 1 || i === node.table.body.length ? 1 : 0.5),
+              vLineWidth: () => 0,
+              hLineColor: (i: number) => (i === 0 || i === 1 ? "#0070d1" : "#e8eaf0"),
+              fillColor: (i: number) => (i === 0 ? "#0070d1" : i % 2 === 0 ? "#f9fafc" : null),
+            },
+            marginBottom: 16,
+          };
+        })(),
         {
           columns: [
             { width: "*", text: "" },
@@ -412,7 +434,7 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
                 widths: ["*", "auto"],
                 body: [
                   [{ text: "Subtotal:", color: "#555" }, { text: `${Number(f.toplamTutar).toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
-                  [{ text: "VAT Amount:", color: "#555" }, { text: `${Number(f.kdvTutari).toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
+                  ...(kalemler.every(k => Number(k.kdvOrani) === 0) ? [] : [[{ text: "VAT Amount:", color: "#555" }, { text: `${Number(f.kdvTutari).toFixed(2)} ${f.paraBirimi}`, alignment: "right" }]]),
                   [{ text: "Grand Total:", bold: true }, { text: `${Number(f.genelToplam).toFixed(2)} ${f.paraBirimi}`, alignment: "right", bold: true }],
                   [{ text: "Paid:", color: "#555" }, { text: `${odenen.toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
                   [

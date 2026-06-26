@@ -434,6 +434,8 @@ export interface FaturaKalemi {
   id: number;
   faturaId: number;
   aciklama: string;
+  /** @nullable */
+  birim?: string | null;
   miktar: number;
   birimFiyat: number;
   kdvOrani: number;
@@ -539,6 +541,8 @@ export interface FaturaDetay {
 
 export interface FaturaKalemiInput {
   aciklama: string;
+  /** @nullable */
+  birim?: string | null;
   miktar: number;
   birimFiyat: number;
   kdvOrani: number;

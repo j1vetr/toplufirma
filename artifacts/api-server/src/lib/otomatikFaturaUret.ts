@@ -30,10 +30,10 @@ export async function tekrarlayandanFaturaUret(
     .from(tekrarlayanFaturaKalemleri)
     .where(eq(tekrarlayanFaturaKalemleri.tekrarlayanFaturaId, tr.id));
 
-  type KalemRow = { aciklama: string; miktar: number; birimFiyat: number; kdvOrani: number };
+  type KalemRow = { aciklama: string; birim: string; miktar: number; birimFiyat: number; kdvOrani: number };
   const kaynak: KalemRow[] = kalemler.length
-    ? kalemler.map(k => ({ aciklama: k.aciklama, miktar: Number(k.miktar), birimFiyat: Number(k.birimFiyat), kdvOrani: Number(k.kdvOrani) }))
-    : [{ aciklama: tr.aciklama, miktar: 1, birimFiyat: Number(tr.birimFiyat), kdvOrani: Number(tr.kdvOrani) }];
+    ? kalemler.map(k => ({ aciklama: k.aciklama, birim: k.birim ?? "Pcs", miktar: Number(k.miktar), birimFiyat: Number(k.birimFiyat), kdvOrani: Number(k.kdvOrani) }))
+    : [{ aciklama: tr.aciklama, birim: "Pcs", miktar: 1, birimFiyat: Number(tr.birimFiyat), kdvOrani: Number(tr.kdvOrani) }];
 
   let toplamTutar = 0, kdvTutari = 0;
   const kalemRows = kaynak.map(k => {
@@ -41,7 +41,7 @@ export async function tekrarlayandanFaturaUret(
     const kdv = ara * (k.kdvOrani / 100);
     toplamTutar += ara; kdvTutari += kdv;
     return {
-      aciklama: k.aciklama, miktar: String(k.miktar), birimFiyat: String(k.birimFiyat),
+      aciklama: k.aciklama, birim: k.birim, miktar: String(k.miktar), birimFiyat: String(k.birimFiyat),
       kdvOrani: String(k.kdvOrani), araToplam: String(ara), kdvTutari: String(kdv), genelToplam: String(ara + kdv),
     };
   });

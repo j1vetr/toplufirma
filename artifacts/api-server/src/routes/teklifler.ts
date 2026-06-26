@@ -394,7 +394,7 @@ router.post("/teklifler/:id/faturaya-donustur", requireYazma, async (req, res) =
     const faturaKalemRows = kalemler.map(k => {
       const ara = Number(k.miktar) * Number(k.birimFiyat);
       toplamTutar += ara;
-      return { aciklama: k.aciklama, miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: "0", araToplam: String(ara), kdvTutari: "0", genelToplam: String(ara) };
+      return { aciklama: k.aciklama, birim: (k as unknown as Record<string, string>).birim ?? "Pcs", miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: "0", araToplam: String(ara), kdvTutari: "0", genelToplam: String(ara) };
     });
 
     const [fatura] = await db.insert(faturalar).values({

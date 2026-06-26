@@ -7,7 +7,7 @@ import { tekrarlayandanFaturaUret } from "../lib/otomatikFaturaUret";
 
 const router = Router();
 
-type KalemInput = { aciklama: string; miktar: number; birimFiyat: number; kdvOrani: number };
+type KalemInput = { aciklama: string; birim?: string; miktar: number; birimFiyat: number; kdvOrani: number };
 
 router.get("/tekrarlayan-faturalar", async (req, res) => {
   try {
@@ -174,6 +174,7 @@ async function kalemleriKaydet(tekrarlayanFaturaId: number, kalemler: KalemInput
     await db.insert(tekrarlayanFaturaKalemleri).values({
       tekrarlayanFaturaId,
       aciklama: k.aciklama,
+      birim: k.birim ?? "Pcs",
       miktar: String(k.miktar ?? 1),
       birimFiyat: String(k.birimFiyat),
       kdvOrani: String(k.kdvOrani ?? 0),
