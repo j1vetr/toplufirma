@@ -40,13 +40,30 @@ function formatTutar(tutar: string | number, para: string): string {
   return `${n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${para}`;
 }
 
+const PRIVATE_IP_RE = /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|::1$|fc00:|fd|fe80:)/i;
+const ALLOWED_IMAGE_CT = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"]);
+const MAX_LOGO_BYTES = 512 * 1024;
+
+function isLogoUrlAllowed(raw: string): boolean {
+  let parsed: URL;
+  try { parsed = new URL(raw); } catch { return false; }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+  const host = parsed.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return false;
+  if (PRIVATE_IP_RE.test(host)) return false;
+  return true;
+}
+
 async function logoBase64(url: string | null | undefined): Promise<string | null> {
   if (!url) return null;
+  if (!isLogoUrlAllowed(url)) return null;
   try {
     const resp = await fetch(url, { signal: AbortSignal.timeout(4000) });
     if (!resp.ok) return null;
+    const ct = (resp.headers.get("content-type") ?? "").split(";")[0].trim();
+    if (!ALLOWED_IMAGE_CT.has(ct)) return null;
     const buf = Buffer.from(await resp.arrayBuffer());
-    const ct = resp.headers.get("content-type") ?? "image/png";
+    if (buf.byteLength > MAX_LOGO_BYTES) return null;
     return `data:${ct};base64,${buf.toString("base64")}`;
   } catch {
     return null;
