@@ -649,17 +649,8 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
               width: "*",
               stack: [
                 { text: "VESSEL", style: "bolumBaslik" },
-                {
-                  marginTop: 6,
-                  table: {
-                    widths: ["auto", "auto"],
-                    body: ([
-                      [{ text: "Ship Name:", bold: true }, { text: row.gemiAd }],
-                      ...(row.gemiImo ? [[{ text: "Ship IMO:", bold: true }, { text: String(row.gemiImo) }]] : []),
-                    ] as TableCell[][]),
-                  },
-                  layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingTop: (i: number) => i === 0 ? 0 : 3, paddingBottom: () => 3 },
-                },
+                { text: [{ text: "Ship Name:", bold: true }, `  ${row.gemiAd}`], marginTop: 6 },
+                ...(row.gemiImo ? [{ text: [{ text: "Ship IMO:", bold: true }, `  ${String(row.gemiImo)}`], marginTop: 3 }] : []),
               ],
               alignment: "right",
             }] : []),

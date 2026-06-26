@@ -388,20 +388,11 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
               width: "*",
               stack: [
                 { text: "INVOICE DETAILS", style: "bolumBaslik" },
-                {
-                  marginTop: 6,
-                  table: {
-                    widths: ["auto", "auto"],
-                    body: ([
-                      [{ text: "Invoice Date:", bold: true }, { text: f.faturaTarihi }],
-                      ...(gemiAd ? [[{ text: "Ship Name:", bold: true }, { text: gemiAd }]] : []),
-                      ...(gemiImo ? [[{ text: "Ship IMO:", bold: true }, { text: String(gemiImo) }]] : []),
-                      [{ text: "Due Date:", bold: true }, { text: f.vadeTarihi }],
-                      [{ text: "Currency:", bold: true }, { text: f.paraBirimi }],
-                    ] as TableCell[][]),
-                  },
-                  layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingTop: (i: number) => i === 0 ? 0 : 3, paddingBottom: () => 3 },
-                },
+                { text: [{ text: "Invoice Date:", bold: true }, `  ${f.faturaTarihi}`], marginTop: 6 },
+                ...(gemiAd ? [{ text: [{ text: "Ship Name:", bold: true }, `  ${gemiAd}`], marginTop: 3 }] : []),
+                ...(gemiImo ? [{ text: [{ text: "Ship IMO:", bold: true }, `  ${String(gemiImo)}`], marginTop: 3 }] : []),
+                { text: [{ text: "Due Date:", bold: true }, `  ${f.vadeTarihi}`], marginTop: 3 },
+                { text: [{ text: "Currency:", bold: true }, `  ${f.paraBirimi}`], marginTop: 3 },
               ],
               alignment: "right",
             },
