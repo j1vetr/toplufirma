@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { firmalar, firmaEpostaAyarlari, faturalar, odemeler, firmaSirketGorunurluk } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireYazma, requireYonetici, sirketErisimKontrol, firmaYazmaDenetimi } from "../middleware/auth";
+import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
@@ -26,7 +27,7 @@ const router = Router();
 
 router.get("/firmalar", async (req, res) => {
   try {
-    const { tip, ustFirmaId } = req.query as Record<string, string>;
+    const { tip, ustFirmaId, catiFirmaId } = req.query as Record<string, string>;
 
     const rows = await db.select().from(firmalar).orderBy(firmalar.ad);
     const adById = new Map(rows.map(r => [r.id, r.ad]));
@@ -62,6 +63,11 @@ router.get("/firmalar", async (req, res) => {
     }
     if (tip) filtered = filtered.filter(f => f.tip === tip);
     if (ustFirmaId) filtered = filtered.filter(f => f.ustFirmaId === Number(ustFirmaId));
+    if (catiFirmaId && (!tip || tip === "bagli")) {
+      const izinliIds = await gorunurBagliFirmaIds(Number(catiFirmaId));
+      const idSet = new Set(izinliIds);
+      filtered = filtered.filter(f => f.tip !== "bagli" || idSet.has(f.id));
+    }
 
     res.json(filtered.map(f => formatFirma(f, f.grupFirmaId ? adById.get(f.grupFirmaId) ?? null : null, gorunurlukMap.get(f.id) ?? [])));
   } catch {

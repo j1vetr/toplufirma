@@ -868,6 +868,7 @@ export interface TekrarlayanFaturaUpdate {
 export type ListFirmalarParams = {
 tip?: ListFirmalarTip;
 ustFirmaId?: number;
+catiFirmaId?: number;
 arama?: string;
 };
 

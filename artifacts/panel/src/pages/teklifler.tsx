@@ -193,14 +193,15 @@ export default function Teklifler() {
     { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
   );
 
-  const { data: bagliFirmalar = [] } = useListFirmalar(
-    { tip: "bagli" },
-    { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
-  );
-
-  const { data: grupFirmalar = [] } = useListFirmalar(
-    { tip: "grup" },
-    { query: { queryKey: [...getListFirmalarQueryKey(), "grup"] } },
+  const donusturCatiFirmaId = donusturTeklif?.catiFirmaId ?? null;
+  const { data: donusturBagliFirmalar = [] } = useListFirmalar(
+    donusturCatiFirmaId ? { tip: "bagli", catiFirmaId: donusturCatiFirmaId } : { tip: "bagli" },
+    {
+      query: {
+        queryKey: [...getListFirmalarQueryKey(), "bagli-donustur", donusturCatiFirmaId],
+        enabled: !!donusturTeklif,
+      },
+    },
   );
 
   const { data: gemiler = [] } = useQuery<Gemi[]>({
@@ -868,24 +869,9 @@ export default function Teklifler() {
                   <SelectValue placeholder="Müşteri seçin…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {bagliFirmalar
-                    .filter(f => {
-                      if (!donusturTeklif) return true;
-                      const cid = donusturTeklif.catiFirmaId;
-                      const fb = f as unknown as Record<string, unknown>;
-                      if (fb.ustFirmaId === cid) return true;
-                      const gfid = fb.grupFirmaId as number | null;
-                      if (gfid == null) return false;
-                      const gf = grupFirmalar.find(g => g.id === gfid);
-                      if (!gf) return false;
-                      const gorunurIds = ((gf as unknown as Record<string, unknown>).gorunurSirketIds as number[]) ?? [];
-                      if (gorunurIds.length === 0) return true;
-                      return gorunurIds.includes(cid);
-                    })
-                    .map(f => (
-                      <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>
-                    ))
-                  }
+                  {donusturBagliFirmalar.map(f => (
+                    <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

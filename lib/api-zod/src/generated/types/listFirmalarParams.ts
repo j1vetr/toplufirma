@@ -10,5 +10,6 @@ import type { ListFirmalarTip } from './listFirmalarTip';
 export type ListFirmalarParams = {
 tip?: ListFirmalarTip;
 ustFirmaId?: number;
+catiFirmaId?: number;
 arama?: string;
 };

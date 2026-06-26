@@ -64,6 +64,10 @@ paths:
           in: query
           schema:
             type: integer
+        - name: catiFirmaId
+          in: query
+          schema:
+            type: integer
         - name: arama
           in: query
           schema:
