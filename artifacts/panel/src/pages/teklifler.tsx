@@ -96,6 +96,16 @@ interface TeklifKalem {
   opsiyonel: boolean;
 }
 
+interface TeklifBankaHesabi {
+  id: number;
+  bankaAdi: string | null;
+  hesapAdi: string;
+  iban: string | null;
+  paraBirimi: string | null;
+  swift: string | null;
+  ibanlar: Record<string, string>;
+}
+
 interface Gemi {
   id: number;
   firmaId: number;
@@ -156,6 +166,7 @@ export default function Teklifler() {
   const [gonderKonu, setGonderKonu] = useState<string>("");
   const [gecmisAcik, setGecmisAcik] = useState(false);
   const [kurYukleniyor, setKurYukleniyor] = useState(false);
+  const [teklifBankaHesaplari, setTeklifBankaHesaplari] = useState<TeklifBankaHesabi[]>([]);
 
   const [form, setForm] = useState({
     catiFirmaId: "" as string | number,
@@ -206,7 +217,7 @@ export default function Teklifler() {
   function formAc(teklif?: Teklif) {
     if (teklif) {
       setDuzenleId(teklif.id);
-      apiFetch(`/teklifler/${teklif.id}`).then((d: Teklif & { kalemler: TeklifKalem[] }) => {
+      apiFetch(`/teklifler/${teklif.id}`).then((d: Teklif & { kalemler: TeklifKalem[]; bankaHesaplari?: TeklifBankaHesabi[] }) => {
         setForm({
           catiFirmaId: d.catiFirmaId,
           gemiId: d.gemiId ?? "",
@@ -221,10 +232,12 @@ export default function Teklifler() {
           kosullar: d.kosullar ?? "",
           kalemler: d.kalemler.length ? d.kalemler : [bosTeklifKalem()],
         });
+        setTeklifBankaHesaplari((d.bankaHesaplari ?? []).filter(b => b));
         setModalAcik(true);
       });
     } else {
       setDuzenleId(null);
+      setTeklifBankaHesaplari([]);
       const aktifFirma = firmalar.find(f => f.id === aktifSirketId);
       setForm({
         catiFirmaId: aktifSirketId ?? (firmalar[0]?.id ?? ""),
@@ -762,6 +775,34 @@ export default function Teklifler() {
                 <Textarea value={form.kosullar} onChange={e => setForm(f => ({ ...f, kosullar: e.target.value }))} rows={3} placeholder="Ödeme koşulları, teslimat vb…" />
               </div>
             </div>
+
+            {/* Ödeme Bilgileri (banka hesapları) */}
+            {teklifBankaHesaplari.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Ödeme Bilgileri</Label>
+                <div className="space-y-2">
+                  {teklifBankaHesaplari.map(b => {
+                    const ibanlar = (b.ibanlar && Object.keys(b.ibanlar).length > 0)
+                      ? b.ibanlar
+                      : (b.iban && b.paraBirimi ? { [b.paraBirimi]: b.iban } : {});
+                    return (
+                      <div key={b.id} className="text-sm p-3 bg-muted/50 border rounded-none">
+                        {b.bankaAdi && <p className="font-medium">{b.bankaAdi}</p>}
+                        <p className="text-muted-foreground text-xs">{b.hesapAdi}</p>
+                        <div className="mt-1.5 space-y-0.5">
+                          {Object.entries(ibanlar).map(([pb, iban]) => (
+                            <p key={pb} className={`font-mono text-xs ${pb === form.paraBirimi ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                              <span className="text-foreground">{pb} IBAN:</span> {iban}
+                            </p>
+                          ))}
+                        </div>
+                        {b.swift && <p className="font-mono text-xs text-muted-foreground mt-0.5">SWIFT: {b.swift}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2">

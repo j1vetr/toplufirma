@@ -50,7 +50,6 @@ const apiBase = () => {
   return `${base}/api`;
 };
 
-const PB_SIRALAMA = ["TRY", "USD", "EUR", "GBP"];
 
 async function pdfIndir(id: number, faturaNo: string) {
   const token = localStorage.getItem("panel_token");
@@ -106,14 +105,6 @@ export default function FaturaDetay() {
   const updateFatura = useUpdateFatura();
 
   const faturaHesaplari = bankaHesaplari.filter(b => b.catiFirmaId === fatura?.catiFirmaId && b.faturadaGoster !== false);
-  const bankalarGruplu = faturaHesaplari.reduce<Record<string, typeof faturaHesaplari>>((acc, b) => {
-    (acc[b.paraBirimi] ??= []).push(b);
-    return acc;
-  }, {});
-  const bankaPb = [
-    ...PB_SIRALAMA.filter(pb => bankalarGruplu[pb]),
-    ...Object.keys(bankalarGruplu).filter(pb => !PB_SIRALAMA.includes(pb)),
-  ];
 
   function odemeKaydet() {
     if (!fatura || !odemeTutar || !odemeTarih) return;
@@ -315,25 +306,30 @@ export default function FaturaDetay() {
         </Card>
       )}
 
-      {bankaPb.length > 0 && (
+      {faturaHesaplari.length > 0 && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Ödeme Bilgileri</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            {bankaPb.map(pb => (
-              <div key={pb}>
-                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">— {pb} Hesapları —</p>
-                <div className="space-y-2">
-                  {bankalarGruplu[pb].map(b => (
-                    <div key={b.id} className="text-sm p-3 bg-muted/50 rounded-none border">
-                      {b.bankaAdi && <p className="font-medium">{b.bankaAdi}</p>}
-                      <p className="text-muted-foreground">{b.hesapAdi}</p>
-                      {b.iban && <p className="font-mono text-xs mt-1">{b.iban}</p>}
-                      {(b as unknown as Record<string,unknown>).swift && <p className="font-mono text-xs text-muted-foreground">SWIFT: {String((b as unknown as Record<string,unknown>).swift)}</p>}
-                    </div>
-                  ))}
+          <CardContent className="space-y-3">
+            {faturaHesaplari.map(b => {
+              const ibanlar = (b.ibanlar && Object.keys(b.ibanlar).length > 0)
+                ? b.ibanlar
+                : (b.iban && b.paraBirimi ? { [b.paraBirimi]: b.iban } : {});
+              const swift = (b as unknown as Record<string,unknown>).swift as string | undefined;
+              return (
+                <div key={b.id} className="text-sm p-3 bg-muted/50 rounded-none border">
+                  {b.bankaAdi && <p className="font-medium">{b.bankaAdi}</p>}
+                  <p className="text-muted-foreground text-xs">{b.hesapAdi}</p>
+                  <div className="mt-1.5 space-y-0.5">
+                    {Object.entries(ibanlar).map(([pb, iban]) => (
+                      <p key={pb} className={`font-mono text-xs ${pb === fatura?.paraBirimi ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                        <span className="text-foreground">{pb} IBAN:</span> {iban}
+                      </p>
+                    ))}
+                  </div>
+                  {swift && <p className="font-mono text-xs text-muted-foreground mt-0.5">SWIFT: {swift}</p>}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}

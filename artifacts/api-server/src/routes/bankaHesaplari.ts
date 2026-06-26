@@ -48,12 +48,13 @@ router.get("/banka-hesaplari", async (req, res) => {
 
 router.post("/banka-hesaplari", requireYazma, async (req, res) => {
   try {
-    const { catiFirmaId, bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster } = req.body;
+    const { catiFirmaId, bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster, ibanlar } = req.body;
     if (!catiFirmaId || !hesapAdi) { res.status(400).json({ error: "catiFirmaId ve hesapAdi zorunludur" }); return; }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     const [row] = await db.insert(bankaHesaplari).values({
-      catiFirmaId, bankaAdi, hesapAdi, iban, swift, paraBirimi: paraBirimi ?? "USD",
+      catiFirmaId, bankaAdi, hesapAdi, iban, swift, paraBirimi: paraBirimi ?? "TRY",
       subeAdi, aciklama, aktif: aktif ?? true, faturadaGoster: faturadaGoster ?? true,
+      ibanlar: ibanlar ?? {},
     }).returning();
     res.status(201).json(formatHesap(row, null, 0));
   } catch {
@@ -85,9 +86,9 @@ router.patch("/banka-hesaplari/:id", requireYazma, async (req, res) => {
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
-    const { bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster } = req.body;
+    const { bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster, ibanlar } = req.body;
     const [row] = await db.update(bankaHesaplari)
-      .set({ bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster })
+      .set({ bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster, ...(ibanlar !== undefined ? { ibanlar } : {}) })
       .where(eq(bankaHesaplari.id, id)).returning();
     const bakiyeler = await hesaplaHesapBakiyeleri();
     res.json(formatHesap(row, null, bakiyeler[id] ?? 0));
@@ -230,8 +231,25 @@ function formatHesap(h: typeof bankaHesaplari.$inferSelect, catiFirmaAd: string 
     id: h.id, catiFirmaId: h.catiFirmaId, catiFirmaAd: catiFirmaAd ?? null,
     bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, iban: h.iban, swift: h.swift,
     paraBirimi: h.paraBirimi, subeAdi: h.subeAdi, aciklama: h.aciklama,
-    aktif: h.aktif, faturadaGoster: h.faturadaGoster, bakiye, olusturmaTarihi: h.olusturmaTarihi,
+    aktif: h.aktif, faturadaGoster: h.faturadaGoster, bakiye,
+    ibanlar: (h.ibanlar ?? {}) as Record<string, string>,
+    olusturmaTarihi: h.olusturmaTarihi,
   };
+}
+
+export function ibanlarMetni(h: { ibanlar?: Record<string, string> | null; iban?: string | null; paraBirimi?: string | null; bankaAdi?: string | null; hesapAdi?: string; swift?: string | null }): string {
+  const ibanlar = h.ibanlar && Object.keys(h.ibanlar).length > 0
+    ? h.ibanlar
+    : h.iban && h.paraBirimi ? { [h.paraBirimi]: h.iban } : {};
+
+  const satirlar: string[] = [];
+  if (h.bankaAdi) satirlar.push(`Bank Name    : ${h.bankaAdi}`);
+  if (h.hesapAdi) satirlar.push(`Account Name : ${h.hesapAdi}`);
+  for (const [pb, iban] of Object.entries(ibanlar)) {
+    satirlar.push(`${pb} IBAN     : ${iban}`);
+  }
+  if (h.swift) satirlar.push(`SWIFT        : ${h.swift}`);
+  return satirlar.join("\n");
 }
 
 export default router;

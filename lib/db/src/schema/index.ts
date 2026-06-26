@@ -8,6 +8,7 @@ import {
   numeric,
   date,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -105,6 +106,7 @@ export const bankaHesaplari = pgTable("banka_hesaplari", {
   aciklama: text("aciklama"),
   aktif: boolean("aktif").notNull().default(true),
   faturadaGoster: boolean("faturada_goster").notNull().default(true),
+  ibanlar: jsonb("ibanlar").$type<Record<string, string>>().default({}),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 

@@ -149,7 +149,8 @@ router.get("/teklifler/:id", async (req, res) => {
       })),
       bankaHesaplari: bankalar.map(b => ({
         id: b.id, bankaAdi: b.bankaAdi, hesapAdi: b.hesapAdi,
-        iban: b.iban, paraBirimi: b.paraBirimi,
+        iban: b.iban, paraBirimi: b.paraBirimi, swift: b.swift,
+        ibanlar: (b.ibanlar ?? {}) as Record<string, string>,
       })),
     });
   } catch {
@@ -450,19 +451,19 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
     const opsToplamTutar = opsKalemler.reduce((s, k) => s + Number(k.miktar) * Number(k.birimFiyat), 0);
     const toplamYazi = sayiyiIngilizceYaz(araToplam, t.paraBirimi);
 
-    const paraBirimiSiralama = ["TRY", "USD", "EUR", "GBP"];
-    const bankalarGruplu = bankalar.reduce<Record<string, typeof bankalar>>((acc, b) => {
-      (acc[b.paraBirimi] ??= []).push(b); return acc;
-    }, {});
-    const paraBirimleri = [
-      ...paraBirimiSiralama.filter(pb => bankalarGruplu[pb]),
-      ...Object.keys(bankalarGruplu).filter(pb => !paraBirimiSiralama.includes(pb)),
-    ];
-    const bankaBilgileri = paraBirimleri.map(pb =>
-      `— ${pb} ACCOUNTS —\n` + bankalarGruplu[pb].map(b =>
-        `${b.bankaAdi}: ${b.hesapAdi}${b.iban ? `\nIBAN: ${b.iban}` : ""}`
-      ).join("\n")
-    ).join("\n\n");
+    const bankaBilgileri = bankalar.map(b => {
+      const ibanlar = (b.ibanlar && Object.keys(b.ibanlar as Record<string, string>).length > 0)
+        ? (b.ibanlar as Record<string, string>)
+        : (b.iban && b.paraBirimi ? { [b.paraBirimi]: b.iban } : {});
+      const satirlar: string[] = [];
+      if (b.bankaAdi) satirlar.push(`Bank Name    : ${b.bankaAdi}`);
+      if (b.hesapAdi) satirlar.push(`Account Name : ${b.hesapAdi}`);
+      for (const [pb, iban] of Object.entries(ibanlar)) {
+        satirlar.push(`${pb} IBAN     : ${iban}`);
+      }
+      if (b.swift) satirlar.push(`SWIFT        : ${b.swift}`);
+      return satirlar.join("\n");
+    }).join("\n\n");
 
     let satirNo = 0;
     const kalemSatiri = (k: typeof kalemler[number]): TableCell[] => {

@@ -369,6 +369,7 @@ export interface BankaHesabi {
   aktif?: boolean;
   faturadaGoster?: boolean;
   bakiye?: number;
+  ibanlar?: Record<string, string>;
   olusturmaTarihi: string;
 }
 
@@ -378,11 +379,12 @@ export interface BankaHesabiInput {
   hesapAdi: string;
   iban?: string;
   swift?: string;
-  paraBirimi: string;
+  paraBirimi?: string;
   subeAdi?: string;
   aciklama?: string;
   aktif?: boolean;
   faturadaGoster?: boolean;
+  ibanlar?: Record<string, string>;
 }
 
 export interface BankaHesabiUpdate {
@@ -395,6 +397,7 @@ export interface BankaHesabiUpdate {
   aciklama?: string;
   aktif?: boolean;
   faturadaGoster?: boolean;
+  ibanlar?: Record<string, string>;
 }
 
 export type BankaHareketiTip = typeof BankaHareketiTip[keyof typeof BankaHareketiTip];
