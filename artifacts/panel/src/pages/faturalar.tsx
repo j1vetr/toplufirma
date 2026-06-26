@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -26,7 +26,7 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, FileText, Search, ChevronRight, AlertCircle, Download, Mail, CreditCard, CheckSquare, SquarePen } from "lucide-react";
+import { Plus, Trash2, FileText, Search, ChevronRight, ChevronDown, AlertCircle, Download, Mail, CreditCard, CheckSquare, SquarePen } from "lucide-react";
 
 const DURUM_RENK: Record<string, string> = {
   taslak: "bg-slate-500/10 text-slate-500",
@@ -232,15 +232,63 @@ export default function Faturalar() {
     );
   }
 
-  const gruplu = aktifSirketId === null
-    ? Object.entries(
-        filtrelenmis.reduce<Record<string, Fatura[]>>((acc, f) => {
-          const k = f.catiFirmaAd ?? "Diğer";
-          (acc[k] ??= []).push(f);
-          return acc;
-        }, {})
-      )
-    : null;
+  const [acikAylar, setAcikAylar] = useState<Set<string>>(new Set());
+  const ilkAcilis = useRef(false);
+
+  const ayGruplari = useMemo(() => {
+    const byMonth = new Map<string, Fatura[]>();
+    for (const f of filtrelenmis) {
+      const ayKey = f.faturaTarihi.substring(0, 7);
+      if (!byMonth.has(ayKey)) byMonth.set(ayKey, []);
+      byMonth.get(ayKey)!.push(f);
+    }
+    const sortedMonths = [...byMonth.entries()].sort(([a], [b]) => b.localeCompare(a));
+    return sortedMonths.map(([ayKey, ayFaturalari]) => {
+      const byFirma = new Map<string, Fatura[]>();
+      for (const f of ayFaturalari) {
+        const k = f.bagliFirmaAd ?? "Diğer";
+        if (!byFirma.has(k)) byFirma.set(k, []);
+        byFirma.get(k)!.push(f);
+      }
+      const toplamByPb: Record<string, number> = {};
+      for (const f of ayFaturalari) {
+        toplamByPb[f.paraBirimi] = (toplamByPb[f.paraBirimi] ?? 0) + f.genelToplam;
+      }
+      return {
+        ayKey,
+        ayFaturalari,
+        firmaGruplari: [...byFirma.entries()],
+        durumOzet: {
+          odendi: ayFaturalari.filter(f => f.durum === "odendi").length,
+          acik: ayFaturalari.filter(f => f.durum === "acik" || f.durum === "kismi_odendi").length,
+          taslak: ayFaturalari.filter(f => f.durum === "taslak").length,
+          iptal: ayFaturalari.filter(f => f.durum === "iptal").length,
+        },
+        toplamByPb,
+      };
+    });
+  }, [filtrelenmis]);
+
+  useEffect(() => {
+    if (!ilkAcilis.current && ayGruplari.length > 0) {
+      ilkAcilis.current = true;
+      setAcikAylar(new Set([ayGruplari[0].ayKey]));
+    }
+  }, [ayGruplari]);
+
+  function ayAdi(ayKey: string): string {
+    const [yil, ay] = ayKey.split("-");
+    const d = new Date(Number(yil), Number(ay) - 1, 1);
+    return d.toLocaleDateString("tr-TR", { month: "long", year: "numeric" });
+  }
+
+  function ayToggle(ayKey: string) {
+    setAcikAylar(prev => {
+      const next = new Set(prev);
+      if (next.has(ayKey)) next.delete(ayKey); else next.add(ayKey);
+      return next;
+    });
+  }
 
   function faturaSatiri(f: Fatura) {
     const vadesiGecmis = f.vadeTarihi < bugun && (f.durum === "acik" || f.durum === "kismi_odendi");
@@ -409,32 +457,66 @@ export default function Faturalar() {
         )}
       </div>
 
-      {gruplu ? (
-        <div className="space-y-6">
-          {gruplu.map(([firmaAd, faturaGrubu]) => (
-            <div key={firmaAd}>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{firmaAd}</h3>
-              <div className="space-y-2">{faturaGrubu.map(faturaSatiri)}</div>
+      <div className="space-y-2">
+        {ayGruplari.length === 0 && (
+          <div className="text-center text-muted-foreground py-16">
+            <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+            <p>Fatura bulunamadı.</p>
+          </div>
+        )}
+        {ayGruplari.map(({ ayKey, ayFaturalari, firmaGruplari, durumOzet, toplamByPb }) => {
+          const acik = acikAylar.has(ayKey);
+          return (
+            <div key={ayKey} className="border border-border">
+              <button
+                className="w-full flex items-center gap-3 p-3 hover:bg-muted/40 transition-colors text-left"
+                onClick={() => ayToggle(ayKey)}
+              >
+                <ChevronDown className={`h-4 w-4 shrink-0 transition-transform duration-150 ${acik ? "" : "-rotate-90"}`} />
+                <span className="font-semibold capitalize flex-1 text-sm">{ayAdi(ayKey)}</span>
+                <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                  {durumOzet.odendi > 0 && <span className="text-xs text-green-600 font-medium">{durumOzet.odendi} ödendi</span>}
+                  {durumOzet.acik > 0 && <span className="text-xs text-orange-600 font-medium">{durumOzet.acik} açık</span>}
+                  {durumOzet.taslak > 0 && <span className="text-xs text-slate-500 font-medium">{durumOzet.taslak} taslak</span>}
+                  {durumOzet.iptal > 0 && <span className="text-xs text-gray-400 font-medium">{durumOzet.iptal} iptal</span>}
+                  <span className="text-xs text-muted-foreground">·</span>
+                  {Object.entries(toplamByPb).map(([pb, tutar]) => (
+                    <span key={pb} className="text-xs font-mono font-semibold">{fmt(tutar, pb)}</span>
+                  ))}
+                  <span className="text-xs text-muted-foreground">·</span>
+                  <span className="text-xs text-muted-foreground">{ayFaturalari.length} fatura</span>
+                </div>
+              </button>
+              {acik && (
+                <div className="border-t border-border">
+                  {firmaGruplari.map(([firmaAd, firmaFaturalari]) => {
+                    const firmaToplam: Record<string, number> = {};
+                    for (const f of firmaFaturalari) {
+                      firmaToplam[f.paraBirimi] = (firmaToplam[f.paraBirimi] ?? 0) + f.genelToplam;
+                    }
+                    return (
+                      <div key={firmaAd} className="border-b border-border last:border-b-0">
+                        <div className="px-4 py-2 bg-muted/30 flex items-center gap-2">
+                          <span className="text-sm font-medium">{firmaAd}</span>
+                          <span className="text-xs text-muted-foreground">({firmaFaturalari.length} fatura)</span>
+                          <div className="ml-auto flex gap-2">
+                            {Object.entries(firmaToplam).map(([pb, tutar]) => (
+                              <span key={pb} className="text-xs font-mono text-muted-foreground">{fmt(tutar, pb)}</span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="p-2 space-y-2">
+                          {firmaFaturalari.map(faturaSatiri)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          ))}
-          {filtrelenmis.length === 0 && (
-            <div className="text-center text-muted-foreground py-16">
-              <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>Fatura bulunamadı.</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtrelenmis.map(faturaSatiri)}
-          {filtrelenmis.length === 0 && (
-            <div className="text-center text-muted-foreground py-16">
-              <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>Fatura bulunamadı.</p>
-            </div>
-          )}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
       <Dialog open={odemeModal} onOpenChange={setOdemeModal}>
         <DialogContent>
