@@ -4,6 +4,8 @@ import { faturalar, firmalar, gemiler, odemeler } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { sirketErisimKontrol } from "../middleware/auth";
 
+const AY_ADLARI = ["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"];
+
 const router = Router();
 
 function toCsv(rows: Record<string, unknown>[]): string {
@@ -218,6 +220,116 @@ router.get("/raporlar/gemi-gelir", async (req, res) => {
     res.json({ gemiler: result });
   } catch {
     res.status(500).json({ error: "Gemi gelir raporu alınamadı" });
+  }
+});
+
+router.get("/raporlar/fatura-ozeti", async (req, res) => {
+  try {
+    const { catiFirmaId, yil } = req.query as Record<string, string>;
+
+    if (catiFirmaId && !sirketErisimKontrol(Number(catiFirmaId), req)) {
+      res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return;
+    }
+
+    let rows = await db.select().from(faturalar);
+
+    if (catiFirmaId) {
+      rows = rows.filter(f => f.catiFirmaId === Number(catiFirmaId));
+    } else if (req.kullanici?.rol !== "yonetici") {
+      const izinli = req.izinliSirketler ?? [];
+      rows = rows.filter(f => izinli.includes(f.catiFirmaId));
+    }
+    if (yil) rows = rows.filter(f => f.faturaTarihi.startsWith(yil));
+
+    const hedefYil = Number(yil) || new Date().getFullYear();
+
+    const durumSayaci: Record<string, { sayi: number; tutar: number }> = {};
+    for (const f of rows.filter(f => f.durum !== "taslak")) {
+      if (!durumSayaci[f.durum]) durumSayaci[f.durum] = { sayi: 0, tutar: 0 };
+      durumSayaci[f.durum].sayi++;
+      durumSayaci[f.durum].tutar += Number(f.genelToplam);
+    }
+
+    const aylik = Array.from({ length: 12 }, (_, i) => {
+      const ay = i + 1;
+      const prefix = `${hedefYil}-${String(ay).padStart(2, "0")}`;
+      const ayFaturalar = rows.filter(f => f.faturaTarihi.startsWith(prefix) && f.durum !== "taslak");
+      return {
+        ay, ayAd: AY_ADLARI[i],
+        sayi: ayFaturalar.length,
+        tutar: ayFaturalar.reduce((s, f) => s + Number(f.genelToplam), 0),
+        odendi: ayFaturalar.filter(f => f.durum === "odendi").reduce((s, f) => s + Number(f.genelToplam), 0),
+      };
+    });
+
+    const faturaIds = rows.map(f => f.id);
+    const odemeRows = faturaIds.length > 0
+      ? await db.select().from(odemeler).where(inArray(odemeler.faturaId, faturaIds))
+      : [];
+    const toplamTahsilat = odemeRows.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+    const toplamFatura = rows.filter(f => f.durum !== "taslak").reduce((s, f) => s + Number(f.genelToplam), 0);
+    const toplamAcik = rows.filter(f => f.durum === "acik" || f.durum === "kismi_odendi").reduce((s, f) => s + Number(f.genelToplam), 0);
+
+    res.json({
+      toplamFatura, toplamTahsilat, toplamAcik,
+      faturaSayisi: rows.filter(f => f.durum !== "taslak").length,
+      durumlar: Object.entries(durumSayaci).map(([durum, v]) => ({ durum, ...v })),
+      aylik,
+    });
+  } catch {
+    res.status(500).json({ error: "Fatura özeti alınamadı" });
+  }
+});
+
+router.get("/raporlar/bagli-firma-analiz", async (req, res) => {
+  try {
+    const { catiFirmaId, yil } = req.query as Record<string, string>;
+
+    if (catiFirmaId && !sirketErisimKontrol(Number(catiFirmaId), req)) {
+      res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return;
+    }
+
+    const rows = await db
+      .select({ f: faturalar, bagliFirmaAd: firmalar.ad })
+      .from(faturalar)
+      .leftJoin(firmalar, eq(faturalar.bagliFirmaId, firmalar.id));
+
+    let filtered = rows.filter(r => r.f.durum !== "taslak");
+
+    if (catiFirmaId) {
+      filtered = filtered.filter(r => r.f.catiFirmaId === Number(catiFirmaId));
+    } else if (req.kullanici?.rol !== "yonetici") {
+      const izinli = req.izinliSirketler ?? [];
+      filtered = filtered.filter(r => izinli.includes(r.f.catiFirmaId));
+    }
+    if (yil) filtered = filtered.filter(r => r.f.faturaTarihi.startsWith(yil));
+
+    const faturaIds = filtered.map(r => r.f.id);
+    const odemeRows = faturaIds.length > 0
+      ? await db.select().from(odemeler).where(inArray(odemeler.faturaId, faturaIds))
+      : [];
+    const tahsilatMap: Record<number, number> = {};
+    for (const o of odemeRows) {
+      if (o.faturaId && o.tip === "tahsilat") {
+        tahsilatMap[o.faturaId] = (tahsilatMap[o.faturaId] ?? 0) + Number(o.tutar);
+      }
+    }
+
+    const map: Record<string, { bagliFirmaId: number | null; bagliFirmaAd: string; toplamFatura: number; toplamTahsilat: number; acikFatura: number; faturaSayisi: number }> = {};
+    for (const r of filtered) {
+      const key = r.f.bagliFirmaId != null ? String(r.f.bagliFirmaId) : "__yok__";
+      const ad = r.bagliFirmaAd ?? (r.f.bagliFirmaId != null ? `Firma #${r.f.bagliFirmaId}` : "Bağlı Firma Yok");
+      if (!map[key]) map[key] = { bagliFirmaId: r.f.bagliFirmaId ?? null, bagliFirmaAd: ad, toplamFatura: 0, toplamTahsilat: 0, acikFatura: 0, faturaSayisi: 0 };
+      map[key].toplamFatura += Number(r.f.genelToplam);
+      map[key].toplamTahsilat += tahsilatMap[r.f.id] ?? 0;
+      if (r.f.durum === "acik" || r.f.durum === "kismi_odendi") map[key].acikFatura += Number(r.f.genelToplam);
+      map[key].faturaSayisi++;
+    }
+
+    const result = Object.values(map).sort((a, b) => b.toplamFatura - a.toplamFatura);
+    res.json({ firmalar: result });
+  } catch {
+    res.status(500).json({ error: "Bağlı firma analizi alınamadı" });
   }
 });
 
