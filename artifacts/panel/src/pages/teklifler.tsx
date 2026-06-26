@@ -58,6 +58,7 @@ import {
   Mail,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from "lucide-react";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
@@ -98,6 +99,7 @@ interface TeklifKalem {
 interface Gemi {
   id: number;
   firmaId: number;
+  catiFirmaId: number | null;
   ad: string;
 }
 
@@ -153,6 +155,7 @@ export default function Teklifler() {
   const [gonderEposta, setGonderEposta] = useState<string>("");
   const [gonderKonu, setGonderKonu] = useState<string>("");
   const [gecmisAcik, setGecmisAcik] = useState(false);
+  const [kurYukleniyor, setKurYukleniyor] = useState(false);
 
   const [form, setForm] = useState({
     catiFirmaId: "" as string | number,
@@ -190,7 +193,7 @@ export default function Teklifler() {
   });
 
   const filtrelenmis = durumFiltre === "tumu" ? teklifListesi : teklifListesi.filter(t => t.durum === durumFiltre);
-  const firmaGemileri = gemiler.filter(g => g.firmaId === Number(form.catiFirmaId));
+  const firmaGemileri = gemiler.filter(g => g.catiFirmaId === Number(form.catiFirmaId));
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -341,6 +344,22 @@ export default function Teklifler() {
       })
       .catch(() => toast({ title: "PDF oluşturulamadı", variant: "destructive" }))
       .finally(() => setPdfYukleniyor(null));
+  }
+
+  async function tcmbKurGetir() {
+    setKurYukleniyor(true);
+    try {
+      const data = await apiFetch("/tcmb-kur");
+      const pb = form.paraBirimi;
+      const kur = data.kurlar?.[pb];
+      if (kur) {
+        const kurStr = `1 ${pb} = ${Number(kur).toFixed(4)} TRY (TCMB, ${data.tarih})`;
+        setForm(f => ({ ...f, kurNotu: kurStr }));
+      }
+    } catch {
+    } finally {
+      setKurYukleniyor(false);
+    }
   }
 
   const kalemGuncelle = useCallback((i: number, field: keyof TeklifKalem, value: string | number | boolean) => {
@@ -608,10 +627,35 @@ export default function Teklifler() {
             </div>
 
             {/* Kur Notu */}
-            <div className="space-y-1.5">
-              <Label>Kur Notu</Label>
-              <Input value={form.kurNotu} onChange={e => setForm(f => ({ ...f, kurNotu: e.target.value }))} placeholder="Örn: 1 USD = 32.50 TRY (teklif tarihinde)" />
-            </div>
+            {form.paraBirimi !== "TRY" && (
+              <div className="space-y-1.5">
+                <Label>Kur Notu</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={form.kurNotu}
+                    onChange={e => setForm(f => ({ ...f, kurNotu: e.target.value }))}
+                    placeholder={`Örn: 1 ${form.paraBirimi} = … TRY (teklif tarihinde)`}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={tcmbKurGetir}
+                    disabled={kurYukleniyor}
+                    title="TCMB güncel satış kurunu getir"
+                  >
+                    {kurYukleniyor ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      "Kuru Getir"
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">TCMB resmi satış kurunu otomatik doldurabilirsiniz.</p>
+              </div>
+            )}
 
             {/* ── Zorunlu Kalemler ── */}
             <div className="space-y-3">

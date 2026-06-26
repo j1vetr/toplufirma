@@ -15,6 +15,7 @@ import aramaRouter from "./arama";
 import adminRouter from "./admin";
 import tekliflerRouter from "./teklifler";
 import gonderiGecmisiRouter from "./gonderiGecmisi";
+import tcmbKurRouter from "./tcmbKur";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(tekrarlayanFaturalarRouter);
 router.use(aramaRouter);
 router.use(tekliflerRouter);
 router.use(gonderiGecmisiRouter);
+router.use(tcmbKurRouter);
 
 export default router;
