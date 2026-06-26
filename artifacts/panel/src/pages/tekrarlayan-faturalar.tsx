@@ -99,10 +99,12 @@ export default function TekrarlayanFaturalar() {
     { tip: "grup" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "grup"] } },
   );
+  const gemilerParams = form.catiFirmaId ? { catiFirmaId: Number(form.catiFirmaId) } : (aktifSirketId ? { catiFirmaId: aktifSirketId } : undefined);
   const { data: gemilerData = [] } = useListGemiler(
-    params,
-    { query: { queryKey: [...getListGemilerQueryKey(params), aktifSirketId] } },
+    gemilerParams,
+    { query: { queryKey: [...getListGemilerQueryKey(gemilerParams), form.catiFirmaId ?? aktifSirketId] } },
   );
+  const filtreliGemiler = gemilerData.filter(g => !form.bagliFirmaId || g.firmaId === Number(form.bagliFirmaId));
 
   const create = useCreateTekrarlayanFatura();
   const update = useUpdateTekrarlayanFatura();
@@ -422,7 +424,7 @@ export default function TekrarlayanFaturalar() {
                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">—</SelectItem>
-                  {gemilerData.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
+                  {filtreliGemiler.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
