@@ -483,7 +483,12 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
           { text: "PAYMENT DETAILS", bold: true, fontSize: 11, color: "#222", marginTop: 10, marginBottom: 10 } as unknown as import("pdfmake/interfaces").Content,
           ...bankaIcerikleri as unknown as import("pdfmake/interfaces").Content[],
         ] : []),
-        ...(f.aciklama ? [{ text: f.aciklama, marginTop: 16, color: "#555", italics: true }] : []),
+        ...(f.notlar ? [
+          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#e8eaf0" }], marginTop: 14 } as unknown as import("pdfmake/interfaces").Content,
+          { text: "NOTE", bold: true, fontSize: 8, color: "#888", characterSpacing: 1, marginTop: 10, marginBottom: 4 } as unknown as import("pdfmake/interfaces").Content,
+          { text: f.notlar, fontSize: 9, color: "#555", italics: true } as unknown as import("pdfmake/interfaces").Content,
+        ] : []),
+        ...(f.aciklama ? [{ text: f.aciklama, marginTop: 12, color: "#555", italics: true, fontSize: 9 }] : []),
       ],
       styles: {
         sirketAd: { fontSize: 16, bold: true, color: "#0070d1" },
@@ -497,6 +502,7 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
     const pdfStream: NodeJS.ReadableStream & { end(): void } = await _pdfmake.createPdf(docDefinition).getStream();
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename="fatura-${f.faturaNo}.pdf"`);
+    res.setHeader("Cache-Control", "no-store, max-age=0");
     pdfStream.pipe(res);
     pdfStream.end();
   } catch (err) {
