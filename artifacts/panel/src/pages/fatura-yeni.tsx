@@ -46,6 +46,8 @@ const BIRIMLER: { tr: string; en: string }[] = [
 ];
 const BIRIM_EN_SET = new Set(BIRIMLER.map(b => b.en));
 
+const DEFAULT_NOT = "Kindly note that if payment is not received by the due date, the system will reduce your internet speed.";
+
 const fmt = (n: number) => new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n);
 
 function addDays(dateStr: string, days: number): string {
@@ -79,7 +81,7 @@ export default function FaturaYeni() {
   const [faturaTarihi, setFaturaTarihi] = useState(today);
   const [vadeTarihi, setVadeTarihi] = useState(() => addDays(today, 10));
   const [paraBirimi, setParaBirimi] = useState("USD");
-  const [notlar, setNotlar] = useState("");
+  const [notlar, setNotlar] = useState(DEFAULT_NOT);
   const [aciklama, setAciklama] = useState("");
   const [tekrarlat, setTekrarlat] = useState(false);
   const [kalemler, setKalemler] = useState<Kalem[]>([

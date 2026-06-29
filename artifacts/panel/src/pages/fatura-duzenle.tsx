@@ -44,6 +44,8 @@ const BIRIMLER: { tr: string; en: string }[] = [
   { tr: "Kilogram", en: "kg" },
 ];
 const BIRIM_EN_SET = new Set(BIRIMLER.map(b => b.en));
+const DEFAULT_NOT = "Kindly note that if payment is not received by the due date, the system will reduce your internet speed.";
+
 const fmt = (n: number) => new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n);
 
 const apiBase = () => {
@@ -83,7 +85,7 @@ export default function FaturaDuzenle() {
     setFaturaTarihi(fatura.faturaTarihi ?? "");
     setVadeTarihi(fatura.vadeTarihi ?? "");
     setParaBirimi(fatura.paraBirimi ?? "USD");
-    setNotlar(fatura.notlar ?? "");
+    setNotlar(fatura.notlar || DEFAULT_NOT);
     if (fatura.kalemler?.length) {
       setKalemler(fatura.kalemler.map(k => ({
         aciklama: k.aciklama,

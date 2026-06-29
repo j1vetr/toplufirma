@@ -381,7 +381,7 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
                 { text: "BILL TO", style: "bolumBaslik" },
                 { text: bagliFirmaAd ?? "-", bold: true, marginTop: 4 },
                 ...(bagliFirmaAdres ? [{ text: bagliFirmaAdres, color: "#555", fontSize: 9, marginTop: 2 }] : []),
-                { text: `INVOICE  ${f.faturaNo}`, fontSize: 8, bold: true, color: "#0070d1", marginTop: 8, characterSpacing: 0.5 },
+                { text: `INVOICE : ${f.faturaNo}`, fontSize: 8, bold: true, color: "#0070d1", marginTop: 8, characterSpacing: 0.5 },
               ],
             },
             {
