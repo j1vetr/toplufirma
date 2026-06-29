@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -72,6 +72,8 @@ export default function FaturaYeni() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
+  const vadeManuelDuzenleRef = useRef(false);
+
   const [catiFirmaId, setCatiFirmaId] = useState("");
   const [bagliFirmaId, setBagliFirmaId] = useState("");
   const [grupFirmaId, setGrupFirmaId] = useState("");
@@ -129,7 +131,7 @@ export default function FaturaYeni() {
     firmaId: g.firmaId,
     firmaAd: g.firmaAd,
     catiFirmaId: g.catiFirmaId,
-    grupFirmaId: (g as unknown as Record<string, unknown>).grupFirmaId as number | null ?? null,
+    grupFirmaId: g.grupFirmaId ?? null,
   }));
 
   const seciliGemi = gemiSecenekleri.find(g => String(g.id) === gemiId) ?? null;
@@ -141,6 +143,15 @@ export default function FaturaYeni() {
   const filtrelenmisSeriler = seriler.filter(s => !catiFirmaId || s.catiFirmaId === Number(catiFirmaId));
   const filtrelenmisKdv = kdvOranlari.filter(k => !catiFirmaId || k.catiFirmaId === Number(catiFirmaId));
 
+  function autoSelectSeri(catiFirmaIdVal: number | null) {
+    const filtered = seriler.filter(s => !catiFirmaIdVal || s.catiFirmaId === catiFirmaIdVal);
+    if (filtered.length === 1) {
+      setSerisiId(String(filtered[0].id));
+    } else {
+      setSerisiId("");
+    }
+  }
+
   function onGemiChange(newGemiId: string, gemi: GemiSecenek | null) {
     setGemiId(newGemiId);
     if (!gemi) return;
@@ -148,7 +159,11 @@ export default function FaturaYeni() {
     if (gemi.catiFirmaId) {
       setCatiFirmaId(String(gemi.catiFirmaId));
       const varsayilanSeri = seriler.find(s => s.catiFirmaId === gemi.catiFirmaId! && s.varsayilan);
-      setSerisiId(varsayilanSeri ? String(varsayilanSeri.id) : "");
+      if (varsayilanSeri) {
+        setSerisiId(String(varsayilanSeri.id));
+      } else {
+        autoSelectSeri(gemi.catiFirmaId);
+      }
     }
     setBagliFirmaId(String(gemi.firmaId));
     setGrupFirmaId(gemi.grupFirmaId ? String(gemi.grupFirmaId) : "");
@@ -237,7 +252,7 @@ export default function FaturaYeni() {
                 setBagliFirmaId("");
                 setGrupFirmaId("");
                 setGemiId("");
-                setSerisiId("");
+                autoSelectSeri(v ? Number(v) : null);
               }}
             >
               <SelectTrigger data-testid="select-fatura-sirket">
@@ -336,11 +351,31 @@ export default function FaturaYeni() {
 
           <div className="space-y-1.5">
             <Label>Fatura Tarihi *</Label>
-            <Input type="date" value={faturaTarihi} onChange={e => setFaturaTarihi(e.target.value)} data-testid="input-fatura-tarihi" />
+            <Input
+              type="date"
+              value={faturaTarihi}
+              onChange={e => {
+                const newDate = e.target.value;
+                setFaturaTarihi(newDate);
+                if (!vadeManuelDuzenleRef.current) {
+                  setVadeTarihi(addDays(newDate, 10));
+                }
+                vadeManuelDuzenleRef.current = false;
+              }}
+              data-testid="input-fatura-tarihi"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Vade Tarihi *</Label>
-            <Input type="date" value={vadeTarihi} onChange={e => setVadeTarihi(e.target.value)} data-testid="input-fatura-vade" />
+            <Input
+              type="date"
+              value={vadeTarihi}
+              onChange={e => {
+                vadeManuelDuzenleRef.current = true;
+                setVadeTarihi(e.target.value);
+              }}
+              data-testid="input-fatura-vade"
+            />
           </div>
 
           <div className="space-y-1.5">
