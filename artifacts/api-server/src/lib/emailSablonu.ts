@@ -29,7 +29,7 @@ export interface EmailAliciData {
 function formatTarih(t: string | null | undefined): string {
   if (!t) return "";
   try {
-    return new Date(t).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+    return new Date(t).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
   } catch {
     return t;
   }
@@ -37,7 +37,7 @@ function formatTarih(t: string | null | undefined): string {
 
 function formatTutar(tutar: string | number, para: string): string {
   const n = Number(tutar);
-  return `${n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${para}`;
+  return `${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${para}`;
 }
 
 const PRIVATE_IP_RE = /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|::1$|fc00:|fd|fe80:)/i;
@@ -56,7 +56,6 @@ function isLogoUrlAllowed(raw: string): boolean {
 
 async function logoBase64(url: string | null | undefined): Promise<string | null> {
   if (!url) return null;
-  // DB'de zaten base64 data URL olarak saklanıyor — direkt kullan
   if (/^data:image\/(png|jpeg|gif|webp|svg\+xml);base64,/i.test(url)) return url;
   if (!isLogoUrlAllowed(url)) return null;
   try {
@@ -78,45 +77,53 @@ export async function emailSablonuOlustur(
   alici: EmailAliciData,
   ozelMesaj?: string | null,
 ): Promise<{ subject: string; html: string; text: string }> {
-  const isPDF = belge.tip === "fatura";
-  const belgeTipiTR = isPDF ? "Fatura" : "Teklif";
-  const belgeTipiEN = isPDF ? "Invoice" : "PROFORMA QUOTATION";
-  const belgeTipiAccusative = isPDF ? "faturayı" : "teklifi";
+  const isInvoice = belge.tip === "fatura";
+  const belgeTipiLabel = isInvoice ? "INVOICE" : "PROFORMA QUOTATION";
+  const belgeTipiSubject = isInvoice ? "Invoice" : "Quotation";
+  const dosyaAdi = `${isInvoice ? "invoice" : "quotation"}-${belge.no}.pdf`;
 
-  const durumEtiketMap: Record<string, { tr: string; bg: string; color: string }> = {
-    acik:         { tr: "Açık",          bg: "#e3f2fd", color: "#1565c0" },
-    odendi:       { tr: "Ödendi",        bg: "#e8f5e9", color: "#2e7d32" },
-    kismi_odendi: { tr: "Kısmi Ödendi",  bg: "#fff8e1", color: "#e65100" },
-    iptal:        { tr: "İptal",         bg: "#fce4ec", color: "#b71c1c" },
-    taslak:       { tr: "Taslak",        bg: "#f5f5f5", color: "#616161" },
-    gonderildi:   { tr: "Gönderildi",    bg: "#e3f2fd", color: "#1565c0" },
-    onaylandi:    { tr: "Onaylandı",     bg: "#e8f5e9", color: "#2e7d32" },
-    reddedildi:   { tr: "Reddedildi",   bg: "#fce4ec", color: "#b71c1c" },
+  const durumEtiketMap: Record<string, { en: string; bg: string; color: string }> = {
+    acik:         { en: "Open",           bg: "#e3f2fd", color: "#1565c0" },
+    odendi:       { en: "Paid",           bg: "#e8f5e9", color: "#2e7d32" },
+    kismi_odendi: { en: "Partly Paid",    bg: "#fff8e1", color: "#e65100" },
+    iptal:        { en: "Cancelled",      bg: "#fce4ec", color: "#b71c1c" },
+    taslak:       { en: "Draft",          bg: "#f5f5f5", color: "#616161" },
+    gonderildi:   { en: "Sent",           bg: "#e3f2fd", color: "#1565c0" },
+    onaylandi:    { en: "Approved",       bg: "#e8f5e9", color: "#2e7d32" },
+    reddedildi:   { en: "Rejected",       bg: "#fce4ec", color: "#b71c1c" },
   };
   const durumBilgi = belge.durum ? durumEtiketMap[belge.durum] : null;
-  const dosyaAdi = `${belgeTipiTR.toLowerCase()}-${belge.no}.pdf`;
 
-  const subject = `${belgeTipiTR} ${belge.no} — ${firma.ad}`;
+  const subject = `${belgeTipiSubject} ${belge.no} — ${firma.ad}`;
 
   const logDataUrl = await logoBase64(firma.logo);
 
-  const selamlama = alici.ad ? `Sayın ${alici.ad},` : "Merhaba,";
-  const mesaj = ozelMesaj
-    ? ozelMesaj.replace(/\n/g, "<br>")
-    : `Ekte <strong>${belge.no}</strong> numaralı ${belgeTipiAccusative} bulabilirsiniz.`;
+  const selamlama = alici.ad ? `Dear ${alici.ad},` : "Dear Sir/Madam,";
 
-  const sonTarihLabel = isPDF ? "Vade Tarihi" : "Geçerlilik Tarihi";
-  const sonTarih = isPDF ? belge.vadeTarihi : belge.gecerlilikTarihi;
+  let mesajMetin: string;
+  if (ozelMesaj) {
+    mesajMetin = ozelMesaj.replace(/\n/g, "<br>");
+  } else if (isInvoice) {
+    const vesselPart = belge.gemiAd ? ` for vessel <strong>${belge.gemiAd}</strong>` : "";
+    const duePart = belge.vadeTarihi ? ` payable by <strong>${formatTarih(belge.vadeTarihi)}</strong>` : "";
+    mesajMetin = `Please find attached invoice <strong>${belge.no}</strong>${vesselPart}. The total amount due is <strong>${formatTutar(belge.toplamTutar, belge.paraBirimi)}</strong>${duePart}.`;
+  } else {
+    const vesselPart = belge.gemiAd ? ` regarding vessel <strong>${belge.gemiAd}</strong>` : "";
+    mesajMetin = `Please find attached quotation <strong>${belge.no}</strong>${vesselPart}. The total amount is <strong>${formatTutar(belge.toplamTutar, belge.paraBirimi)}</strong>.`;
+  }
+
+  const sonTarihLabel = isInvoice ? "Due Date" : "Valid Until";
+  const sonTarih = isInvoice ? belge.vadeTarihi : belge.gecerlilikTarihi;
 
   const footerSatirlar = [
     firma.ad,
     firma.adres,
     [firma.telefon, firma.eposta].filter(Boolean).join("  ·  "),
-    firma.vergiNo ? `Vergi No: ${firma.vergiNo}${firma.vergiDairesi ? ` — ${firma.vergiDairesi}` : ""}` : null,
+    firma.vergiNo ? `Tax No: ${firma.vergiNo}${firma.vergiDairesi ? ` — ${firma.vergiDairesi}` : ""}` : null,
   ].filter(Boolean) as string[];
 
   const html = `<!DOCTYPE html>
-<html lang="tr" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -171,20 +178,20 @@ export async function emailSablonuOlustur(
           </td>
         </tr>
 
-        <!-- ── SARI AKSAN ŞERİDİ ── -->
+        <!-- ── YELLOW ACCENT STRIPE ── -->
         <tr>
           <td style="background-color:#ffed00;height:4px;font-size:4px;line-height:4px;">&nbsp;</td>
         </tr>
 
-        <!-- ── KART ── -->
+        <!-- ── CARD ── -->
         <tr>
           <td class="card" style="background-color:#ffffff;padding:36px 32px;">
 
-            <!-- Selamlama -->
+            <!-- Greeting -->
             <p style="margin:0 0 8px 0;font-family:Arial,sans-serif;font-size:15px;color:#1a1a1a;">${selamlama}</p>
-            <p style="margin:0 0 28px 0;font-family:Arial,sans-serif;font-size:15px;color:#1a1a1a;line-height:1.6;">${mesaj}</p>
+            <p style="margin:0 0 28px 0;font-family:Arial,sans-serif;font-size:15px;color:#1a1a1a;line-height:1.6;">${mesajMetin}</p>
 
-            <!-- Belge kartı -->
+            <!-- Document card -->
             <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="belge-tablo"
               style="background-color:#f8f8f8;border-left:4px solid #ffed00;margin-bottom:28px;">
               <tr>
@@ -192,11 +199,11 @@ export async function emailSablonuOlustur(
                   <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
                     <tr>
                       <td>
-                        <p style="margin:0 0 4px 0;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;color:#888888;text-transform:uppercase;letter-spacing:0.8px;">${belgeTipiEN}</p>
+                        <p style="margin:0 0 4px 0;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;color:#888888;text-transform:uppercase;letter-spacing:0.8px;">${belgeTipiLabel}</p>
                         <p style="margin:0;font-family:Arial,sans-serif;font-size:22px;font-weight:bold;color:#1a1a1a;">${belge.no}</p>
                       </td>
                       ${durumBilgi ? `<td align="right" valign="middle">
-                        <span style="display:inline-block;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;background-color:${durumBilgi.bg};color:${durumBilgi.color};padding:4px 10px;border-radius:3px;white-space:nowrap;">${durumBilgi.tr}</span>
+                        <span style="display:inline-block;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;background-color:${durumBilgi.bg};color:${durumBilgi.color};padding:4px 10px;border-radius:3px;white-space:nowrap;">${durumBilgi.en}</span>
                       </td>` : ""}
                     </tr>
                   </table>
@@ -207,7 +214,7 @@ export async function emailSablonuOlustur(
                   <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
                     <tr>
                       <td style="padding-right:24px;padding-bottom:8px;font-family:Arial,sans-serif;font-size:12px;color:#555555;white-space:nowrap;">
-                        <span style="display:block;font-weight:bold;color:#1a1a1a;margin-bottom:2px;">Tarih</span>
+                        <span style="display:block;font-weight:bold;color:#1a1a1a;margin-bottom:2px;">Date</span>
                         ${formatTarih(belge.tarih)}
                       </td>
                       ${sonTarih ? `<td style="padding-right:24px;padding-bottom:8px;font-family:Arial,sans-serif;font-size:12px;color:#555555;white-space:nowrap;">
@@ -215,29 +222,29 @@ export async function emailSablonuOlustur(
                         ${formatTarih(sonTarih)}
                       </td>` : ""}
                       <td style="padding-bottom:8px;font-family:Arial,sans-serif;font-size:12px;color:#555555;white-space:nowrap;">
-                        <span style="display:block;font-weight:bold;color:#1a1a1a;margin-bottom:2px;">Toplam</span>
+                        <span style="display:block;font-weight:bold;color:#1a1a1a;margin-bottom:2px;">Total</span>
                         <span style="font-size:14px;font-weight:bold;color:#1a1a1a;">${formatTutar(belge.toplamTutar, belge.paraBirimi)}</span>
                       </td>
                     </tr>
                     ${belge.gemiAd ? `<tr><td colspan="3" style="padding-top:4px;font-family:Arial,sans-serif;font-size:12px;color:#555555;">
-                      <span style="font-weight:bold;color:#1a1a1a;">Gemi:</span> ${belge.gemiAd}
+                      <span style="font-weight:bold;color:#1a1a1a;">Vessel:</span> ${belge.gemiAd}
                     </td></tr>` : ""}
                   </table>
                 </td>
               </tr>
             </table>
 
-            <!-- PDF notu -->
+            <!-- Attachment note -->
             <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
               <tr>
                 <td style="background-color:#fffde7;border:1px solid #ffed00;padding:14px 18px;font-family:Arial,sans-serif;font-size:13px;color:#5a4d00;">
-                  📎 Bu e-postaya <strong>${dosyaAdi}</strong> adlı PDF belgesi ek olarak eklenmiştir.
+                  The document <strong>${dosyaAdi}</strong> is attached to this email as a PDF file.
                 </td>
               </tr>
             </table>
 
-            <!-- Kapanış -->
-            <p style="margin:0 0 6px 0;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">Saygılarımızla,</p>
+            <!-- Closing -->
+            <p style="margin:0 0 6px 0;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">Kind regards,</p>
             <p style="margin:0;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;color:#1a1a1a;">${firma.ad}</p>
 
           </td>
@@ -264,18 +271,32 @@ export async function emailSablonuOlustur(
 </body>
 </html>`;
 
+  const textSonTarih = sonTarih ? `${sonTarihLabel}: ${formatTarih(sonTarih)}` : null;
+
+  let textMesaj: string;
+  if (ozelMesaj) {
+    textMesaj = ozelMesaj;
+  } else if (isInvoice) {
+    const vesselPart = belge.gemiAd ? ` for vessel ${belge.gemiAd}` : "";
+    const duePart = belge.vadeTarihi ? ` payable by ${formatTarih(belge.vadeTarihi)}` : "";
+    textMesaj = `Please find attached invoice ${belge.no}${vesselPart}. The total amount due is ${formatTutar(belge.toplamTutar, belge.paraBirimi)}${duePart}.`;
+  } else {
+    const vesselPart = belge.gemiAd ? ` regarding vessel ${belge.gemiAd}` : "";
+    textMesaj = `Please find attached quotation ${belge.no}${vesselPart}. The total amount is ${formatTutar(belge.toplamTutar, belge.paraBirimi)}.`;
+  }
+
   const text = [
     selamlama,
     "",
-    ozelMesaj ?? `Ekte ${belge.no} numaralı ${belgeTipiAccusative} bulabilirsiniz.`,
+    textMesaj,
     "",
-    `${belgeTipiEN}: ${belge.no}`,
-    `Tarih: ${formatTarih(belge.tarih)}`,
-    sonTarih ? `${sonTarihLabel}: ${formatTarih(sonTarih)}` : null,
-    `Toplam: ${formatTutar(belge.toplamTutar, belge.paraBirimi)}`,
-    belge.gemiAd ? `Gemi: ${belge.gemiAd}` : null,
+    `${belgeTipiSubject}: ${belge.no}`,
+    `Date: ${formatTarih(belge.tarih)}`,
+    textSonTarih,
+    `Total: ${formatTutar(belge.toplamTutar, belge.paraBirimi)}`,
+    belge.gemiAd ? `Vessel: ${belge.gemiAd}` : null,
     "",
-    "Saygılarımızla,",
+    "Kind regards,",
     firma.ad,
     firma.adres ?? null,
     [firma.telefon, firma.eposta].filter(Boolean).join("  |  ") || null,
