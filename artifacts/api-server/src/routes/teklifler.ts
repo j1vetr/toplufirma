@@ -60,7 +60,7 @@ router.post("/teklifler", requireYazma, async (req, res) => {
     const {
       catiFirmaId, gemiId, tarih, gecerlilikTarihi,
       aliciAd, aliciAdres, aliciTelefon, paraBirimi,
-      kurNotu, notlar, kosullar, kalemler,
+      kurNotu, tanim, notlar, kosullar, kalemler,
     } = req.body;
 
     if (!catiFirmaId || !tarih || !aliciAd || !kalemler?.length) {
@@ -98,6 +98,7 @@ router.post("/teklifler", requireYazma, async (req, res) => {
       aliciTelefon: aliciTelefon ?? null,
       paraBirimi: paraBirimi ?? "USD",
       kurNotu: kurNotu ?? null,
+      tanim: tanim ?? null,
       notlar: notlar ?? null,
       kosullar: kosullar ?? null,
       durum: "taslak",
@@ -136,7 +137,6 @@ router.get("/teklifler/:id", async (req, res) => {
     if (!sirketErisimKontrol(row.t.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
     const kalemler = await db.select().from(teklifKalemleri).where(eq(teklifKalemleri.teklifId, id)).orderBy(teklifKalemleri.sira);
-    const bankalar = await db.select().from(bankaHesaplari).where(and(eq(bankaHesaplari.catiFirmaId, row.t.catiFirmaId), eq(bankaHesaplari.faturadaGoster, true)));
 
     res.json({
       ...formatTeklif(row.t, row.catiFirmaAd, row.gemiAd),
@@ -147,11 +147,6 @@ router.get("/teklifler/:id", async (req, res) => {
         miktar: Number(k.miktar), birimFiyat: Number(k.birimFiyat),
         birim: k.birim, opsiyonel: k.opsiyonel,
         toplam: Number(k.miktar) * Number(k.birimFiyat),
-      })),
-      bankaHesaplari: bankalar.map(b => ({
-        id: b.id, bankaAdi: b.bankaAdi, hesapAdi: b.hesapAdi,
-        iban: b.iban, paraBirimi: b.paraBirimi, swift: b.swift,
-        ibanlar: (b.ibanlar ?? {}) as Record<string, string>,
       })),
     });
   } catch {
@@ -170,17 +165,8 @@ router.patch("/teklifler/:id", requireYazma, async (req, res) => {
 
     const {
       gemiId, tarih, gecerlilikTarihi, aliciAd, aliciAdres, aliciTelefon,
-      paraBirimi, kurNotu, notlar, kosullar, kalemler,
+      paraBirimi, kurNotu, tanim, notlar, kosullar, kalemler,
     } = req.body;
-
-    if (gemiId) {
-      const [gemiRow] = await db.select({ firmaId: gemiler.firmaId }).from(gemiler).where(eq(gemiler.id, Number(gemiId)));
-      if (!gemiRow) { res.status(400).json({ error: "Belirtilen gemi bulunamadı" }); return; }
-      const [gFirma] = await db.select({ ustFirmaId: firmalar.ustFirmaId }).from(firmalar).where(eq(firmalar.id, gemiRow.firmaId));
-      if (!gFirma || gFirma.ustFirmaId !== existing.catiFirmaId) {
-        res.status(400).json({ error: "Belirtilen gemi bu çatı firmaya ait değil" }); return;
-      }
-    }
 
     await db.update(teklifler).set({
       gemiId: gemiId !== undefined ? (gemiId ? Number(gemiId) : null) : existing.gemiId,
@@ -191,6 +177,7 @@ router.patch("/teklifler/:id", requireYazma, async (req, res) => {
       aliciTelefon: aliciTelefon !== undefined ? (aliciTelefon || null) : existing.aliciTelefon,
       paraBirimi: paraBirimi ?? existing.paraBirimi,
       kurNotu: kurNotu !== undefined ? (kurNotu || null) : existing.kurNotu,
+      tanim: tanim !== undefined ? (tanim || null) : existing.tanim,
       notlar: notlar !== undefined ? (notlar || null) : existing.notlar,
       kosullar: kosullar !== undefined ? (kosullar || null) : existing.kosullar,
       guncellenmeTarihi: new Date(),
@@ -529,7 +516,6 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
 
     const [catiFirmaRow] = await db.select().from(firmalar).where(eq(firmalar.id, row.t.catiFirmaId));
     const kalemler = await db.select().from(teklifKalemleri).where(eq(teklifKalemleri.teklifId, id)).orderBy(teklifKalemleri.sira);
-    const bankalar = await db.select().from(bankaHesaplari).where(and(eq(bankaHesaplari.catiFirmaId, row.t.catiFirmaId), eq(bankaHesaplari.faturadaGoster, true)));
 
     const t = row.t;
     const zorunluKalemler = kalemler.filter(k => !k.opsiyonel);
@@ -538,30 +524,6 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
     const araToplam = zorunluKalemler.reduce((s, k) => s + Number(k.miktar) * Number(k.birimFiyat), 0);
     const opsToplamTutar = opsKalemler.reduce((s, k) => s + Number(k.miktar) * Number(k.birimFiyat), 0);
     const toplamYazi = sayiyiIngilizceYaz(araToplam, t.paraBirimi);
-
-    const bankaIcerikleri = bankalar.map(b => {
-      const ibanlar = (b.ibanlar && Object.keys(b.ibanlar as Record<string, string>).length > 0)
-        ? (b.ibanlar as Record<string, string>)
-        : (b.iban && b.paraBirimi ? { [b.paraBirimi]: b.iban } : {});
-      const satirlar: [string, string][] = [];
-      if (b.bankaAdi) satirlar.push(["Bank Name", b.bankaAdi]);
-      if (b.hesapAdi) satirlar.push(["Account Name", b.hesapAdi]);
-      for (const [pb, iban] of Object.entries(ibanlar)) {
-        satirlar.push([`${pb} IBAN`, iban]);
-      }
-      if (b.swift) satirlar.push(["SWIFT", b.swift]);
-      return {
-        table: {
-          widths: [90, "*"],
-          body: satirlar.map(([label, value]) => [
-            { text: label, bold: true, fontSize: 10 },
-            { text: value, fontSize: 10 },
-          ]),
-        },
-        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingTop: (i: number) => i === 0 ? 0 : 2, paddingBottom: () => 2 },
-        marginBottom: 12,
-      };
-    });
 
     let satirNo = 0;
     const kalemSatiri = (k: typeof kalemler[number]): TableCell[] => {
@@ -657,6 +619,7 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
           ],
           marginBottom: 20,
         },
+        ...(t.tanim ? [{ text: t.tanim, marginBottom: 14, color: "#333", fontSize: 10, lineHeight: 1.4 } as unknown as import("pdfmake/interfaces").Content] : []),
         {
           table: {
             headerRows: 1,
@@ -722,12 +685,7 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
           ],
           marginBottom: 8,
         },
-        { text: `Amount in words: ${toplamYazi}`, italics: true, color: "#555", fontSize: 9, marginBottom: bankaIcerikleri.length > 0 ? 16 : 0 },
-        ...(bankaIcerikleri.length > 0 ? [
-          { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: "#e8eaf0" }], marginTop: 10 } as unknown as import("pdfmake/interfaces").Content,
-          { text: "BANK DETAILS", bold: true, fontSize: 11, color: "#222", marginTop: 10, marginBottom: 10 } as unknown as import("pdfmake/interfaces").Content,
-          ...bankaIcerikleri as unknown as import("pdfmake/interfaces").Content[],
-        ] : []),
+        { text: `Amount in words: ${toplamYazi}`, italics: true, color: "#555", fontSize: 9, marginBottom: 0 },
         ...(t.notlar ? [{ text: t.notlar, marginTop: 16, color: "#555", italics: true, fontSize: 9 }] : []),
         ...(t.kosullar ? [
           { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: "#e8eaf0" }], marginTop: 20 } as unknown as import("pdfmake/interfaces").Content,
@@ -782,6 +740,7 @@ function formatTeklif(
     teklifNo: t.teklifNo, tarih: t.tarih, gecerlilikTarihi: t.gecerlilikTarihi,
     aliciAd: t.aliciAd, aliciAdres: t.aliciAdres, aliciTelefon: t.aliciTelefon,
     paraBirimi: t.paraBirimi, kurNotu: t.kurNotu,
+    tanim: t.tanim,
     notlar: t.notlar, kosullar: t.kosullar, durum: t.durum,
     olusturmaTarihi: t.olusturmaTarihi, guncellenmeTarihi: t.guncellenmeTarihi,
   };

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -60,6 +61,7 @@ export default function FaturaYeni() {
   const [vadeTarihi, setVadeTarihi] = useState("");
   const [paraBirimi, setParaBirimi] = useState("USD");
   const [notlar, setNotlar] = useState("");
+  const [aciklama, setAciklama] = useState("");
   const [tekrarlat, setTekrarlat] = useState(false);
   const [kalemler, setKalemler] = useState<Kalem[]>([
     { aciklama: "", birim: "Pcs", miktar: 1, birimFiyat: 0, kdvOrani: 0 },
@@ -138,7 +140,7 @@ export default function FaturaYeni() {
         ...(faturaAdi ? { faturaAdi } : {}),
         gemiId: gemiId && gemiId !== "none" ? Number(gemiId) : undefined,
         faturaSerisiId: serisiId && serisiId !== "none" ? Number(serisiId) : undefined,
-        faturaTarihi, vadeTarihi, paraBirimi, notlar, tekrarlat,
+        faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama: aciklama || undefined, tekrarlat,
         kalemler: kalemler.map(k => ({ aciklama: k.aciklama, birim: k.birim || "Pcs", miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani })),
       },
     }, {
@@ -240,6 +242,18 @@ export default function FaturaYeni() {
               <p className="text-xs text-muted-foreground">Bu faturadaki tüm kalemleri kopyalayan aylık tekrarlayan tanım oluşturulur. Otomatik üretilen faturalar taslak olarak kaydedilir.</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Tanım</CardTitle></CardHeader>
+        <CardContent>
+          <Textarea
+            value={aciklama}
+            onChange={e => setAciklama(e.target.value)}
+            rows={3}
+            placeholder="Fatura konusu / genel açıklama (opsiyonel, PDF'te kalemlerden önce görünür)…"
+          />
         </CardContent>
       </Card>
 

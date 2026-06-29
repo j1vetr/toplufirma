@@ -245,6 +245,7 @@ export const teklifler = pgTable("teklifler", {
   aliciTelefon: text("alici_telefon"),
   paraBirimi: text("para_birimi").notNull().default("USD"),
   kurNotu: text("kur_notu"),
+  tanim: text("tanim"),
   notlar: text("notlar"),
   kosullar: text("kosullar"),
   durum: teklifDurumEnum("durum").notNull().default("taslak"),

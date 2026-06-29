@@ -183,6 +183,7 @@ export default function Teklifler() {
     aliciTelefon: "",
     paraBirimi: "USD",
     kurNotu: "",
+    tanim: "",
     notlar: "",
     kosullar: "",
     kalemler: [bosTeklifKalem()],
@@ -228,7 +229,7 @@ export default function Teklifler() {
   function formAc(teklif?: Teklif) {
     if (teklif) {
       setDuzenleId(teklif.id);
-      apiFetch(`/teklifler/${teklif.id}`).then((d: Teklif & { kalemler: TeklifKalem[]; bankaHesaplari?: TeklifBankaHesabi[] }) => {
+      apiFetch(`/teklifler/${teklif.id}`).then((d: Teklif & { kalemler: TeklifKalem[]; bankaHesaplari?: TeklifBankaHesabi[]; tanim?: string }) => {
         setForm({
           catiFirmaId: d.catiFirmaId,
           gemiId: d.gemiId ?? "",
@@ -239,6 +240,7 @@ export default function Teklifler() {
           aliciTelefon: d.aliciTelefon ?? "",
           paraBirimi: d.paraBirimi,
           kurNotu: d.kurNotu ?? "",
+          tanim: d.tanim ?? "",
           notlar: d.notlar ?? "",
           kosullar: d.kosullar ?? "",
           kalemler: d.kalemler.length ? d.kalemler : [bosTeklifKalem()],
@@ -260,6 +262,7 @@ export default function Teklifler() {
         aliciTelefon: "",
         paraBirimi: (aktifFirma as { paraBirimi?: string } | undefined)?.paraBirimi ?? "USD",
         kurNotu: "",
+        tanim: "",
         notlar: "",
         kosullar: "",
         kalemler: [bosTeklifKalem()],
@@ -280,6 +283,7 @@ export default function Teklifler() {
         aliciTelefon: form.aliciTelefon || null,
         paraBirimi: form.paraBirimi,
         kurNotu: form.kurNotu || null,
+        tanim: form.tanim || null,
         notlar: form.notlar || null,
         kosullar: form.kosullar || null,
         kalemler: form.kalemler.filter(k => k.aciklama),
@@ -607,38 +611,26 @@ export default function Teklifler() {
           </DialogHeader>
 
           <div className="space-y-6 py-2">
-            {/* Firma + Gemi */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Çatı Firma <span className="text-destructive">*</span></Label>
-                <Select value={String(form.catiFirmaId)} onValueChange={v => setForm(f => ({ ...f, catiFirmaId: v, gemiId: "" }))}>
-                  <SelectTrigger><SelectValue placeholder="Seçiniz…" /></SelectTrigger>
-                  <SelectContent>
-                    {firmalar.map(f => (
-                      <SelectItem key={f.id} value={String(f.id)}>
-                        <span className="flex items-center gap-2">
-                          <span className="truncate">{f.ad}</span>
-                          {(f as unknown as Record<string, unknown>).etiket && (
-                            <span className="shrink-0 text-[9px] font-bold bg-[#ffed00] text-black px-1 py-0.5 leading-none">
-                              {String((f as unknown as Record<string, unknown>).etiket)}
-                            </span>
-                          )}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Gemi</Label>
-                <Select value={String(form.gemiId)} onValueChange={v => setForm(f => ({ ...f, gemiId: v === "0" ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Gemi seçin (isteğe bağlı)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">— Yok —</SelectItem>
-                    {firmaGemileri.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Firma */}
+            <div className="space-y-1.5">
+              <Label>Firmamız <span className="text-destructive">*</span></Label>
+              <Select value={String(form.catiFirmaId)} onValueChange={v => setForm(f => ({ ...f, catiFirmaId: v, gemiId: "" }))}>
+                <SelectTrigger><SelectValue placeholder="Seçiniz…" /></SelectTrigger>
+                <SelectContent>
+                  {firmalar.map(f => (
+                    <SelectItem key={f.id} value={String(f.id)}>
+                      <span className="flex items-center gap-2">
+                        <span className="truncate">{f.ad}</span>
+                        {(f as unknown as Record<string, unknown>).etiket && (
+                          <span className="shrink-0 text-[9px] font-bold bg-[#ffed00] text-black px-1 py-0.5 leading-none">
+                            {String((f as unknown as Record<string, unknown>).etiket)}
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Tarihler + Para Birimi */}
@@ -676,6 +668,17 @@ export default function Teklifler() {
             <div className="space-y-1.5">
               <Label>Alıcı Adresi</Label>
               <Textarea value={form.aliciAdres} onChange={e => setForm(f => ({ ...f, aliciAdres: e.target.value }))} rows={2} placeholder="Adres" />
+            </div>
+
+            {/* Tanım */}
+            <div className="space-y-1.5">
+              <Label>Tanım</Label>
+              <Textarea
+                value={form.tanim}
+                onChange={e => setForm(f => ({ ...f, tanim: e.target.value }))}
+                rows={2}
+                placeholder="Teklif konusu / genel açıklama…"
+              />
             </div>
 
             {/* Kur Notu */}
@@ -815,33 +818,6 @@ export default function Teklifler() {
               </div>
             </div>
 
-            {/* Ödeme Bilgileri (banka hesapları) */}
-            {teklifBankaHesaplari.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-base font-semibold">Ödeme Bilgileri</Label>
-                <div className="space-y-2">
-                  {teklifBankaHesaplari.map(b => {
-                    const ibanlar = (b.ibanlar && Object.keys(b.ibanlar).length > 0)
-                      ? b.ibanlar
-                      : (b.iban && b.paraBirimi ? { [b.paraBirimi]: b.iban } : {});
-                    return (
-                      <div key={b.id} className="text-sm p-3 bg-muted/50 border rounded-none">
-                        {b.bankaAdi && <p className="font-medium">{b.bankaAdi}</p>}
-                        <p className="text-muted-foreground text-xs">{b.hesapAdi}</p>
-                        <div className="mt-1.5 space-y-0.5">
-                          {Object.entries(ibanlar).map(([pb, iban]) => (
-                            <p key={pb} className={`font-mono text-xs ${pb === form.paraBirimi ? "font-bold text-foreground" : "text-muted-foreground"}`}>
-                              <span className="text-foreground">{pb} IBAN:</span> {iban}
-                            </p>
-                          ))}
-                        </div>
-                        {b.swift && <p className="font-mono text-xs text-muted-foreground mt-0.5">SWIFT: {b.swift}</p>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
 
           <DialogFooter className="gap-2">
