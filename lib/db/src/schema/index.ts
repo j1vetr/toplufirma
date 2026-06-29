@@ -308,6 +308,37 @@ export const gonderiGecmisi = pgTable("gonderi_gecmisi", {
   gonderilmeTarihi: timestamp("gonderilme_tarihi").notNull().defaultNow(),
 });
 
+// ── Servis Kategorisi ─────────────────────────────────────────────────────
+export const servisKategorisiEnum = pgEnum("servis_kategorisi", [
+  "servis",
+  "sozlesme",
+  "bakim",
+  "diger",
+]);
+
+// ── Servis Kayıtları ───────────────────────────────────────────────────────
+export const servisKayitlari = pgTable("servis_kayitlari", {
+  id: serial("id").primaryKey(),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
+  gemiId: integer("gemi_id").notNull().references(() => gemiler.id),
+  kategori: servisKategorisiEnum("kategori").notNull().default("servis"),
+  baslik: text("baslik").notNull(),
+  tarih: date("tarih").notNull(),
+  notlar: text("notlar"),
+  olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
+});
+
+// ── Servis Dosyaları ───────────────────────────────────────────────────────
+export const servisDosyalari = pgTable("servis_dosyalari", {
+  id: serial("id").primaryKey(),
+  servisId: integer("servis_id").notNull().references(() => servisKayitlari.id, { onDelete: "cascade" }),
+  dosyaYolu: text("dosya_yolu").notNull(),
+  dosyaTipi: text("dosya_tipi"),
+  boyut: integer("boyut"),
+  orijinalAd: text("orijinal_ad"),
+  olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
+});
+
 // ── İlişkiler ─────────────────────────────────────────────────────────────
 export const firmalarRelations = relations(firmalar, ({ one, many }) => ({
   ustFirma: one(firmalar, { fields: [firmalar.ustFirmaId], references: [firmalar.id], relationName: "ustBagli" }),
@@ -412,4 +443,14 @@ export const kullanicilarRelations = relations(kullanicilar, ({ many }) => ({
 export const kullaniciFirmalarRelations = relations(kullaniciFirmalar, ({ one }) => ({
   kullanici: one(kullanicilar, { fields: [kullaniciFirmalar.kullaniciId], references: [kullanicilar.id] }),
   catiFirma: one(firmalar, { fields: [kullaniciFirmalar.catiFirmaId], references: [firmalar.id] }),
+}));
+
+export const servisKayitlariRelations = relations(servisKayitlari, ({ one, many }) => ({
+  catiFirma: one(firmalar, { fields: [servisKayitlari.catiFirmaId], references: [firmalar.id] }),
+  gemi: one(gemiler, { fields: [servisKayitlari.gemiId], references: [gemiler.id] }),
+  dosyalar: many(servisDosyalari),
+}));
+
+export const servisDosyalariRelations = relations(servisDosyalari, ({ one }) => ({
+  servisKaydi: one(servisKayitlari, { fields: [servisDosyalari.servisId], references: [servisKayitlari.id] }),
 }));

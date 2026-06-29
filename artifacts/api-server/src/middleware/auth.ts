@@ -29,7 +29,9 @@ declare global {
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers["authorization"];
-  const token = authHeader?.replace("Bearer ", "").trim();
+  const tokenFromHeader = authHeader?.replace("Bearer ", "").trim();
+  const tokenFromQuery = typeof req.query?.t === "string" ? req.query.t : undefined;
+  const token = tokenFromHeader || tokenFromQuery;
 
   if (!token) {
     res.status(401).json({ error: "Kimlik doğrulama gerekli" });
