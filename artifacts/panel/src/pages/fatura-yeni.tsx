@@ -245,7 +245,7 @@ export default function FaturaYeni() {
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="truncate">{seciliCatiFirma.ad}</span>
                     {seciliCatiFirma.etiket && (
-                      <span className="text-[10px] bg-[#ffed00] text-black px-1.5 py-0.5 font-bold leading-none shrink-0">
+                      <span className="text-[10px] bg-zinc-800 text-white px-1.5 py-0.5 font-bold leading-none shrink-0">
                         {seciliCatiFirma.etiket}
                       </span>
                     )}
@@ -260,7 +260,7 @@ export default function FaturaYeni() {
                     <span className="flex items-center gap-2">
                       <span>{f.ad}</span>
                       {f.etiket && (
-                        <span className="text-[10px] bg-[#ffed00] text-black px-1.5 py-0.5 font-bold leading-none">
+                        <span className="text-[10px] bg-zinc-800 text-white px-1.5 py-0.5 font-bold leading-none">
                           {f.etiket}
                         </span>
                       )}

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -30,7 +31,9 @@ function getToken() {
 
 export function KalemAciklamaInput({ value, onChange, onSablonSec, catiFirmaId, className, placeholder, ...rest }: Props) {
   const [acik, setAcik] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: sablonlar = [] } = useQuery<KalemSablon[]>({
     queryKey: ["kalem-sablonlari", catiFirmaId],
@@ -46,9 +49,15 @@ export function KalemAciklamaInput({ value, onChange, onSablonSec, catiFirmaId, 
     staleTime: 60_000,
   });
 
-  const eslesenler = value.length >= 1
+  const eslesenler = value.length >= 2
     ? sablonlar.filter(s => s.ad.toLowerCase().includes(value.toLowerCase()))
     : sablonlar;
+
+  function updatePos() {
+    if (!inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom, left: rect.left, width: rect.width });
+  }
 
   function sec(s: KalemSablon) {
     onChange(s.ad);
@@ -57,26 +66,47 @@ export function KalemAciklamaInput({ value, onChange, onSablonSec, catiFirmaId, 
   }
 
   useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setAcik(false);
+    function handleMousedown(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setAcik(false);
+      }
     }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, []);
+    function handleScrollOrResize() {
+      if (acik) updatePos();
+    }
+    document.addEventListener("mousedown", handleMousedown);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+    return () => {
+      document.removeEventListener("mousedown", handleMousedown);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
+    };
+  }, [acik]);
 
-  const showDropdown = acik && eslesenler.length > 0;
+  const showDropdown = acik && eslesenler.length > 0 && pos != null;
 
   return (
-    <div ref={ref} className={cn("relative", className)}>
+    <div ref={wrapRef} className={cn("relative", className)}>
       <Input
+        ref={inputRef}
         value={value}
-        onChange={e => { onChange(e.target.value); setAcik(true); }}
-        onFocus={() => setAcik(true)}
+        onChange={e => { onChange(e.target.value); setAcik(true); updatePos(); }}
+        onFocus={() => { setAcik(true); updatePos(); }}
         placeholder={placeholder}
         {...rest}
       />
-      {showDropdown && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-0.5 border bg-background shadow-md max-h-52 overflow-y-auto">
+      {showDropdown && createPortal(
+        <div
+          style={{
+            position: "fixed",
+            top: pos.top + 2,
+            left: pos.left,
+            width: pos.width,
+            zIndex: 9999,
+          }}
+          className="border bg-background shadow-lg max-h-52 overflow-y-auto"
+        >
           {eslesenler.slice(0, 12).map(s => (
             <button
               key={s.id}
@@ -91,7 +121,8 @@ export function KalemAciklamaInput({ value, onChange, onSablonSec, catiFirmaId, 
               </span>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
