@@ -224,6 +224,18 @@ export const tekrarlayanFaturaKalemleri = pgTable("tekrarlayan_fatura_kalemleri"
   kdvOrani: numeric("kdv_orani", { precision: 5, scale: 2 }).notNull().default("0"),
 });
 
+// ── Kalem Şablonları ──────────────────────────────────────────────────────
+export const kalemSablonlari = pgTable("kalem_sablonlari", {
+  id: serial("id").primaryKey(),
+  catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id, { onDelete: "cascade" }),
+  ad: text("ad").notNull(),
+  birim: text("birim").notNull().default("Pcs"),
+  birimFiyat: numeric("birim_fiyat", { precision: 15, scale: 4 }),
+  kdvOrani: numeric("kdv_orani", { precision: 5, scale: 2 }),
+  aktif: boolean("aktif").notNull().default(true),
+  olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
+});
+
 // ── Teklif Durumu ─────────────────────────────────────────────────────────
 export const teklifDurumEnum = pgEnum("teklif_durum", [
   "taslak",
@@ -386,6 +398,10 @@ export const tekliflerRelations = relations(teklifler, ({ one, many }) => ({
 
 export const teklifKalemleriRelations = relations(teklifKalemleri, ({ one }) => ({
   teklif: one(teklifler, { fields: [teklifKalemleri.teklifId], references: [teklifler.id] }),
+}));
+
+export const kalemSablonlariRelations = relations(kalemSablonlari, ({ one }) => ({
+  catiFirma: one(firmalar, { fields: [kalemSablonlari.catiFirmaId], references: [firmalar.id] }),
 }));
 
 export const kullanicilarRelations = relations(kullanicilar, ({ many }) => ({

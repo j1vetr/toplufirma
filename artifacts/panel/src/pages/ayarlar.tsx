@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import {
   useListFirmalar, getListFirmalarQueryKey,
   useCreateFirma, useUpdateFirma, useDeleteFirma,
@@ -38,8 +38,22 @@ import {
   Copy, Check, CopyPlus, ChevronRight, X,
 } from "lucide-react";
 
+const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 function getToken() {
   return localStorage.getItem("panel_token") ?? "";
+}
+
+async function apiFetch(path: string, opts?: RequestInit) {
+  const r = await fetch(`${API_BASE}/api${path}`, {
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}`, ...(opts?.headers ?? {}) },
+    ...opts,
+  });
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    throw new Error((e as Record<string, unknown>).error as string ?? "İstek başarısız");
+  }
+  return r.json();
 }
 
 interface FirmaForm {
@@ -56,6 +70,26 @@ interface SmtpForm {
 const BOSH_SMTP: SmtpForm = { smtpHost: "", smtpPort: "587", smtpGuvenlik: "starttls", smtpKullanici: "", smtpSifre: "", gonderenAd: "", gonderenAdres: "" };
 
 const PARA_BIRIMLERI = ["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "CAD", "AUD", "NOK", "SEK", "DKK"];
+
+const BIRIMLER = ["Pcs", "Adet", "Ay", "Month", "Gün", "Day", "Saat", "Hour", "Km", "Lt", "Kg", "Set", "Paket", "Package", "Hizmet", "Service"];
+
+interface KalemSablonAyar {
+  id: number;
+  catiFirmaId: number;
+  ad: string;
+  birim: string;
+  birimFiyat: number | null;
+  kdvOrani: number | null;
+  aktif: boolean;
+}
+
+interface KalemSablonForm {
+  catiFirmaId: string;
+  ad: string;
+  birim: string;
+  birimFiyat: string;
+  kdvOrani: string;
+}
 
 interface IbanGiris { pb: string; iban: string; }
 
@@ -145,6 +179,34 @@ export default function Ayarlar() {
   const [seriDuzenleId, setSeriDuzenleId] = useState<number | null>(null);
   const [seriForm, setSeriForm] = useState({ catiFirmaId: "", ad: "", onek: "", sonrakiNo: "1", varsayilan: "false" });
   const [seriSilId, setSeriSilId] = useState<number | null>(null);
+
+  const [sablonModal, setSablonModal] = useState(false);
+  const [sablonDuzenleId, setSablonDuzenleId] = useState<number | null>(null);
+  const [sablonForm, setSablonForm] = useState<KalemSablonForm>({ catiFirmaId: "", ad: "", birim: "Pcs", birimFiyat: "", kdvOrani: "" });
+  const [sablonSilId, setSablonSilId] = useState<number | null>(null);
+
+  const { data: sablonlar = [], refetch: sablonlarYenile } = useQuery<KalemSablonAyar[]>({
+    queryKey: ["kalem-sablonlari-ayarlar"],
+    queryFn: () => apiFetch("/kalem-sablonlari"),
+  });
+
+  const sablonOlustur = useMutation({
+    mutationFn: (body: Record<string, unknown>) => apiFetch("/kalem-sablonlari", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => { sablonlarYenile(); setSablonModal(false); toast({ title: "Şablon eklendi" }); },
+    onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
+  const sablonGuncelle = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Record<string, unknown> }) => apiFetch(`/kalem-sablonlari/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    onSuccess: () => { sablonlarYenile(); setSablonModal(false); toast({ title: "Şablon güncellendi" }); },
+    onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
+  const sablonSilMutasyon = useMutation({
+    mutationFn: (id: number) => apiFetch(`/kalem-sablonlari/${id}`, { method: "DELETE" }),
+    onSuccess: () => { sablonlarYenile(); setSablonSilId(null); toast({ title: "Şablon silindi" }); },
+    onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
 
   const [yedekYukleniyor, setYedekYukleniyor] = useState(false);
   const [yuklemeYukleniyor, setYuklemeYukleniyor] = useState(false);
@@ -364,6 +426,40 @@ export default function Ayarlar() {
         onSuccess: () => { qc.invalidateQueries({ queryKey: getListFaturaSerileriQueryKey() }); setSeriModal(false); toast({ title: "Seri eklendi" }); },
         onError: () => toast({ title: "Hata", variant: "destructive" }),
       });
+    }
+  }
+
+  function sablonAc(id?: number) {
+    if (id) {
+      const s = sablonlar.find(x => x.id === id);
+      if (!s) return;
+      setSablonForm({
+        catiFirmaId: String(s.catiFirmaId),
+        ad: s.ad,
+        birim: s.birim,
+        birimFiyat: s.birimFiyat != null ? String(s.birimFiyat) : "",
+        kdvOrani: s.kdvOrani != null ? String(s.kdvOrani) : "",
+      });
+      setSablonDuzenleId(id);
+    } else {
+      setSablonForm({ catiFirmaId: catiFirmalar[0] ? String(catiFirmalar[0].id) : "", ad: "", birim: "Pcs", birimFiyat: "", kdvOrani: "" });
+      setSablonDuzenleId(null);
+    }
+    setSablonModal(true);
+  }
+
+  function sablonKaydet() {
+    const body = {
+      catiFirmaId: Number(sablonForm.catiFirmaId),
+      ad: sablonForm.ad,
+      birim: sablonForm.birim,
+      birimFiyat: sablonForm.birimFiyat ? Number(sablonForm.birimFiyat) : null,
+      kdvOrani: sablonForm.kdvOrani ? Number(sablonForm.kdvOrani) : null,
+    };
+    if (sablonDuzenleId) {
+      sablonGuncelle.mutate({ id: sablonDuzenleId, body });
+    } else {
+      sablonOlustur.mutate(body);
     }
   }
 
@@ -588,6 +684,7 @@ export default function Ayarlar() {
             <TabsList className="rounded-none">
               <TabsTrigger value="kdv" className="rounded-none">KDV Oranları</TabsTrigger>
               <TabsTrigger value="seriler" className="rounded-none">Fatura Serileri</TabsTrigger>
+              <TabsTrigger value="sablonlar" className="rounded-none">Kalem Şablonları</TabsTrigger>
             </TabsList>
             <TabsContent value="kdv" className="mt-6">
               {canWrite && (
@@ -646,6 +743,37 @@ export default function Ayarlar() {
                   </Card>
                 ))}
                 {faturaSerileri.length === 0 && <div className="text-center text-muted-foreground py-10">Henüz fatura serisi tanımlanmamış.</div>}
+              </div>
+            </TabsContent>
+            <TabsContent value="sablonlar" className="mt-6">
+              {canWrite && (
+                <div className="flex justify-end mb-4">
+                  <Button onClick={() => sablonAc()}>
+                    <Plus className="mr-2 h-4 w-4" /> Şablon Ekle
+                  </Button>
+                </div>
+              )}
+              <div className="space-y-2">
+                {sablonlar.map(s => (
+                  <Card key={s.id}>
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">{s.ad}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {catiFirmalar.find(f => f.id === s.catiFirmaId)?.ad}
+                          {" · "}{s.birim}
+                          {s.birimFiyat != null ? ` · ${new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(s.birimFiyat)}` : ""}
+                          {s.kdvOrani != null ? ` · KDV %${s.kdvOrani}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => sablonAc(s.id)}><Pencil className="h-4 w-4" /></Button>}
+                        {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSablonSilId(s.id)}><Trash2 className="h-4 w-4" /></Button>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {sablonlar.length === 0 && <div className="text-center text-muted-foreground py-10">Henüz kalem şablonu tanımlanmamış.</div>}
               </div>
             </TabsContent>
           </Tabs>
@@ -969,6 +1097,46 @@ export default function Ayarlar() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={sablonModal} onOpenChange={setSablonModal}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{sablonDuzenleId ? "Şablonu Düzenle" : "Yeni Kalem Şablonu"}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Çatı Firma *</Label>
+              <Select value={sablonForm.catiFirmaId} onValueChange={v => setSablonForm(f => ({ ...f, catiFirmaId: v }))}>
+                <SelectTrigger><SelectValue placeholder="Firma seçin" /></SelectTrigger>
+                <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Kalem Adı *</Label>
+              <Input value={sablonForm.ad} onChange={e => setSablonForm(f => ({ ...f, ad: e.target.value }))} placeholder="Starlink Monthly Service" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>Birim</Label>
+                <Select value={sablonForm.birim} onValueChange={v => setSablonForm(f => ({ ...f, birim: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{BIRIMLER.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Birim Fiyat</Label>
+                <Input type="number" min={0} step="any" value={sablonForm.birimFiyat} onChange={e => setSablonForm(f => ({ ...f, birimFiyat: e.target.value }))} placeholder="0.00" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>KDV (%)</Label>
+                <Input type="number" min={0} max={100} step="any" value={sablonForm.kdvOrani} onChange={e => setSablonForm(f => ({ ...f, kdvOrani: e.target.value }))} placeholder="0" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSablonModal(false)}>İptal</Button>
+            <Button onClick={sablonKaydet} disabled={!sablonForm.catiFirmaId || !sablonForm.ad || sablonOlustur.isPending || sablonGuncelle.isPending}>Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={seriModal} onOpenChange={setSeriModal}>
         <DialogContent>
           <DialogHeader><DialogTitle>{seriDuzenleId ? "Seriyi Düzenle" : "Yeni Fatura Serisi"}</DialogTitle></DialogHeader>
@@ -1032,6 +1200,16 @@ export default function Ayarlar() {
           <AlertDialogFooter>
             <AlertDialogCancel>İptal</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (!silHesapId) return; deleteHesap.mutate({ id: silHesapId }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListBankaHesaplariQueryKey() }); setSilHesapId(null); } }); }}>Sil</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!sablonSilId} onOpenChange={o => !o && setSablonSilId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Kalem şablonunu sil</AlertDialogTitle></AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (sablonSilId) sablonSilMutasyon.mutate(sablonSilId); }}>Sil</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

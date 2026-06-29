@@ -65,6 +65,7 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
+import { KalemAciklamaInput } from "@/components/kalem-aciklama-input";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -415,6 +416,18 @@ export default function Teklifler() {
     });
   }, []);
 
+  const sablonUygulaTeklif = useCallback((i: number, s: { birim: string; birimFiyat: number | null }) => {
+    setForm(f => {
+      const k = [...f.kalemler];
+      k[i] = {
+        ...k[i],
+        birim: s.birim,
+        ...(s.birimFiyat != null ? { birimFiyat: s.birimFiyat } : {}),
+      };
+      return { ...f, kalemler: k };
+    });
+  }, []);
+
   const kalemEkle = (opsiyonel = false) =>
     setForm(f => ({ ...f, kalemler: [...f.kalemler, { ...bosTeklifKalem(), opsiyonel }] }));
 
@@ -735,7 +748,7 @@ export default function Teklifler() {
                   <TableBody>
                     {form.kalemler.map((k, i) => !k.opsiyonel && (
                       <TableRow key={i}>
-                        <TableCell><Input value={k.aciklama} onChange={e => kalemGuncelle(i, "aciklama", e.target.value)} placeholder="Açıklama" /></TableCell>
+                        <TableCell><KalemAciklamaInput value={k.aciklama} onChange={v => kalemGuncelle(i, "aciklama", v)} onSablonSec={s => sablonUygulaTeklif(i, s)} catiFirmaId={form.catiFirmaId} placeholder="Açıklama" /></TableCell>
                         <TableCell><Input value={k.birim} onChange={e => kalemGuncelle(i, "birim", e.target.value)} placeholder="Adet" /></TableCell>
                         <TableCell><Input type="number" min={0} step="any" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", Number(e.target.value))} /></TableCell>
                         <TableCell><Input type="number" min={0} step="any" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", Number(e.target.value))} /></TableCell>
@@ -784,7 +797,7 @@ export default function Teklifler() {
                       <TableBody>
                         {form.kalemler.map((k, i) => k.opsiyonel && (
                           <TableRow key={i}>
-                            <TableCell><Input value={k.aciklama} onChange={e => kalemGuncelle(i, "aciklama", e.target.value)} placeholder="Açıklama" /></TableCell>
+                            <TableCell><KalemAciklamaInput value={k.aciklama} onChange={v => kalemGuncelle(i, "aciklama", v)} onSablonSec={s => sablonUygulaTeklif(i, s)} catiFirmaId={form.catiFirmaId} placeholder="Açıklama" /></TableCell>
                             <TableCell><Input value={k.birim} onChange={e => kalemGuncelle(i, "birim", e.target.value)} placeholder="Adet" /></TableCell>
                             <TableCell><Input type="number" min={0} step="any" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", Number(e.target.value))} /></TableCell>
                             <TableCell><Input type="number" min={0} step="any" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", Number(e.target.value))} /></TableCell>

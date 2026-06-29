@@ -20,6 +20,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { KalemAciklamaInput } from "@/components/kalem-aciklama-input";
 
 interface Kalem {
   aciklama: string;
@@ -120,6 +121,18 @@ export default function FaturaYeni() {
 
   function kalemSil(idx: number) {
     setKalemler(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function sablonUygula(idx: number, s: { birim: string; birimFiyat: number | null; kdvOrani: number | null }) {
+    setKalemler(prev => prev.map((k, i) => {
+      if (i !== idx) return k;
+      return {
+        ...k,
+        birim: s.birim,
+        ...(s.birimFiyat != null ? { birimFiyat: s.birimFiyat } : {}),
+        ...(s.kdvOrani != null ? { kdvOrani: s.kdvOrani } : {}),
+      };
+    }));
   }
 
   const toplamlar = kalemler.reduce((acc, k) => {
@@ -280,7 +293,15 @@ export default function FaturaYeni() {
             const isOzel = !BIRIM_EN_SET.has(k.birim);
             return (
               <div key={i} className="grid grid-cols-12 gap-2 items-center" data-testid={`kalem-${i}`}>
-                <Input className="col-span-3 text-sm h-9" value={k.aciklama} onChange={e => kalemGuncelle(i, "aciklama", e.target.value)} placeholder="Açıklama" data-testid={`input-kalem-aciklama-${i}`} />
+                <KalemAciklamaInput
+                  className="col-span-3 h-9"
+                  value={k.aciklama}
+                  onChange={v => kalemGuncelle(i, "aciklama", v)}
+                  onSablonSec={s => sablonUygula(i, s)}
+                  catiFirmaId={catiFirmaId}
+                  placeholder="Açıklama"
+                  data-testid={`input-kalem-aciklama-${i}`}
+                />
                 {isOzel ? (
                   <Input
                     className="col-span-2 text-sm h-9"
