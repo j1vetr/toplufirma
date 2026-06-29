@@ -53,6 +53,7 @@ async function apiFetch(path: string, opts?: RequestInit) {
     const e = await r.json().catch(() => ({}));
     throw new Error((e as Record<string, unknown>).error as string ?? "İstek başarısız");
   }
+  if (r.status === 204 || r.headers.get("content-length") === "0") return null;
   return r.json();
 }
 
