@@ -3,10 +3,11 @@ import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListFaturalar, getListFaturalarQueryKey,
-  useDeleteFatura, useCreateOdeme, getListOdemelerQueryKey,
+  useDeleteFatura,
   useTopluDurumGuncelle,
 } from "@workspace/api-client-react";
 import type { Fatura } from "@workspace/api-client-react";
+import OdemeModal from "@/components/odeme-modal";
 import { useSirket } from "@/contexts/sirket-context";
 import { useYetki } from "@/hooks/use-yetki";
 import { Button } from "@/components/ui/button";
@@ -37,11 +38,6 @@ const DURUM_RENK: Record<string, string> = {
 };
 const DURUM_ETIKET: Record<string, string> = {
   taslak: "Taslak", acik: "Açık", kismi_odendi: "Kısmi Ödendi", odendi: "Ödendi", iptal: "İptal",
-};
-
-const YONTEM_ETIKET: Record<string, string> = {
-  banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
-  kredi_karti: "Kredi Kartı", wise: "Wise", paypal: "PayPal", diger: "Diğer",
 };
 
 const fmt = (n: number, pb = "USD") =>
@@ -96,9 +92,6 @@ export default function Faturalar() {
 
   const [odemeModal, setOdemeModal] = useState(false);
   const [secilenFatura, setSecilenFatura] = useState<Fatura | null>(null);
-  const [odemeTutar, setOdemeTutar] = useState("");
-  const [odemeTarih, setOdemeTarih] = useState(new Date().toISOString().split("T")[0]);
-  const [odemeYontemi, setOdemeYontemi] = useState("banka_havalesi");
 
   const [gonderModal, setGonderModal] = useState(false);
   const [gonderFaturaId, setGonderFaturaId] = useState<number | null>(null);
@@ -118,7 +111,6 @@ export default function Faturalar() {
     { query: { queryKey: [...getListFaturalarQueryKey(), aktifSirketId] } },
   );
   const deleteFatura = useDeleteFatura();
-  const createOdeme = useCreateOdeme();
   const topluDurumGuncelle = useTopluDurumGuncelle();
 
   const bugun = new Date().toISOString().split("T")[0];
@@ -164,34 +156,7 @@ export default function Faturalar() {
 
   function acOdemeModal(f: Fatura) {
     setSecilenFatura(f);
-    setOdemeTutar(String(f.kalanTutar ?? f.genelToplam));
-    setOdemeTarih(new Date().toISOString().split("T")[0]);
     setOdemeModal(true);
-  }
-
-  function odemeKaydet() {
-    if (!secilenFatura || !odemeTutar) return;
-    createOdeme.mutate({
-      data: {
-        catiFirmaId: secilenFatura.catiFirmaId,
-        bagliFirmaId: secilenFatura.bagliFirmaId,
-        faturaId: secilenFatura.id,
-        tip: "tahsilat",
-        tarih: odemeTarih,
-        tutar: Number(odemeTutar),
-        paraBirimi: secilenFatura.paraBirimi,
-        odemeYontemi: odemeYontemi as import("@workspace/api-client-react").OdemeInputOdemeYontemi,
-        aciklama: `Fatura ${secilenFatura.faturaNo} ödemesi`,
-      },
-    }, {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() });
-        qc.invalidateQueries({ queryKey: getListOdemelerQueryKey() });
-        setOdemeModal(false);
-        toast({ title: "Ödeme kaydedildi" });
-      },
-      onError: () => toast({ title: "Hata", variant: "destructive" }),
-    });
   }
 
   async function gonderFatura() {
@@ -518,34 +483,7 @@ export default function Faturalar() {
         })}
       </div>
 
-      <Dialog open={odemeModal} onOpenChange={setOdemeModal}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Hızlı Ödeme Kaydet — {secilenFatura?.faturaNo}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Tutar *</Label>
-              <Input type="number" value={odemeTutar} onChange={e => setOdemeTutar(e.target.value)} step="0.01" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tarih *</Label>
-              <Input type="date" value={odemeTarih} onChange={e => setOdemeTarih(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Ödeme Yöntemi</Label>
-              <Select value={odemeYontemi} onValueChange={setOdemeYontemi}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(YONTEM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOdemeModal(false)}>İptal</Button>
-            <Button onClick={odemeKaydet} disabled={!odemeTutar || createOdeme.isPending}>Kaydet</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <OdemeModal open={odemeModal} onOpenChange={setOdemeModal} fatura={secilenFatura} />
 
       <Dialog open={gonderModal} onOpenChange={o => { setGonderModal(o); if (!o) { setAliciAdres(""); setAliciAd(""); } }}>
         <DialogContent>

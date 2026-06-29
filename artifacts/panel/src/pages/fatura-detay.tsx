@@ -5,9 +5,9 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   useGetFatura, getGetFaturaQueryKey,
   useListBankaHesaplari, getListBankaHesaplariQueryKey,
-  useCreateOdeme, getListOdemelerQueryKey, getListFaturalarQueryKey,
   useUpdateFatura,
 } from "@workspace/api-client-react";
+import OdemeModal from "@/components/odeme-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,11 +40,6 @@ const DURUM_ETIKET: Record<string, string> = {
   taslak: "Taslak", acik: "Açık", kismi_odendi: "Kısmi Ödendi", odendi: "Ödendi", iptal: "İptal",
 };
 
-const YONTEM_ETIKET: Record<string, string> = {
-  banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
-  kredi_karti: "Kredi Kartı", wise: "Wise", paypal: "PayPal", diger: "Diğer",
-};
-
 const apiBase = () => {
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
   return `${base}/api`;
@@ -71,11 +66,6 @@ export default function FaturaDetay() {
   const { toast } = useToast();
   const { canWrite } = useYetki();
   const [odemeModal, setOdemeModal] = useState(false);
-  const [odemeTutar, setOdemeTutar] = useState("");
-  const [odemeTarih, setOdemeTarih] = useState(new Date().toISOString().split("T")[0]);
-  const [odemeYontemi, setOdemeYontemi] = useState("banka_havalesi");
-  const [odemeBankaId, setOdemeBankaId] = useState("");
-  const [odemeAciklama, setOdemeAciklama] = useState("");
 
   const [gonderModal, setGonderModal] = useState(false);
   const [aliciAdres, setAliciAdres] = useState("");
@@ -106,31 +96,9 @@ export default function FaturaDetay() {
     },
     enabled: !!id,
   });
-  const createOdeme = useCreateOdeme();
   const updateFatura = useUpdateFatura();
 
   const faturaHesaplari = bankaHesaplari.filter(b => b.catiFirmaId === fatura?.catiFirmaId && b.faturadaGoster !== false);
-
-  function odemeKaydet() {
-    if (!fatura || !odemeTutar || !odemeTarih) return;
-    createOdeme.mutate({
-      data: {
-        catiFirmaId: fatura.catiFirmaId, bagliFirmaId: fatura.bagliFirmaId, faturaId: id,
-        tip: "tahsilat", tarih: odemeTarih, tutar: Number(odemeTutar),
-        paraBirimi: fatura.paraBirimi, odemeYontemi: odemeYontemi as import("@workspace/api-client-react").OdemeInputOdemeYontemi,
-        bankaHesabiId: odemeBankaId && odemeBankaId !== "none" ? Number(odemeBankaId) : undefined,
-        aciklama: odemeAciklama || `Fatura ${fatura.faturaNo} ödemesi`,
-      },
-    }, {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getGetFaturaQueryKey(id) });
-        qc.invalidateQueries({ queryKey: getListOdemelerQueryKey() });
-        qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() });
-        setOdemeModal(false); setOdemeTutar(""); toast({ title: "Ödeme kaydedildi" });
-      },
-      onError: () => toast({ title: "Hata", variant: "destructive" }),
-    });
-  }
 
   function durumGuncelle(durum: string) {
     updateFatura.mutate({ id, data: { durum } }, {
@@ -412,50 +380,7 @@ export default function FaturaDetay() {
         </Card>
       </Collapsible>
 
-      <Dialog open={odemeModal} onOpenChange={setOdemeModal}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Ödeme Kaydet — {fatura.faturaNo}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Tutar *</Label>
-              <Input type="number" value={odemeTutar} onChange={e => setOdemeTutar(e.target.value)} step="0.01" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tarih *</Label>
-              <Input type="date" value={odemeTarih} onChange={e => setOdemeTarih(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Ödeme Yöntemi</Label>
-              <Select value={odemeYontemi} onValueChange={setOdemeYontemi}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(YONTEM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            {faturaHesaplari.length > 0 && (
-              <div className="space-y-1.5">
-                <Label>Banka Hesabı</Label>
-                <Select value={odemeBankaId} onValueChange={setOdemeBankaId}>
-                  <SelectTrigger><SelectValue placeholder="Seçiniz (opsiyonel)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Belirtilmedi</SelectItem>
-                    {faturaHesaplari.map(b => <SelectItem key={b.id} value={String(b.id)}>{b.bankaAdi} — {b.hesapAdi}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <Label>Açıklama</Label>
-              <Input value={odemeAciklama} onChange={e => setOdemeAciklama(e.target.value)} placeholder="Opsiyonel" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOdemeModal(false)}>İptal</Button>
-            <Button onClick={odemeKaydet} disabled={!odemeTutar || createOdeme.isPending}>Kaydet</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <OdemeModal open={odemeModal} onOpenChange={setOdemeModal} fatura={fatura ?? null} />
 
       <Dialog open={gonderModal} onOpenChange={o => { setGonderModal(o); if (!o) { setAliciAdres(""); setAliciAd(""); setGonderKonu(""); setGonderMesaj(""); } }}>
         <DialogContent className="max-w-sm">
