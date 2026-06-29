@@ -238,7 +238,7 @@ function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: KayitForm
               {dosyalar.map(d => (
                 <div key={d.id} className="relative group border bg-muted/20 overflow-hidden">
                   {isImage(d.dosyaTipi) ? (
-                    <a href={`${dosyaUrl(d.id)}?token=${localStorage.getItem("panel_token") ?? ""}`} target="_blank" rel="noreferrer">
+                    <a href={dosyaUrl(d.id)} target="_blank" rel="noreferrer">
                       <img
                         src={`${dosyaUrl(d.id)}`}
                         alt={d.orijinalAd ?? ""}
@@ -396,7 +396,6 @@ function KayitSatiri({ kayit, onEdit, onDelete }: {
 export default function Servis() {
   const { aktifSirketId } = useSirket();
   const { toast } = useToast();
-  const qc = useQueryClient();
 
   const [kayitlar, setKayitlar] = useState<ServisKayit[]>([]);
   const [yukleniyor, setYukleniyor] = useState(false);

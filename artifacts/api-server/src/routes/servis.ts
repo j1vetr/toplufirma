@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { servisKayitlari, servisDosyalari, gemiler, firmalar } from "@workspace/db";
 import { eq, desc, inArray } from "drizzle-orm";
-import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
+import { requireYazma, sirketErisimKontrol, firmaYazmaDenetimi, sirketlerFiltrele } from "../middleware/auth";
 import multer from "multer";
 import sharp from "sharp";
 import path from "path";
@@ -138,6 +138,7 @@ router.patch("/servis-kayitlari/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(servisKayitlari).where(eq(servisKayitlari.id, id));
     if (!existing) { res.status(404).json({ error: "Kayıt bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Erişim yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { kategori, baslik, tarih, notlar } = req.body;
     const [updated] = await db.update(servisKayitlari).set({
@@ -159,6 +160,7 @@ router.delete("/servis-kayitlari/:id", requireYazma, async (req, res) => {
     const [existing] = await db.select().from(servisKayitlari).where(eq(servisKayitlari.id, id));
     if (!existing) { res.status(404).json({ error: "Kayıt bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Erişim yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const dosyalar = await db.select().from(servisDosyalari).where(eq(servisDosyalari.servisId, id));
     for (const d of dosyalar) {
@@ -178,6 +180,7 @@ router.post("/servis-kayitlari/:id/dosyalar", requireYazma, upload.array("dosyal
     const [existing] = await db.select().from(servisKayitlari).where(eq(servisKayitlari.id, id));
     if (!existing) { res.status(404).json({ error: "Kayıt bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Erişim yok" }); return; }
+    if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const files = (req.files ?? []) as Express.Multer.File[];
     if (!files.length) { res.status(400).json({ error: "Dosya seçilmedi" }); return; }
@@ -230,6 +233,7 @@ router.delete("/servis-dosyalari/:id", requireYazma, async (req, res) => {
 
     const [kayit] = await db.select().from(servisKayitlari).where(eq(servisKayitlari.id, dosya.servisId));
     if (kayit && !sirketErisimKontrol(kayit.catiFirmaId, req)) { res.status(403).json({ error: "Erişim yok" }); return; }
+    if (kayit && !firmaYazmaDenetimi(kayit.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const fp = path.join(UPLOAD_DIR, dosya.dosyaYolu);
     if (fs.existsSync(fp)) fs.unlinkSync(fp);
