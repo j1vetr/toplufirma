@@ -57,14 +57,31 @@ function buildEntries(faturaRows: typeof faturalar.$inferSelect[], odemeRows: ty
   return sorted.map(e => { bakiye += e.borc - e.alacak; return { ...e, bakiye }; });
 }
 
-async function effectiveCatiFirmaId(bagliFirmaId: number, ustFirmaId: number | null): Promise<number | null> {
-  if (ustFirmaId) return ustFirmaId;
+async function resolveCatiFirmaId(
+  bagliFirmaId: number,
+  ustFirmaId: number | null,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  req: any,
+): Promise<number | null> {
+  const candidates: number[] = [];
+  if (ustFirmaId) candidates.push(ustFirmaId);
+
   const rows = await db
     .select({ catiFirmaId: faturalar.catiFirmaId })
     .from(faturalar)
-    .where(eq(faturalar.bagliFirmaId, bagliFirmaId))
-    .limit(1);
-  return rows[0]?.catiFirmaId ?? null;
+    .where(eq(faturalar.bagliFirmaId, bagliFirmaId));
+
+  for (const row of rows) {
+    if (!candidates.includes(row.catiFirmaId)) {
+      candidates.push(row.catiFirmaId);
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (sirketErisimKontrol(candidate, req)) return candidate;
+  }
+
+  return null;
 }
 
 router.get("/cariler", async (req, res) => {
@@ -164,8 +181,8 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
     const [bagliFirma] = await db.select().from(firmalar).where(eq(firmalar.id, bagliFirmaId));
     if (!bagliFirma || bagliFirma.tip !== "bagli") { res.status(404).json({ error: "Cari bulunamadı" }); return; }
 
-    const catiId = await effectiveCatiFirmaId(bagliFirmaId, bagliFirma.ustFirmaId);
-    if (!catiId || !sirketErisimKontrol(catiId, req)) {
+    const catiId = await resolveCatiFirmaId(bagliFirmaId, bagliFirma.ustFirmaId, req);
+    if (!catiId) {
       res.status(403).json({ error: "Bu cariye erişim izniniz yok" }); return;
     }
 
@@ -360,8 +377,8 @@ router.get("/cariler/:bagliFirmaId", async (req, res) => {
     const [bagliFirma] = await db.select().from(firmalar).where(eq(firmalar.id, bagliFirmaId));
     if (!bagliFirma || bagliFirma.tip !== "bagli") { res.status(404).json({ error: "Cari bulunamadı" }); return; }
 
-    const catiId = await effectiveCatiFirmaId(bagliFirmaId, bagliFirma.ustFirmaId);
-    if (!catiId || !sirketErisimKontrol(catiId, req)) {
+    const catiId = await resolveCatiFirmaId(bagliFirmaId, bagliFirma.ustFirmaId, req);
+    if (!catiId) {
       res.status(403).json({ error: "Bu cariye erişim izniniz yok" }); return;
     }
 
