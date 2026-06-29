@@ -5,6 +5,7 @@ import {
   useListFirmalar, getListFirmalarQueryKey,
   useCreateFirma, useUpdateFirma, useDeleteFirma,
   useGetFirmaEkstre, getGetFirmaEkstreQueryKey,
+  useListGemiler, getListGemilerQueryKey,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import {
   Plus, Pencil, Trash2, Building2, ChevronDown, ChevronRight,
-  FileBarChart, Users, Download,
+  FileBarChart, Users, Download, Ship,
 } from "lucide-react";
 
 const apiBase = () => {
@@ -91,10 +92,10 @@ const fmt = (n: number, pb = "USD") =>
 
 interface FirmaForm {
   ad: string; vergiNo: string; vergiDairesi: string;
-  adres: string; telefon: string; eposta: string; logoUrl: string;
+  adres: string; telefon: string; cepTel: string; eposta: string; logoUrl: string;
   etiket: string; grupFirmaId: string; gorunurSirketIds: number[];
 }
-const BOSH_FORMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", eposta: "", logoUrl: "", etiket: "", grupFirmaId: "", gorunurSirketIds: [] };
+const BOSH_FORMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", cepTel: "", eposta: "", logoUrl: "", etiket: "", grupFirmaId: "", gorunurSirketIds: [] };
 
 export default function Firmalar() {
   const qc = useQueryClient();
@@ -129,6 +130,16 @@ export default function Firmalar() {
     { query: { queryKey: [...getListFirmalarQueryKey(), "grup"] } },
   );
 
+  const { data: tumGemiler = [] } = useListGemiler(
+    undefined,
+    { query: { queryKey: [...getListGemilerQueryKey(), "all"] } },
+  );
+  const gemilerByFirmaId = new Map<number, typeof tumGemiler>();
+  for (const g of tumGemiler) {
+    if (!gemilerByFirmaId.has(g.firmaId)) gemilerByFirmaId.set(g.firmaId, []);
+    gemilerByFirmaId.get(g.firmaId)!.push(g);
+  }
+
   const { data: ekstreData, isLoading: ekstreYukleniyor } = useGetFirmaEkstre(
     ekstreFirmaId!,
     { baslangicTarihi: ekstreBaslangic, bitisTarihi: ekstreBitis },
@@ -147,7 +158,9 @@ export default function Firmalar() {
       if (!f) return;
       setForm({
         ad: f.ad, vergiNo: f.vergiNo ?? "", vergiDairesi: f.vergiDairesi ?? "",
-        adres: f.adres ?? "", telefon: f.telefon ?? "", eposta: f.eposta ?? "",
+        adres: f.adres ?? "", telefon: f.telefon ?? "",
+        cepTel: (f as unknown as Record<string, unknown>).cepTel as string ?? "",
+        eposta: f.eposta ?? "",
         etiket: (f as unknown as Record<string, unknown>).etiket as string ?? "",
         logoUrl: (f as unknown as Record<string, unknown>).logoUrl as string ?? "",
         grupFirmaId: (f as unknown as Record<string, unknown>).grupFirmaId != null
@@ -187,6 +200,7 @@ export default function Firmalar() {
       ...(form.vergiDairesi && { vergiDairesi: form.vergiDairesi }),
       ...(form.adres && { adres: form.adres }),
       ...(form.telefon && { telefon: form.telefon }),
+      ...(form.cepTel && { cepTel: form.cepTel }),
       ...(form.eposta && { eposta: form.eposta }),
       ...(form.etiket && { etiket: form.etiket }),
       ...(form.logoUrl && { logoUrl: form.logoUrl }),
@@ -319,11 +333,25 @@ export default function Firmalar() {
                             <p className="font-medium text-sm">{b.ad}</p>
                             {(b as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((b as unknown as Record<string, unknown>).etiket)}</Badge>}
                           </div>
-                          <div className="flex gap-3 text-xs text-muted-foreground">
+                          <div className="flex gap-3 text-xs text-muted-foreground flex-wrap">
                             {b.vergiNo && <span>VKN: {b.vergiNo}</span>}
                             {b.eposta && <span>{b.eposta}</span>}
                             {b.telefon && <span>{b.telefon}</span>}
+                            {(b as unknown as Record<string, unknown>).cepTel && <span>{String((b as unknown as Record<string, unknown>).cepTel)}</span>}
                           </div>
+                          {(() => {
+                            const bGemiler = gemilerByFirmaId.get(b.id) ?? [];
+                            if (bGemiler.length === 0) return null;
+                            const label = bGemiler.length <= 2
+                              ? bGemiler.map(g => g.imoNumarasi ? `${g.ad} (${g.imoNumarasi})` : g.ad).join(", ")
+                              : `${bGemiler[0].ad}${bGemiler[0].imoNumarasi ? ` (${bGemiler[0].imoNumarasi})` : ""} +${bGemiler.length - 1} gemi`;
+                            return (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                                <Ship className="h-3 w-3" />
+                                <span>{label}</span>
+                              </div>
+                            );
+                          })()}
                         </div>
                         <Badge variant="outline" className="text-xs text-blue-600 border-blue-200">Bağlı Firma</Badge>
                         {!b.aktif && <Badge variant="secondary" className="text-xs">Pasif</Badge>}
@@ -376,8 +404,12 @@ export default function Firmalar() {
               <Input value={form.vergiDairesi} onChange={e => setForm(f => ({ ...f, vergiDairesi: e.target.value }))} data-testid="input-firma-vd" />
             </div>
             <div className="space-y-1.5">
-              <Label>Telefon</Label>
+              <Label>Sabit Tel</Label>
               <Input value={form.telefon} onChange={e => setForm(f => ({ ...f, telefon: e.target.value }))} data-testid="input-firma-telefon" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cep Tel</Label>
+              <Input value={form.cepTel} onChange={e => setForm(f => ({ ...f, cepTel: e.target.value }))} data-testid="input-firma-cep-tel" />
             </div>
             <div className="space-y-1.5">
               <Label>E-posta</Label>

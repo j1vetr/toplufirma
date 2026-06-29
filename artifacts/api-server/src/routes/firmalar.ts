@@ -79,7 +79,7 @@ router.get("/firmalar", async (req, res) => {
 router.post("/firmalar", requireYazma, async (req, res) => {
   try {
     const {
-      tip, ustFirmaId, grupFirmaId, ad, vergiNo, vergiDairesi, adres, telefon, eposta,
+      tip, ustFirmaId, grupFirmaId, ad, vergiNo, vergiDairesi, adres, telefon, cepTel, eposta,
       yetkiliKisi, paraBirimi, notlar, seriOneki, etiket, logoUrl, aktif,
     } = req.body;
     if (!tip || !ad) { res.status(400).json({ error: "tip ve ad zorunludur" }); return; }
@@ -105,7 +105,7 @@ router.post("/firmalar", requireYazma, async (req, res) => {
     const [row] = await db.insert(firmalar).values({
       tip, ustFirmaId: tip === "bagli" ? (ustFirmaId ?? null) : null,
       grupFirmaId: tip === "bagli" && grupFirmaId ? Number(grupFirmaId) : null,
-      ad, vergiNo, vergiDairesi, adres, telefon,
+      ad, vergiNo, vergiDairesi, adres, telefon, cepTel,
       eposta, yetkiliKisi, paraBirimi: paraBirimi ?? "USD", notlar,
       seriOneki, etiket, logo: logoUrl, aktif: aktif ?? true,
     }).returning();
@@ -164,14 +164,14 @@ router.patch("/firmalar/:id", requireYazma, async (req, res) => {
     if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     if (catiFirmaId && !firmaYazmaDenetimi(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
-    const { ad, grupFirmaId, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, etiket, logoUrl, aktif, gorunurSirketIds } = req.body;
+    const { ad, grupFirmaId, vergiNo, vergiDairesi, adres, telefon, cepTel, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, etiket, logoUrl, aktif, gorunurSirketIds } = req.body;
     if (grupFirmaId !== undefined && grupFirmaId !== null && existing.tip === "bagli") {
       const [grup] = await db.select().from(firmalar).where(eq(firmalar.id, Number(grupFirmaId)));
       if (!grup || grup.tip !== "grup") { res.status(400).json({ error: "grupFirmaId geçerli bir çatı firma değil" }); return; }
     }
     const [row] = await db.update(firmalar)
       .set({
-        ad, vergiNo, vergiDairesi, adres, telefon, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, etiket, logo: logoUrl, aktif,
+        ad, vergiNo, vergiDairesi, adres, telefon, cepTel, eposta, yetkiliKisi, paraBirimi, notlar, seriOneki, etiket, logo: logoUrl, aktif,
         ...(existing.tip === "bagli" && grupFirmaId !== undefined ? { grupFirmaId: grupFirmaId === null ? null : Number(grupFirmaId) } : {}),
       })
       .where(eq(firmalar.id, id)).returning();
@@ -521,7 +521,7 @@ function formatFirma(f: typeof firmalar.$inferSelect, grupFirmaAd: string | null
     id: f.id, tip: f.tip, ustFirmaId: f.ustFirmaId,
     grupFirmaId: f.grupFirmaId, grupFirmaAd,
     ad: f.ad, vergiNo: f.vergiNo, vergiDairesi: f.vergiDairesi,
-    adres: f.adres, telefon: f.telefon, eposta: f.eposta,
+    adres: f.adres, telefon: f.telefon, cepTel: f.cepTel, eposta: f.eposta,
     yetkiliKisi: f.yetkiliKisi, paraBirimi: f.paraBirimi,
     notlar: f.notlar, seriOneki: f.seriOneki, etiket: f.etiket,
     logoUrl: f.logo, aktif: f.aktif, olusturmaTarihi: f.olusturmaTarihi,

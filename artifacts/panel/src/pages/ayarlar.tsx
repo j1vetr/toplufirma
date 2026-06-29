@@ -59,10 +59,10 @@ async function apiFetch(path: string, opts?: RequestInit) {
 
 interface FirmaForm {
   ad: string; vergiNo: string; vergiDairesi: string;
-  adres: string; telefon: string; eposta: string; seriOneki: string; logoUrl: string;
+  adres: string; telefon: string; cepTel: string; eposta: string; seriOneki: string; logoUrl: string;
   etiket: string;
 }
-const BOSH_FIRMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", eposta: "", seriOneki: "", logoUrl: "", etiket: "" };
+const BOSH_FIRMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", cepTel: "", eposta: "", seriOneki: "", logoUrl: "", etiket: "" };
 
 interface SmtpForm {
   smtpHost: string; smtpPort: string; smtpGuvenlik: string;
@@ -222,7 +222,9 @@ export default function Ayarlar() {
       if (!f) return;
       setFirmaForm({
         ad: f.ad, vergiNo: f.vergiNo ?? "", vergiDairesi: f.vergiDairesi ?? "",
-        adres: f.adres ?? "", telefon: f.telefon ?? "", eposta: f.eposta ?? "",
+        adres: f.adres ?? "", telefon: f.telefon ?? "",
+        cepTel: (f as unknown as Record<string, unknown>).cepTel as string ?? "",
+        eposta: f.eposta ?? "",
         seriOneki: f.seriOneki ?? "",
         etiket: (f as unknown as Record<string, unknown>).etiket as string ?? "",
         logoUrl: (f as unknown as Record<string, unknown>).logoUrl as string ?? "",
@@ -253,6 +255,7 @@ export default function Ayarlar() {
       ...(firmaForm.vergiDairesi && { vergiDairesi: firmaForm.vergiDairesi }),
       ...(firmaForm.adres && { adres: firmaForm.adres }),
       ...(firmaForm.telefon && { telefon: firmaForm.telefon }),
+      ...(firmaForm.cepTel && { cepTel: firmaForm.cepTel }),
       ...(firmaForm.eposta && { eposta: firmaForm.eposta }),
       ...(firmaForm.seriOneki && { seriOneki: firmaForm.seriOneki }),
       ...(firmaForm.etiket && { etiket: firmaForm.etiket }),
@@ -860,8 +863,12 @@ export default function Ayarlar() {
               <Input value={firmaForm.vergiDairesi} onChange={e => setFirmaForm(f => ({ ...f, vergiDairesi: e.target.value }))} data-testid="input-firma-vd" />
             </div>
             <div className="space-y-1.5">
-              <Label>Telefon</Label>
+              <Label>Sabit Tel</Label>
               <Input value={firmaForm.telefon} onChange={e => setFirmaForm(f => ({ ...f, telefon: e.target.value }))} data-testid="input-firma-telefon" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cep Tel</Label>
+              <Input value={firmaForm.cepTel} onChange={e => setFirmaForm(f => ({ ...f, cepTel: e.target.value }))} data-testid="input-firma-cep-tel" />
             </div>
             <div className="space-y-1.5">
               <Label>E-posta</Label>

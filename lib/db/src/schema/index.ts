@@ -49,6 +49,7 @@ export const firmalar = pgTable("firmalar", {
   vergiDairesi: text("vergi_dairesi"),
   adres: text("adres"),
   telefon: text("telefon"),
+  cepTel: text("cep_tel"),
   eposta: text("eposta"),
   yetkiliKisi: text("yetkili_kisi"),
   paraBirimi: text("para_birimi").notNull().default("USD"),
