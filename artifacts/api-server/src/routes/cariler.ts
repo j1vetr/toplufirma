@@ -57,6 +57,16 @@ function buildEntries(faturaRows: typeof faturalar.$inferSelect[], odemeRows: ty
   return sorted.map(e => { bakiye += e.borc - e.alacak; return { ...e, bakiye }; });
 }
 
+async function effectiveCatiFirmaId(bagliFirmaId: number, ustFirmaId: number | null): Promise<number | null> {
+  if (ustFirmaId) return ustFirmaId;
+  const rows = await db
+    .select({ catiFirmaId: faturalar.catiFirmaId })
+    .from(faturalar)
+    .where(eq(faturalar.bagliFirmaId, bagliFirmaId))
+    .limit(1);
+  return rows[0]?.catiFirmaId ?? null;
+}
+
 router.get("/cariler", async (req, res) => {
   try {
     const { catiFirmaId } = req.query as Record<string, string>;
@@ -69,12 +79,41 @@ router.get("/cariler", async (req, res) => {
     const gecerliFirmaIdleri = catiFirmaId ? [Number(catiFirmaId)] : izinliSirketler;
     if (gecerliFirmaIdleri.length === 0) { res.json([]); return; }
 
-    const allBagli = await db.select().from(firmalar).where(eq(firmalar.tip, "bagli"));
-    const erisilen = allBagli.filter(f => f.ustFirmaId && gecerliFirmaIdleri.includes(f.ustFirmaId));
+    const [allBagli, faturaDiscover] = await Promise.all([
+      db.select().from(firmalar).where(eq(firmalar.tip, "bagli")),
+      db.select({ bagliFirmaId: faturalar.bagliFirmaId, catiFirmaId: faturalar.catiFirmaId })
+        .from(faturalar)
+        .where(inArray(faturalar.catiFirmaId, gecerliFirmaIdleri)),
+    ]);
+
+    const catiMap = new Map<number, number>();
+
+    for (const f of allBagli) {
+      if (f.ustFirmaId && gecerliFirmaIdleri.includes(f.ustFirmaId)) {
+        catiMap.set(f.id, f.ustFirmaId);
+      }
+    }
+    for (const p of faturaDiscover) {
+      if (!catiMap.has(p.bagliFirmaId)) {
+        catiMap.set(p.bagliFirmaId, p.catiFirmaId);
+      }
+    }
+
+    if (catiMap.size === 0) { res.json([]); return; }
+
+    const erisilenIdleri = [...catiMap.keys()];
+
+    const erisilenFirmalar = allBagli.filter(f => erisilenIdleri.includes(f.id));
+    const missingIds = erisilenIdleri.filter(id => !allBagli.some(f => f.id === id));
+    const missingFirmalar = missingIds.length > 0
+      ? await db.select().from(firmalar).where(inArray(firmalar.id, missingIds))
+      : [];
+
+    const erisilen = [...erisilenFirmalar, ...missingFirmalar];
     if (erisilen.length === 0) { res.json([]); return; }
 
     const bagliFirmaIdleri = erisilen.map(f => f.id);
-    const catiFirmaIdleri = [...new Set(erisilen.map(f => f.ustFirmaId!))];
+    const catiFirmaIdleri = [...new Set([...catiMap.values()])];
 
     const [catiFirmalar, faturaRows, odemeRows] = await Promise.all([
       db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(inArray(firmalar.id, catiFirmaIdleri)),
@@ -83,7 +122,8 @@ router.get("/cariler", async (req, res) => {
     ]);
 
     const result = erisilen.map(bf => {
-      const catiFirma = catiFirmalar.find(c => c.id === bf.ustFirmaId);
+      const effectiveCati = catiMap.get(bf.id);
+      const catiFirma = catiFirmalar.find(c => c.id === effectiveCati);
       const bFaturalar = faturaRows.filter(f => f.bagliFirmaId === bf.id);
       const bOdemeler = odemeRows.filter(o => o.bagliFirmaId === bf.id);
       const validF = bFaturalar.filter(f => !["taslak", "iptal"].includes(f.durum));
@@ -98,7 +138,7 @@ router.get("/cariler", async (req, res) => {
       return {
         bagliFirmaId: bf.id,
         bagliFirmaAd: bf.ad,
-        catiFirmaId: bf.ustFirmaId,
+        catiFirmaId: effectiveCati ?? null,
         catiFirmaAd: catiFirma?.ad ?? null,
         toplamBorc,
         toplamAlacak,
@@ -123,11 +163,13 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
 
     const [bagliFirma] = await db.select().from(firmalar).where(eq(firmalar.id, bagliFirmaId));
     if (!bagliFirma || bagliFirma.tip !== "bagli") { res.status(404).json({ error: "Cari bulunamadı" }); return; }
-    if (!bagliFirma.ustFirmaId || !sirketErisimKontrol(bagliFirma.ustFirmaId, req)) {
+
+    const catiId = await effectiveCatiFirmaId(bagliFirmaId, bagliFirma.ustFirmaId);
+    if (!catiId || !sirketErisimKontrol(catiId, req)) {
       res.status(403).json({ error: "Bu cariye erişim izniniz yok" }); return;
     }
 
-    const [catiFirma] = await db.select().from(firmalar).where(eq(firmalar.id, bagliFirma.ustFirmaId));
+    const [catiFirma] = await db.select().from(firmalar).where(eq(firmalar.id, catiId));
 
     const faturaConds = [eq(faturalar.bagliFirmaId, bagliFirmaId)];
     if (baslangic) faturaConds.push(gte(faturalar.faturaTarihi, baslangic));
@@ -317,11 +359,11 @@ router.get("/cariler/:bagliFirmaId", async (req, res) => {
 
     const [bagliFirma] = await db.select().from(firmalar).where(eq(firmalar.id, bagliFirmaId));
     if (!bagliFirma || bagliFirma.tip !== "bagli") { res.status(404).json({ error: "Cari bulunamadı" }); return; }
-    if (!bagliFirma.ustFirmaId || !sirketErisimKontrol(bagliFirma.ustFirmaId, req)) {
+
+    const catiId = await effectiveCatiFirmaId(bagliFirmaId, bagliFirma.ustFirmaId);
+    if (!catiId || !sirketErisimKontrol(catiId, req)) {
       res.status(403).json({ error: "Bu cariye erişim izniniz yok" }); return;
     }
-
-    const [catiFirma] = await db.select().from(firmalar).where(eq(firmalar.id, bagliFirma.ustFirmaId));
 
     const faturaConds = [eq(faturalar.bagliFirmaId, bagliFirmaId)];
     if (baslangic) faturaConds.push(gte(faturalar.faturaTarihi, baslangic));
@@ -331,11 +373,12 @@ router.get("/cariler/:bagliFirmaId", async (req, res) => {
     if (baslangic) odemeConds.push(gte(odemeler.tarih, baslangic));
     if (bitis) odemeConds.push(lte(odemeler.tarih, bitis));
 
-    const [faturaRows, odemeRows, bankaRows] = await Promise.all([
+    const [catiFirma, faturaRows, odemeRows, bankaRows] = await Promise.all([
+      db.select().from(firmalar).where(eq(firmalar.id, catiId)).then(r => r[0] ?? null),
       db.select().from(faturalar).where(and(...faturaConds)),
       db.select().from(odemeler).where(and(...odemeConds)),
       db.select({ id: bankaHesaplari.id, hesapAdi: bankaHesaplari.hesapAdi, bankaAdi: bankaHesaplari.bankaAdi, paraBirimi: bankaHesaplari.paraBirimi })
-        .from(bankaHesaplari).where(eq(bankaHesaplari.catiFirmaId, bagliFirma.ustFirmaId)),
+        .from(bankaHesaplari).where(eq(bankaHesaplari.catiFirmaId, catiId)),
     ]);
 
     const kalemler = buildEntries(faturaRows, odemeRows);
