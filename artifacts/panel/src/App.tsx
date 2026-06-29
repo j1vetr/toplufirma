@@ -25,6 +25,8 @@ import Ayarlar from "@/pages/ayarlar";
 import GonderiGecmisi from "@/pages/gonderi-gecmisi";
 import BagliFirmaDetay from "@/pages/bagli-firma-detay";
 import Servis from "@/pages/servis";
+import Cariler from "@/pages/cariler";
+import CariDetay from "@/pages/cari-detay";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -131,6 +133,16 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
       <Route path="/odemeler">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
           <Odemeler />
+        </AuthGuard>
+      </Route>
+      <Route path="/cariler/:id">
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <CariDetay />
+        </AuthGuard>
+      </Route>
+      <Route path="/cariler">
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <Cariler />
         </AuthGuard>
       </Route>
       <Route path="/ekipmanlar">

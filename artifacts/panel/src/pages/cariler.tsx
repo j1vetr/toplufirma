@@ -1,0 +1,225 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { useSirket } from "@/contexts/sirket-context";
+import { BookOpen, Search, TrendingDown, ChevronRight, AlertCircle } from "lucide-react";
+
+interface CariOzet {
+  bagliFirmaId: number;
+  bagliFirmaAd: string;
+  catiFirmaId: number | null;
+  catiFirmaAd: string | null;
+  toplamBorc: number;
+  toplamAlacak: number;
+  bakiye: number;
+  acikFaturaAdedi: number;
+  paraBirimi: string;
+}
+
+const apiBase = () => {
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  return `${base}/api`;
+};
+
+const fmt = (n: number) =>
+  new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+export default function Cariler() {
+  const { aktifSirketId } = useSirket();
+  const [arama, setArama] = useState("");
+  const [bakiyeFiltre, setBakiyeFiltre] = useState("tumu");
+
+  const { data: cariler = [], isLoading } = useQuery<CariOzet[]>({
+    queryKey: ["cariler", aktifSirketId],
+    queryFn: async () => {
+      const token = localStorage.getItem("panel_token") ?? "";
+      const params = new URLSearchParams();
+      if (aktifSirketId) params.set("catiFirmaId", String(aktifSirketId));
+      const r = await fetch(`${apiBase()}/cariler?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Cariler yüklenemedi");
+      return r.json();
+    },
+  });
+
+  const filtrelenmis = cariler.filter(c => {
+    const aramaUyum = !arama || c.bagliFirmaAd.toLowerCase().includes(arama.toLowerCase());
+    const bakiyeUyum =
+      bakiyeFiltre === "tumu" ||
+      (bakiyeFiltre === "bakiyeli" && c.bakiye > 0.01) ||
+      (bakiyeFiltre === "temiz" && c.bakiye <= 0.01);
+    return aramaUyum && bakiyeUyum;
+  });
+
+  const toplamBorç = filtrelenmis.reduce((s, c) => s + c.toplamBorc, 0);
+  const toplamAlacak = filtrelenmis.reduce((s, c) => s + c.toplamAlacak, 0);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted animate-pulse rounded-none" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-display font-bold">Cariler</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {cariler.length} müşteri &mdash; toplam {filtrelenmis.filter(c => c.acikFaturaAdedi > 0).length} aktif hesap
+          </p>
+        </div>
+      </div>
+
+      {filtrelenmis.length > 0 && (
+        <div className="grid grid-cols-2 gap-4">
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2.5 rounded-sm bg-orange-500/10">
+                <TrendingDown className="h-5 w-5 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Toplam Alacak (Bakiye)</p>
+                <p className="text-lg font-display font-bold text-orange-600">
+                  {fmt(filtrelenmis.reduce((s, c) => s + Math.max(0, c.bakiye), 0))}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2.5 rounded-sm bg-blue-500/10">
+                <BookOpen className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Toplam Tahsilat</p>
+                <p className="text-lg font-display font-bold text-blue-600">
+                  {fmt(toplamAlacak)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Müşteri adı ara..."
+            value={arama}
+            onChange={e => setArama(e.target.value)}
+          />
+        </div>
+        <Select value={bakiyeFiltre} onValueChange={setBakiyeFiltre}>
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="tumu">Tüm Hesaplar</SelectItem>
+            <SelectItem value="bakiyeli">Bakiyeli</SelectItem>
+            <SelectItem value="temiz">Kapatılmış</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {filtrelenmis.length === 0 ? (
+        <div className="text-center py-20 text-muted-foreground">
+          <BookOpen className="h-14 w-14 mx-auto mb-4 opacity-20" />
+          <p className="font-medium">Cari bulunamadı</p>
+          <p className="text-sm mt-1">Filtre kriterlerini değiştirin ya da müşteri kaydı ekleyin.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtrelenmis.map(c => {
+            const bakiyeRenk =
+              c.bakiye > 0.01
+                ? "text-orange-600"
+                : c.bakiye < -0.01
+                ? "text-red-600"
+                : "text-green-600";
+            const bakiyeBg =
+              c.bakiye > 0.01
+                ? "bg-orange-50 border-orange-200"
+                : c.bakiye < -0.01
+                ? "bg-red-50 border-red-200"
+                : "bg-green-50 border-green-100";
+            const kalintiYuzde = c.toplamBorc > 0
+              ? Math.min(100, (c.toplamAlacak / c.toplamBorc) * 100)
+              : 100;
+
+            return (
+              <Link key={c.bagliFirmaId} href={`/cariler/${c.bagliFirmaId}`}>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow border">
+                  <CardContent className="p-0">
+                    <div className="flex items-stretch">
+                      <div className="flex-1 p-4 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-base leading-tight truncate">{c.bagliFirmaAd}</p>
+                            {c.catiFirmaAd && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{c.catiFirmaAd}</p>
+                            )}
+                          </div>
+                          {c.acikFaturaAdedi > 0 && (
+                            <span className="shrink-0 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              {c.acikFaturaAdedi} açık
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Toplam Borç</p>
+                            <p className="font-medium">{fmt(c.toplamBorc)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Tahsilat</p>
+                            <p className="font-medium text-green-700">{fmt(c.toplamAlacak)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Bakiye</p>
+                            <p className={`font-bold ${bakiyeRenk}`}>{fmt(Math.abs(c.bakiye))}</p>
+                          </div>
+                        </div>
+
+                        {c.toplamBorc > 0 && (
+                          <div className="mt-3">
+                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-green-500 transition-all"
+                                style={{ width: `${kalintiYuzde}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              %{kalintiYuzde.toFixed(0)} tahsil edildi &bull; {c.paraBirimi}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={`flex items-center px-4 border-l ${bakiyeBg}`}>
+                        <ChevronRight className={`h-5 w-5 ${bakiyeRenk}`} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

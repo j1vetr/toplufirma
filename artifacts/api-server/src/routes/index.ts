@@ -18,6 +18,7 @@ import gonderiGecmisiRouter from "./gonderiGecmisi";
 import tcmbKurRouter from "./tcmbKur";
 import kalemSablonlariRouter from "./kalemSablonlari";
 import servisRouter from "./servis";
+import carilerRouter from "./cariler";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(gonderiGecmisiRouter);
 router.use(tcmbKurRouter);
 router.use(kalemSablonlariRouter);
 router.use(servisRouter);
+router.use(carilerRouter);
 
 export default router;

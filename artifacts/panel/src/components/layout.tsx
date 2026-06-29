@@ -6,7 +6,6 @@ import {
   Building2,
   Ship,
   FileText,
-  Wallet,
   HardDrive,
   Settings,
   PieChart,
@@ -20,6 +19,7 @@ import {
   Menu,
   Send,
   ClipboardList,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSirket } from "@/contexts/sirket-context";
@@ -45,7 +45,7 @@ const navigation = [
   { name: "Gemiler", href: "/gemiler", icon: Ship },
   { name: "Faturalar", href: "/faturalar", icon: FileText },
   { name: "Teklifler", href: "/teklifler", icon: FileText },
-  { name: "Ödemeler", href: "/odemeler", icon: Wallet },
+  { name: "Cariler", href: "/cariler", icon: BookOpen },
   { name: "Ekipmanlar", href: "/ekipmanlar", icon: HardDrive },
   { name: "Servis & Sözleşme", href: "/servis", icon: ClipboardList },
   { name: "Tekrarlayan Faturalar", href: "/tekrarlayan-faturalar", icon: Repeat },

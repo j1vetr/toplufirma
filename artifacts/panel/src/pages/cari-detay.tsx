@@ -1,0 +1,446 @@
+import { useState } from "react";
+import { useRoute, Link } from "wouter";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useCreateOdeme, useListBankaHesaplari, getListBankaHesaplariQueryKey,
+} from "@workspace/api-client-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { useYetki } from "@/hooks/use-yetki";
+import {
+  ArrowLeft, Download, Plus, Loader2, FileText, TrendingUp,
+  TrendingDown, TriangleAlert,
+} from "lucide-react";
+
+interface CariKalem {
+  id: string;
+  tarih: string;
+  tip: "fatura" | "tahsilat" | "odeme";
+  aciklama: string;
+  borc: number;
+  alacak: number;
+  bakiye: number;
+  paraBirimi: string;
+  faturaId: number | null;
+  durum: string | null;
+}
+interface CariDetay {
+  firma: { id: number; ad: string; adres?: string | null; vergiNo?: string | null; telefon?: string | null; eposta?: string | null; paraBirimi: string };
+  catiFirma: { id: number; ad: string; vergiNo?: string | null; logo?: string | null } | null;
+  ozet: { toplamBorc: number; toplamAlacak: number; bakiye: number; paraBirimi: string };
+  kalemler: CariKalem[];
+  bankaHesaplari: { id: number; hesapAdi: string; bankaAdi: string | null; paraBirimi: string }[];
+}
+
+const apiBase = () => {
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  return `${base}/api`;
+};
+
+const fmt = (n: number) =>
+  new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+const TUR_ETIKET = { fatura: "Fatura", tahsilat: "Tahsilat", odeme: "Ödeme" };
+const TUR_RENK: Record<string, string> = {
+  fatura: "bg-blue-100 text-blue-700",
+  tahsilat: "bg-green-100 text-green-700",
+  odeme: "bg-orange-100 text-orange-700",
+};
+const YONTEM_ETIKET: Record<string, string> = {
+  banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
+  kredi_karti: "Kredi Kartı", wise: "Wise", paypal: "PayPal", diger: "Diğer",
+};
+
+export default function CariDetay() {
+  const [, params] = useRoute("/cariler/:id");
+  const id = Number(params?.id);
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { canWrite } = useYetki();
+
+  const [baslangic, setBaslangic] = useState("");
+  const [bitis, setBitis] = useState("");
+  const [aktifBaslangic, setAktifBaslangic] = useState("");
+  const [aktifBitis, setAktifBitis] = useState("");
+
+  const [islemModal, setIslemModal] = useState(false);
+  const [islemTip, setIslemTip] = useState("tahsilat");
+  const [islemTarih, setIslemTarih] = useState(new Date().toISOString().split("T")[0]);
+  const [islemTutar, setIslemTutar] = useState("");
+  const [islemPb, setIslemPb] = useState("USD");
+  const [islemYontem, setIslemYontem] = useState("banka_havalesi");
+  const [islemBanka, setIslemBanka] = useState("");
+  const [islemAciklama, setIslemAciklama] = useState("");
+  const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
+
+  const createOdeme = useCreateOdeme();
+  const { data: bankaHesaplariGenel = [] } = useListBankaHesaplari(undefined, {
+    query: { queryKey: getListBankaHesaplariQueryKey() },
+  });
+
+  const { data: detay, isLoading } = useQuery<CariDetay>({
+    queryKey: ["cari-detay", id, aktifBaslangic, aktifBitis],
+    queryFn: async () => {
+      const token = localStorage.getItem("panel_token") ?? "";
+      const ps = new URLSearchParams();
+      if (aktifBaslangic) ps.set("baslangic", aktifBaslangic);
+      if (aktifBitis) ps.set("bitis", aktifBitis);
+      const r = await fetch(`${apiBase()}/cariler/${id}?${ps}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Cari yüklenemedi");
+      return r.json();
+    },
+    enabled: !!id,
+  });
+
+  function filtrele() {
+    setAktifBaslangic(baslangic);
+    setAktifBitis(bitis);
+  }
+  function filtreTemizle() {
+    setBaslangic(""); setBitis(""); setAktifBaslangic(""); setAktifBitis("");
+  }
+
+  async function pdfIndir() {
+    setPdfIndiriyor(true);
+    try {
+      const token = localStorage.getItem("panel_token") ?? "";
+      const ps = new URLSearchParams();
+      if (aktifBaslangic) ps.set("baslangic", aktifBaslangic);
+      if (aktifBitis) ps.set("bitis", aktifBitis);
+      const r = await fetch(`${apiBase()}/cariler/${id}/pdf?${ps}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("PDF oluşturulamadı");
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cari-${detay?.firma.ad ?? id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "PDF indirilemedi", variant: "destructive" });
+    } finally {
+      setPdfIndiriyor(false);
+    }
+  }
+
+  function islemKaydet() {
+    if (!islemTutar || !detay?.catiFirma?.id) return;
+    createOdeme.mutate(
+      {
+        data: {
+          catiFirmaId: detay.catiFirma.id,
+          bagliFirmaId: id,
+          tip: islemTip as import("@workspace/api-client-react").OdemeInputTip,
+          tarih: islemTarih,
+          tutar: Number(islemTutar),
+          paraBirimi: islemPb,
+          odemeYontemi: islemYontem as import("@workspace/api-client-react").OdemeInputOdemeYontemi,
+          bankaHesabiId: islemBanka && islemBanka !== "none" ? Number(islemBanka) : undefined,
+          aciklama: islemAciklama || undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ["cari-detay", id] });
+          qc.invalidateQueries({ queryKey: ["cariler"] });
+          setIslemModal(false);
+          setIslemTutar(""); setIslemAciklama(""); setIslemBanka("");
+          toast({ title: "İşlem kaydedildi" });
+        },
+        onError: () => toast({ title: "Hata", variant: "destructive" }),
+      }
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 max-w-4xl">
+        <div className="h-10 bg-muted animate-pulse rounded-none" />
+        <div className="h-24 bg-muted animate-pulse rounded-none" />
+        <div className="h-64 bg-muted animate-pulse rounded-none" />
+      </div>
+    );
+  }
+  if (!detay) {
+    return <div className="text-center py-20 text-muted-foreground">Cari bulunamadı.</div>;
+  }
+
+  const { firma, catiFirma, ozet, kalemler } = detay;
+  const catiFirmaBankalar = bankaHesaplariGenel.filter(b => b.catiFirmaId === catiFirma?.id);
+
+  const bakiyeRenk =
+    ozet.bakiye > 0.01 ? "text-orange-600" : ozet.bakiye < -0.01 ? "text-red-600" : "text-green-600";
+  const bakiyeBg =
+    ozet.bakiye > 0.01 ? "bg-orange-50" : ozet.bakiye < -0.01 ? "bg-red-50" : "bg-green-50";
+
+  return (
+    <div className="space-y-5 max-w-5xl">
+      <div className="flex items-start gap-3 flex-wrap">
+        <Link href="/cariler">
+          <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+        </Link>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl font-display font-semibold leading-tight">{firma.ad}</h2>
+          {catiFirma && <p className="text-sm text-muted-foreground">{catiFirma.ad}</p>}
+          {firma.vergiNo && <p className="text-xs text-muted-foreground">Vergi No: {firma.vergiNo}</p>}
+        </div>
+        <div className="flex gap-2 flex-wrap justify-end">
+          <Button variant="outline" size="sm" onClick={pdfIndir} disabled={pdfIndiriyor}>
+            {pdfIndiriyor ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
+            {pdfIndiriyor ? "Hazırlanıyor..." : "Ekstre PDF"}
+          </Button>
+          {canWrite && catiFirma && (
+            <Button size="sm" onClick={() => setIslemModal(true)}>
+              <Plus className="mr-1 h-4 w-4" /> İşlem Ekle
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Card>
+        <CardContent className="p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <p className="text-xs text-muted-foreground shrink-0 font-medium">Dönem filtresi:</p>
+          <div className="flex items-center gap-2 flex-1 flex-wrap">
+            <Input
+              type="date"
+              value={baslangic}
+              onChange={e => setBaslangic(e.target.value)}
+              className="h-8 w-36 text-xs"
+            />
+            <span className="text-muted-foreground text-xs">—</span>
+            <Input
+              type="date"
+              value={bitis}
+              onChange={e => setBitis(e.target.value)}
+              className="h-8 w-36 text-xs"
+            />
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={filtrele}>Filtrele</Button>
+            {(aktifBaslangic || aktifBitis) && (
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={filtreTemizle}>Temizle</Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Toplam Borç</p>
+            <p className="text-xl font-display font-bold">{fmt(ozet.toplamBorc)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{ozet.paraBirimi}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Toplam Tahsilat</p>
+            <p className="text-xl font-display font-bold text-green-700">{fmt(ozet.toplamAlacak)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{ozet.paraBirimi}</p>
+          </CardContent>
+        </Card>
+        <Card className={bakiyeBg}>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Net Bakiye</p>
+            <p className={`text-xl font-display font-bold ${bakiyeRenk}`}>{fmt(Math.abs(ozet.bakiye))}</p>
+            <p className={`text-xs mt-0.5 ${bakiyeRenk}`}>
+              {ozet.paraBirimi} &bull; {ozet.bakiye > 0.01 ? "Tahsil edilecek" : ozet.bakiye < -0.01 ? "Ödenecek" : "Kapatılmış"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <div className="overflow-x-auto">
+          {kalemler.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <FileText className="h-10 w-10 mx-auto mb-3 opacity-20" />
+              <p>Bu dönemde kayıt bulunamadı.</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left px-4 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">TARİH</th>
+                  <th className="text-left px-4 py-2.5 font-medium text-xs text-muted-foreground">AÇIKLAMA</th>
+                  <th className="text-center px-3 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">TÜR</th>
+                  <th className="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">BORÇ</th>
+                  <th className="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">ALACAK</th>
+                  <th className="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">BAKİYE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {kalemler.map((k, i) => {
+                  const rowBakiyeRenk =
+                    k.bakiye > 0.01 ? "text-orange-600" : k.bakiye < -0.01 ? "text-red-600" : "text-green-600";
+                  return (
+                    <tr key={k.id} className={`border-b last:border-0 ${i % 2 === 1 ? "bg-muted/20" : ""}`}>
+                      <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap text-xs">{k.tarih}</td>
+                      <td className="px-4 py-2.5 max-w-xs">
+                        {k.faturaId ? (
+                          <Link href={`/faturalar/${k.faturaId}`} className="hover:underline font-medium">
+                            {k.aciklama}
+                          </Link>
+                        ) : (
+                          <span className="font-medium">{k.aciklama}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TUR_RENK[k.tip]}`}>
+                          {TUR_ETIKET[k.tip]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-medium tabular-nums whitespace-nowrap">
+                        {k.borc > 0 ? fmt(k.borc) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-medium text-green-700 tabular-nums whitespace-nowrap">
+                        {k.alacak > 0 ? fmt(k.alacak) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className={`px-4 py-2.5 text-right font-bold tabular-nums whitespace-nowrap ${rowBakiyeRenk}`}>
+                        {fmt(Math.abs(k.bakiye))}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 bg-muted/40">
+                  <td colSpan={3} className="px-4 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                    Dönem Toplamı
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap">
+                    {fmt(ozet.toplamBorc)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold text-green-700 tabular-nums whitespace-nowrap">
+                    {fmt(ozet.toplamAlacak)}
+                  </td>
+                  <td className={`px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap ${bakiyeRenk}`}>
+                    {fmt(Math.abs(ozet.bakiye))}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      </Card>
+
+      {ozet.bakiye > 0.01 && (
+        <div className="flex items-center gap-2 text-sm text-orange-600 p-3 bg-orange-50 border border-orange-200 rounded-none">
+          <TriangleAlert className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>{fmt(ozet.bakiye)} {ozet.paraBirimi}</strong> tahsil edilecek bakiye mevcut.
+          </span>
+        </div>
+      )}
+
+      <Dialog open={islemModal} onOpenChange={setIslemModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              İşlem Ekle — {firma.ad}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="col-span-2 space-y-1.5">
+              <Label>İşlem Tipi <span className="text-destructive">*</span></Label>
+              <Select value={islemTip} onValueChange={setIslemTip}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tahsilat">
+                    <span className="flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-green-600" />Tahsilat (Müşteriden alınan)</span>
+                  </SelectItem>
+                  <SelectItem value="odeme">
+                    <span className="flex items-center gap-1.5"><TrendingDown className="h-3.5 w-3.5 text-orange-500" />Ödeme (Müşteriye yapılan)</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tutar <span className="text-destructive">*</span></Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={islemTutar}
+                onChange={e => setIslemTutar(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Para Birimi</Label>
+              <Select value={islemPb} onValueChange={setIslemPb}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["USD", "EUR", "TRY", "GBP"].map(pb => (
+                    <SelectItem key={pb} value={pb}>{pb}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tarih <span className="text-destructive">*</span></Label>
+              <Input
+                type="date"
+                value={islemTarih}
+                onChange={e => setIslemTarih(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Yöntem</Label>
+              <Select value={islemYontem} onValueChange={setIslemYontem}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(YONTEM_ETIKET).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>Banka Hesabı</Label>
+              <Select value={islemBanka} onValueChange={setIslemBanka}>
+                <SelectTrigger><SelectValue placeholder="Seçilmedi (opsiyonel)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Seçilmedi</SelectItem>
+                  {catiFirmaBankalar.map(b => (
+                    <SelectItem key={b.id} value={String(b.id)}>
+                      {b.bankaAdi ? `${b.bankaAdi} — ` : ""}{b.hesapAdi}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>Açıklama</Label>
+              <Input
+                value={islemAciklama}
+                onChange={e => setIslemAciklama(e.target.value)}
+                placeholder="Ödeme açıklaması (opsiyonel)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIslemModal(false)}>İptal</Button>
+            <Button
+              onClick={islemKaydet}
+              disabled={!islemTutar || createOdeme.isPending}
+            >
+              {createOdeme.isPending ? "Kaydediliyor..." : "Kaydet"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
