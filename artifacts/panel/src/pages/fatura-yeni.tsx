@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { KalemAciklamaInput } from "@/components/kalem-aciklama-input";
+import { GemiSecici, GemiSecenek } from "@/components/gemi-secici";
 
 interface Kalem {
   aciklama: string;
@@ -47,6 +48,14 @@ const BIRIM_EN_SET = new Set(BIRIMLER.map(b => b.en));
 
 const fmt = (n: number) => new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n);
 
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+const today = new Date().toISOString().split("T")[0];
+
 export default function FaturaYeni() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
@@ -58,8 +67,8 @@ export default function FaturaYeni() {
   const [faturaAdi, setFaturaAdi] = useState("");
   const [gemiId, setGemiId] = useState("");
   const [serisiId, setSerisiId] = useState("");
-  const [faturaTarihi, setFaturaTarihi] = useState(new Date().toISOString().split("T")[0]);
-  const [vadeTarihi, setVadeTarihi] = useState("");
+  const [faturaTarihi, setFaturaTarihi] = useState(today);
+  const [vadeTarihi, setVadeTarihi] = useState(() => addDays(today, 10));
   const [paraBirimi, setParaBirimi] = useState("USD");
   const [notlar, setNotlar] = useState("");
   const [aciklama, setAciklama] = useState("");
@@ -102,9 +111,37 @@ export default function FaturaYeni() {
   const { data: kdvOranlari = [] } = useListKdvOranlari(undefined, { query: { queryKey: getListKdvOranlariQueryKey() } });
   const createFatura = useCreateFatura();
 
-  const filtrelenmisGemiler = gemiler.filter(g => !bagliFirmaId || g.firmaId === Number(bagliFirmaId));
+  const gemiSecenekleri: GemiSecenek[] = gemiler.map(g => ({
+    id: g.id,
+    ad: g.ad,
+    imoNumarasi: g.imoNumarasi,
+    firmaId: g.firmaId,
+    firmaAd: g.firmaAd,
+    catiFirmaId: g.catiFirmaId,
+    grupFirmaId: (g as unknown as Record<string, unknown>).grupFirmaId as number | null ?? null,
+  }));
+
+  const seciliGemi = gemiSecenekleri.find(g => String(g.id) === gemiId) ?? null;
+  const bagliFirmaAdGosterim = seciliGemi?.firmaAd ?? filtrelenmisCariler.find(f => f.id === Number(bagliFirmaId))?.ad ?? "";
+  const grupFirmaAdGosterim = grupFirmalar.find(x => x.id === Number(grupFirmaId))?.ad ?? "";
+
+  const seciliCatiFirma = catiFirmalar.find(f => f.id === Number(catiFirmaId));
+
   const filtrelenmisSeriler = seriler.filter(s => !catiFirmaId || s.catiFirmaId === Number(catiFirmaId));
   const filtrelenmisKdv = kdvOranlari.filter(k => !catiFirmaId || k.catiFirmaId === Number(catiFirmaId));
+
+  function onGemiChange(newGemiId: string, gemi: GemiSecenek | null) {
+    setGemiId(newGemiId);
+    if (!gemi) return;
+
+    if (gemi.catiFirmaId) {
+      setCatiFirmaId(String(gemi.catiFirmaId));
+      const varsayilanSeri = seriler.find(s => s.catiFirmaId === gemi.catiFirmaId! && s.varsayilan);
+      setSerisiId(varsayilanSeri ? String(varsayilanSeri.id) : "");
+    }
+    setBagliFirmaId(String(gemi.firmaId));
+    setGrupFirmaId(gemi.grupFirmaId ? String(gemi.grupFirmaId) : "");
+  }
 
   function kalemGuncelle(idx: number, alan: keyof Kalem, deger: string | number) {
     setKalemler(prev => prev.map((k, i) => {
@@ -151,8 +188,8 @@ export default function FaturaYeni() {
         catiFirmaId: Number(catiFirmaId), bagliFirmaId: Number(bagliFirmaId),
         ...(grupFirmaId && grupFirmaId !== "none" ? { grupFirmaId: Number(grupFirmaId) } : {}),
         ...(faturaAdi ? { faturaAdi } : {}),
-        gemiId: gemiId && gemiId !== "none" ? Number(gemiId) : undefined,
-        faturaSerisiId: serisiId && serisiId !== "none" ? Number(serisiId) : undefined,
+        gemiId: gemiId ? Number(gemiId) : undefined,
+        faturaSerisiId: serisiId ? Number(serisiId) : undefined,
         faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama: aciklama || undefined, tekrarlat,
         kalemler: kalemler.map(k => ({ aciklama: k.aciklama, birim: k.birim || "Pcs", miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani })),
       },
@@ -166,6 +203,8 @@ export default function FaturaYeni() {
     });
   }
 
+  const gemiSecildi = !!gemiId;
+
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
@@ -176,60 +215,126 @@ export default function FaturaYeni() {
       <Card>
         <CardHeader><CardTitle className="text-base">Fatura Bilgileri</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-2 gap-4">
+
+          {/* Kendi Firmamız */}
           <div className="space-y-1.5">
             <Label>Kendi Firmamız *</Label>
-            <Select value={catiFirmaId} onValueChange={v => { setCatiFirmaId(v); setBagliFirmaId(""); setGrupFirmaId(""); setGemiId(""); setSerisiId(""); }}>
-              <SelectTrigger data-testid="select-fatura-sirket"><SelectValue placeholder="Kendi firmamızı seçin" /></SelectTrigger>
-              <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
+            <Select
+              value={catiFirmaId}
+              onValueChange={v => {
+                setCatiFirmaId(v);
+                setBagliFirmaId("");
+                setGrupFirmaId("");
+                setGemiId("");
+                setSerisiId("");
+              }}
+            >
+              <SelectTrigger data-testid="select-fatura-sirket">
+                {catiFirmaId && seciliCatiFirma ? (
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="truncate">{seciliCatiFirma.ad}</span>
+                    {seciliCatiFirma.etiket && (
+                      <span className="text-[10px] bg-[#ffed00] text-black px-1.5 py-0.5 font-bold leading-none shrink-0">
+                        {seciliCatiFirma.etiket}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <SelectValue placeholder="Kendi firmamızı seçin" />
+                )}
+              </SelectTrigger>
+              <SelectContent>
+                {catiFirmalar.map(f => (
+                  <SelectItem key={f.id} value={String(f.id)}>
+                    <span className="flex items-center gap-2">
+                      <span>{f.ad}</span>
+                      {f.etiket && (
+                        <span className="text-[10px] bg-[#ffed00] text-black px-1.5 py-0.5 font-bold leading-none">
+                          {f.etiket}
+                        </span>
+                      )}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
+
+          {/* Gemi — primary customer selector (grouped + searchable) */}
           <div className="space-y-1.5">
-            <Label>Müşteri (Bağlı Firma) *</Label>
-            <Select value={bagliFirmaId} onValueChange={v => {
-              setBagliFirmaId(v); setGemiId("");
-              const musteri = filtrelenmisCariler.find(f => f.id === Number(v));
-              const gid = (musteri as unknown as Record<string, unknown>)?.grupFirmaId;
-              setGrupFirmaId(gid != null ? String(gid) : "");
-            }}>
-              <SelectTrigger data-testid="select-fatura-cari"><SelectValue placeholder="Müşteri seçin" /></SelectTrigger>
-              <SelectContent>{filtrelenmisCariler.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
-            </Select>
+            <Label>Gemi</Label>
+            <GemiSecici
+              gemiler={gemiSecenekleri}
+              value={gemiId}
+              onChange={onGemiChange}
+              catiFirmaFilter={catiFirmaId ? Number(catiFirmaId) : null}
+              placeholder="Gemi seçin (opsiyonel)"
+            />
           </div>
+
+          {/* Bağlı firma + Grup firma — readonly when gemi selected, editable fallback otherwise */}
+          {gemiSecildi ? (
+            <>
+              <div className="space-y-1.5">
+                <Label>Müşteri (Bağlı Firma)</Label>
+                <div className="h-9 border px-3 flex items-center text-sm bg-muted/30 text-muted-foreground">
+                  {bagliFirmaAdGosterim || "—"}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Çatı / Grup Firma</Label>
+                <div className="h-9 border px-3 flex items-center text-sm bg-muted/30 text-muted-foreground">
+                  {grupFirmaAdGosterim || "—"}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label>Müşteri (Bağlı Firma) *</Label>
+                <Select
+                  value={bagliFirmaId}
+                  onValueChange={v => {
+                    setBagliFirmaId(v);
+                    const musteri = filtrelenmisCariler.find(f => f.id === Number(v));
+                    const gid = (musteri as unknown as Record<string, unknown>)?.grupFirmaId;
+                    setGrupFirmaId(gid != null ? String(gid) : "");
+                  }}
+                >
+                  <SelectTrigger data-testid="select-fatura-cari"><SelectValue placeholder="Müşteri seçin" /></SelectTrigger>
+                  <SelectContent>{filtrelenmisCariler.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Çatı / Grup Firma</Label>
+                <Select value={grupFirmaId || "none"} onValueChange={v => setGrupFirmaId(v === "none" ? "" : v)}>
+                  <SelectTrigger data-testid="select-fatura-grup"><SelectValue placeholder="Çatı firma seçin (opsiyonel)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Seçilmedi</SelectItem>
+                    {grupFirmalar.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
           <div className="space-y-1.5 col-span-2">
             <Label>Fatura Adı</Label>
             <Input value={faturaAdi} onChange={e => setFaturaAdi(e.target.value)} placeholder="Örn: Şubat Yakıt İkmali" data-testid="input-fatura-adi" />
           </div>
+
           <div className="space-y-1.5">
             <Label>Fatura Tarihi *</Label>
             <Input type="date" value={faturaTarihi} onChange={e => setFaturaTarihi(e.target.value)} data-testid="input-fatura-tarihi" />
           </div>
           <div className="space-y-1.5">
-            <Label>Çatı / Grup Firma</Label>
-            <Select value={grupFirmaId || "none"} onValueChange={v => setGrupFirmaId(v === "none" ? "" : v)}>
-              <SelectTrigger data-testid="select-fatura-grup"><SelectValue placeholder="Çatı firma seçin (opsiyonel)" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Seçilmedi</SelectItem>
-                {grupFirmalar.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Gemi</Label>
-            <Select value={gemiId} onValueChange={setGemiId}>
-              <SelectTrigger data-testid="select-fatura-gemi"><SelectValue placeholder="Gemi seçin (opsiyonel)" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Seçilmedi</SelectItem>
-                {filtrelenmisGemiler.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}{g.imoNumarasi ? ` (${g.imoNumarasi})` : ""}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
             <Label>Vade Tarihi *</Label>
             <Input type="date" value={vadeTarihi} onChange={e => setVadeTarihi(e.target.value)} data-testid="input-fatura-vade" />
           </div>
+
           <div className="space-y-1.5">
             <Label>Fatura Serisi</Label>
-            <Select value={serisiId} onValueChange={setSerisiId}>
+            <Select value={serisiId || "none"} onValueChange={v => setSerisiId(v === "none" ? "" : v)}>
               <SelectTrigger data-testid="select-fatura-seri"><SelectValue placeholder="Seri seçin (opsiyonel)" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Seçilmedi</SelectItem>
@@ -241,14 +346,16 @@ export default function FaturaYeni() {
             <Label>Para Birimi</Label>
             <Select value={paraBirimi} onValueChange={setParaBirimi}>
               <SelectTrigger data-testid="select-fatura-pb"><SelectValue /></SelectTrigger>
-              <SelectContent>{["USD","EUR","TRY","GBP"].map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}</SelectContent>
+              <SelectContent>{["USD", "EUR", "TRY", "GBP"].map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
+
+          <div className="space-y-1.5 col-span-2">
             <Label>Notlar</Label>
             <Input value={notlar} onChange={e => setNotlar(e.target.value)} data-testid="input-fatura-notlar" />
           </div>
-          <div className="flex items-start gap-2.5 rounded-none border p-3 bg-muted/30">
+
+          <div className="flex items-start gap-2.5 col-span-2 rounded-none border p-3 bg-muted/30">
             <Checkbox id="tekrarlat" checked={tekrarlat} onCheckedChange={v => setTekrarlat(v === true)} data-testid="checkbox-tekrarlat" />
             <div className="space-y-0.5">
               <Label htmlFor="tekrarlat" className="cursor-pointer">Bu faturayı aylık tekrarlat</Label>

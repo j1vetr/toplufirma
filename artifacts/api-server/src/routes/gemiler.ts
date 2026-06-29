@@ -44,6 +44,7 @@ router.get("/gemiler", async (req, res) => {
     res.json(filtered.map(r => ({
       id: r.g.id, firmaId: r.g.firmaId, firmaAd: r.firmaAd ?? null,
       catiFirmaId: r.ustFirmaId ?? null,
+      grupFirmaId: r.grupFirmaId ?? null,
       ad: r.g.ad, imoNumarasi: r.g.imoNumarasi, bayrakDevleti: r.g.bayrakDevleti,
       notlar: r.g.notlar, aktif: r.g.aktif, olusturmaTarihi: r.g.olusturmaTarihi,
     })));
