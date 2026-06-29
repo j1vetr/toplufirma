@@ -267,7 +267,7 @@ router.get("/faturalar/:id", async (req, res) => {
     const grupFirmaAd = row.f.grupFirmaId ? (await db.select({ ad: firmalar.ad }).from(firmalar).where(eq(firmalar.id, row.f.grupFirmaId)))[0]?.ad ?? null : null;
     const kalemler = await db.select().from(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
     const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, id));
-    const odenen = ods.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+    const odenen = ods.filter(o => o.tip === "tahsilat" && o.paraBirimi === row.f.paraBirimi).reduce((s, o) => s + Number(o.tutar), 0);
 
     res.json({
       ...formatFatura(row.f, row.catiFirmaAd, bagliFirmaAd, row.gemiAd, odenen, grupFirmaAd),
@@ -313,7 +313,7 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
     const gemiImo = row.gemiImo ?? null;
     const kalemler = await db.select().from(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
     const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, id));
-    const odenen = ods.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+    const odenen = ods.filter(o => o.tip === "tahsilat" && o.paraBirimi === row.f.paraBirimi).reduce((s, o) => s + Number(o.tutar), 0);
     const bankalar = await db.select().from(bankaHesaplari).where(and(eq(bankaHesaplari.catiFirmaId, row.f.catiFirmaId), eq(bankaHesaplari.faturadaGoster, true)));
     const f = row.f;
 
@@ -787,7 +787,14 @@ router.get("/faturalar/:id/gonderi-gecmisi", async (req, res) => {
 async function hesaplaOdenenler(): Promise<Record<number, number>> {
   const rows = await db
     .select({ faturaId: odemeler.faturaId, toplam: sql<string>`sum(${odemeler.tutar})` })
-    .from(odemeler).where(sql`${odemeler.faturaId} is not null AND ${odemeler.tip} = 'tahsilat'`).groupBy(odemeler.faturaId);
+    .from(odemeler)
+    .innerJoin(faturalar, eq(odemeler.faturaId, faturalar.id))
+    .where(and(
+      sql`${odemeler.faturaId} is not null`,
+      sql`${odemeler.tip} = 'tahsilat'`,
+      sql`${odemeler.paraBirimi} = ${faturalar.paraBirimi}`
+    ))
+    .groupBy(odemeler.faturaId);
   const result: Record<number, number> = {};
   for (const r of rows) { if (r.faturaId != null) result[r.faturaId] = Number(r.toplam ?? 0); }
   return result;
