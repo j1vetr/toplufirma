@@ -697,6 +697,26 @@ router.get("/cariler/:bagliFirmaId", async (req, res) => {
     const toplamBorc = kalemler.reduce((s, e) => s + e.borc, 0);
     const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
 
+    const validDetayF = faturaRows.filter(f => !["taslak", "iptal"].includes(f.durum));
+    const allDetayPb = new Set([
+      ...validDetayF.map(f => f.paraBirimi ?? "USD"),
+      ...odemeRows.map(o => o.paraBirimi ?? "USD"),
+    ]);
+    const bakiyeDetay = [...allDetayPb].map(pb => {
+      const fBorc = validDetayF
+        .filter(f => (f.paraBirimi ?? "USD") === pb)
+        .reduce((s, f) => s + Number(f.genelToplam), 0);
+      const oBorc = odemeRows
+        .filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "odeme")
+        .reduce((s, o) => s + Number(o.tutar), 0);
+      const oAlacak = odemeRows
+        .filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "tahsilat")
+        .reduce((s, o) => s + Number(o.tutar), 0);
+      const pbBorc = fBorc + oBorc;
+      const pbAlacak = oAlacak;
+      return { paraBirimi: pb, toplamBorc: pbBorc, toplamAlacak: pbAlacak, bakiye: pbBorc - pbAlacak };
+    }).filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
+
     let oncekiBakiye: number | null = null;
     if (baslangic) {
       const [prevFaturaRows, prevOdemeRows] = await Promise.all([
@@ -738,6 +758,7 @@ router.get("/cariler/:bagliFirmaId", async (req, res) => {
         bakiye: toplamBorc - toplamAlacak,
         paraBirimi: bagliFirma.paraBirimi || "USD",
       },
+      bakiyeDetay,
       kalemler,
       bankaHesaplari: bankaRows,
       oncekiBakiye,
