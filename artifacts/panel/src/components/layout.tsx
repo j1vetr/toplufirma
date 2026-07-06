@@ -20,6 +20,7 @@ import {
   Send,
   ClipboardList,
   BookOpen,
+  Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSirket } from "@/contexts/sirket-context";
@@ -52,6 +53,7 @@ const navigation = [
   { name: "Gönderim Geçmişi", href: "/gonderi-gecmisi", icon: Send },
   { name: "Raporlar", href: "/raporlar", icon: PieChart },
   { name: "Ayarlarımız", href: "/ayarlar", icon: Settings },
+  { name: "Bağlantı Tanısı", href: "/tani", icon: Stethoscope },
 ];
 
 interface LayoutProps {

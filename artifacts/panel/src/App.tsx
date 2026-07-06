@@ -28,6 +28,7 @@ import Servis from "@/pages/servis";
 import Cariler from "@/pages/cariler";
 import CariDetay from "@/pages/cari-detay";
 import NotFound from "@/pages/not-found";
+import Tani from "@/pages/tani";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -186,6 +187,11 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
       <Route path="/gonderi-gecmisi">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
           <GonderiGecmisi />
+        </AuthGuard>
+      </Route>
+      <Route path="/tani">
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <Tani />
         </AuthGuard>
       </Route>
       <Route component={NotFound} />

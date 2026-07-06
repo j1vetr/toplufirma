@@ -19,6 +19,7 @@ import tcmbKurRouter from "./tcmbKur";
 import kalemSablonlariRouter from "./kalemSablonlari";
 import servisRouter from "./servis";
 import carilerRouter from "./cariler";
+import debugRouter from "./debug";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(tcmbKurRouter);
 router.use(kalemSablonlariRouter);
 router.use(servisRouter);
 router.use(carilerRouter);
+router.use(debugRouter);
 
 export default router;
