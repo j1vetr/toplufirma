@@ -143,7 +143,7 @@ function GlobalArama() {
                   {sonuclar!.faturalar!.map(f => (
                     <button key={f.id} className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => { navigate(`/faturalar/${f.id}`); setAcik(false); setQ(""); }}>
                       <p className="font-medium">{f.faturaNo}</p>
-                      <p className="text-xs text-muted-foreground">{f.bagliFirmaAd} — {f.faturaTarihi}</p>
+                      <p className="text-xs text-muted-foreground">{f.bagliFirmaAd} - {f.faturaTarihi}</p>
                     </button>
                   ))}
                 </div>

@@ -323,7 +323,7 @@ export default function Faturalar() {
               })()}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">{f.bagliFirmaAd} {f.gemiAd ? `- ${f.gemiAd}` : ""}</p>
-            <p className="text-xs text-muted-foreground">{f.faturaTarihi} — Vade: {f.vadeTarihi}</p>
+            <p className="text-xs text-muted-foreground">{f.faturaTarihi} - Vade: {f.vadeTarihi}</p>
           </div>
           <div className="text-right shrink-0 hidden sm:block">
             <p className="font-semibold">{fmt(f.genelToplam, f.paraBirimi)}</p>
@@ -404,7 +404,7 @@ export default function Faturalar() {
           <div className="flex items-center gap-1.5">
             <Label className="text-xs text-muted-foreground shrink-0">Tarih:</Label>
             <Input type="date" value={baslangicTarihi} onChange={e => setBaslangicTarihi(e.target.value)} className="h-8 w-36 text-xs" />
-            <span className="text-muted-foreground text-xs">—</span>
+            <span className="text-muted-foreground text-xs">-</span>
             <Input type="date" value={bitisTarihi} onChange={e => setBitisTarihi(e.target.value)} className="h-8 w-36 text-xs" />
             {(baslangicTarihi || bitisTarihi) && (
               <button onClick={() => { setBaslangicTarihi(""); setBitisTarihi(""); }} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1">✕</button>

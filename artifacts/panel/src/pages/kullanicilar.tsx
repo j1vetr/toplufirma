@@ -189,7 +189,7 @@ export default function Kullanicilar({ kullanici }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-semibold">Kullanıcı Yönetimi</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Panel kullanıcılarını ve şirket erişimlerini yönetin</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Panel Kullanıcılarını ve Şirket Erişimlerini Yönetin</p>
         </div>
         <Button onClick={() => acDialog()} className="gap-2" data-testid="button-kullanici-yeni">
           <Plus className="h-4 w-4" /> Yeni Kullanıcı

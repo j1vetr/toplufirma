@@ -379,7 +379,7 @@ export default function CariDetay() {
               onChange={e => setBaslangic(e.target.value)}
               className="h-8 w-36 text-xs"
             />
-            <span className="text-muted-foreground text-xs">—</span>
+            <span className="text-muted-foreground text-xs">-</span>
             <Input
               type="date"
               value={bitis}
@@ -499,7 +499,7 @@ export default function CariDetay() {
                 {oncekiBakiye !== null && (
                   <tr className="border-b bg-slate-50/60">
                     <td className="px-4 py-2 text-muted-foreground whitespace-nowrap text-xs italic">
-                      {aktifBaslangic || "—"}
+                      {aktifBaslangic || "-"}
                     </td>
                     <td className="px-4 py-2 text-muted-foreground italic text-xs">
                       Devreden Bakiye
@@ -540,10 +540,10 @@ export default function CariDetay() {
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-right font-medium tabular-nums whitespace-nowrap">
-                        {k.borc > 0 ? fmt(k.borc) : <span className="text-muted-foreground">—</span>}
+                        {k.borc > 0 ? fmt(k.borc) : <span className="text-muted-foreground">-</span>}
                       </td>
                       <td className="px-4 py-2.5 text-right font-medium text-green-700 tabular-nums whitespace-nowrap">
-                        {k.alacak > 0 ? fmt(k.alacak) : <span className="text-muted-foreground">—</span>}
+                        {k.alacak > 0 ? fmt(k.alacak) : <span className="text-muted-foreground">-</span>}
                       </td>
                       <td className={`px-4 py-2.5 text-right font-bold tabular-nums whitespace-nowrap ${rowBakiyeRenk}`}>
                         {fmt(Math.abs(k.bakiye))}
@@ -603,7 +603,7 @@ export default function CariDetay() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              İşlem Ekle — {firma.ad}
+              İşlem Ekle - {firma.ad}
             </DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
@@ -669,7 +669,7 @@ export default function CariDetay() {
                   <SelectItem value="none">Seçilmedi</SelectItem>
                   {catiFirmaBankalar.map(b => (
                     <SelectItem key={b.id} value={String(b.id)}>
-                      {b.bankaAdi ? `${b.bankaAdi} — ` : ""}{b.hesapAdi}
+                      {b.bankaAdi ? `${b.bankaAdi} - ` : ""}{b.hesapAdi}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -759,7 +759,7 @@ export default function CariDetay() {
             {(aktifBaslangic || aktifBitis) && (
               <div className="bg-muted/60 rounded px-3 py-2 text-xs text-muted-foreground">
                 <span className="font-medium">Dönem:</span>{" "}
-                {aktifBaslangic || "—"} → {aktifBitis || "Bugün"}
+                {aktifBaslangic || "-"} - {aktifBitis || "Bugün"}
               </div>
             )}
             <div className="space-y-1.5">

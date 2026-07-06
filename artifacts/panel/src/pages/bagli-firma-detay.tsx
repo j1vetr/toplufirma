@@ -244,8 +244,8 @@ export default function BagliFirmaDetay() {
                         {vadesiGecmis && <span className="text-xs text-red-500 font-medium">Vadesi Geçmiş</span>}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {f.faturaTarihi} — Vade: {f.vadeTarihi}
-                        {f.gemiAd ? ` — ${f.gemiAd}` : ""}
+                        {f.faturaTarihi} - Vade: {f.vadeTarihi}
+                        {f.gemiAd ? ` - ${f.gemiAd}` : ""}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
@@ -290,9 +290,9 @@ export default function BagliFirmaDetay() {
                     <p className="text-xs text-muted-foreground">
                       {o.tarih}
                       {o.faturaNo && (
-                        <> — <Link href={`/faturalar/${o.faturaId}`} className="hover:text-primary">{o.faturaNo}</Link></>
+                        <> - <Link href={`/faturalar/${o.faturaId}`} className="hover:text-primary">{o.faturaNo}</Link></>
                       )}
-                      {o.aciklama && <> — {o.aciklama}</>}
+                      {o.aciklama && <> - {o.aciklama}</>}
                     </p>
                   </div>
                 </div>
@@ -330,7 +330,7 @@ export default function BagliFirmaDetay() {
                         g.imoNumarasi ? `IMO: ${g.imoNumarasi}` : null,
                         g.bayrakDevleti ?? null,
                         g.aktifPlan ?? null,
-                      ].filter(Boolean).join(" — ")}
+                      ].filter(Boolean).join(" - ")}
                     </p>
                   </div>
                 </div>

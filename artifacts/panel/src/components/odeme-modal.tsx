@@ -125,7 +125,7 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Ödeme Kaydet — {fatura?.faturaNo}</DialogTitle>
+          <DialogTitle>Ödeme Kaydet - {fatura?.faturaNo}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex gap-3">
@@ -185,7 +185,7 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
                   <SelectItem value="none">Belirtilmedi</SelectItem>
                   {faturaHesaplari.map(b => (
                     <SelectItem key={b.id} value={String(b.id)}>
-                      {b.bankaAdi ? `${b.bankaAdi} — ` : ""}
+                      {b.bankaAdi ? `${b.bankaAdi} - ` : ""}
                       {b.hesapAdi}
                       {b.paraBirimi ? ` (${b.paraBirimi})` : ""}
                     </SelectItem>

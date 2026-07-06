@@ -126,7 +126,7 @@ export default function Cariler() {
         <div>
           <h1 className="text-2xl font-display font-bold">Cariler</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {cariler.length} müşteri &mdash; toplam {filtrelenmis.filter(c => c.acikFaturaAdedi > 0).length} aktif hesap
+            {cariler.length} müşteri - toplam {filtrelenmis.filter(c => c.acikFaturaAdedi > 0).length} aktif hesap
           </p>
         </div>
         <Link href="/firmalar?yeni=bagli">

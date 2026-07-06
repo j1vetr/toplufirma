@@ -223,7 +223,7 @@ export default function FaturaDuzenle() {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
         <Link href={`/faturalar/${id}`}><Button variant="ghost" size="icon" className="rounded-sm"><ArrowLeft className="h-4 w-4" /></Button></Link>
-        <h2 className="text-xl font-display font-semibold">Fatura Düzenle — {fatura.faturaNo}</h2>
+        <h2 className="text-xl font-display font-semibold">Fatura Düzenle - {fatura.faturaNo}</h2>
       </div>
 
       <Card>
@@ -254,13 +254,13 @@ export default function FaturaDuzenle() {
               <div className="space-y-1.5">
                 <Label>Müşteri (Bağlı Firma)</Label>
                 <div className="h-9 border px-3 flex items-center text-sm bg-muted/30 text-muted-foreground">
-                  {bagliFirmaAdGosterim || "—"}
+                  {bagliFirmaAdGosterim || "-"}
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Çatı / Grup Firma</Label>
                 <div className="h-9 border px-3 flex items-center text-sm bg-muted/30 text-muted-foreground">
-                  {grupFirmaAdGosterim || "—"}
+                  {grupFirmaAdGosterim || "-"}
                 </div>
               </div>
             </>

@@ -123,7 +123,7 @@ export default function GonderiGecmisi() {
         <div>
           <h2 className="text-2xl font-bold">Gönderim Geçmişi</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Tüm teklif ve fatura e-posta gönderimleri
+            Tüm Teklif ve Fatura E-posta Gönderimleri
           </p>
         </div>
         {aktifFiltreSayisi > 0 && (
@@ -257,7 +257,7 @@ export default function GonderiGecmisi() {
                           {row.kayitNo}
                         </button>
                       ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
+                        <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </TableCell>
                     <TableCell className="text-sm">
@@ -267,7 +267,7 @@ export default function GonderiGecmisi() {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {row.gonderenAd ?? "—"}
+                      {row.gonderenAd ?? "-"}
                     </TableCell>
                     {!aktifSirketId && (
                       <TableCell>
@@ -277,7 +277,7 @@ export default function GonderiGecmisi() {
                             <span className="truncate max-w-[160px]">{row.catiFirmaAd}</span>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                     )}

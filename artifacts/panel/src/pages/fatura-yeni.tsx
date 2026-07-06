@@ -283,13 +283,13 @@ export default function FaturaYeni() {
               <div className="space-y-1.5">
                 <Label>Müşteri (Bağlı Firma)</Label>
                 <div className="h-9 border px-3 flex items-center text-sm bg-muted/30 text-muted-foreground">
-                  {bagliFirmaAdGosterim || "—"}
+                  {bagliFirmaAdGosterim || "-"}
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Çatı / Grup Firma</Label>
                 <div className="h-9 border px-3 flex items-center text-sm bg-muted/30 text-muted-foreground">
-                  {grupFirmaAdGosterim || "—"}
+                  {grupFirmaAdGosterim || "-"}
                 </div>
               </div>
             </>

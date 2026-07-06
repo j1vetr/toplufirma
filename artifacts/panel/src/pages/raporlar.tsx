@@ -234,7 +234,7 @@ export default function Raporlar() {
                     <p className="text-xs text-muted-foreground mt-1">
                       {faturaOzeti.toplamFatura > 0
                         ? `%${((faturaOzeti.toplamTahsilat / faturaOzeti.toplamFatura) * 100).toFixed(0)} tahsil oranı`
-                        : "—"}
+                        : "-"}
                     </p>
                   </CardContent>
                 </Card>
@@ -257,7 +257,7 @@ export default function Raporlar() {
                     <p className="text-2xl font-display font-bold">
                       {faturaOzeti.faturaSayisi > 0
                         ? fmtK(faturaOzeti.toplamFatura / faturaOzeti.faturaSayisi)
-                        : "—"}
+                        : "-"}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">Fatura başına</p>
                   </CardContent>
@@ -267,7 +267,7 @@ export default function Raporlar() {
               {/* Aylık grafik */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Aylık Faturalama & Tahsilat — {yil}</CardTitle>
+                  <CardTitle className="text-base">Aylık Faturalama & Tahsilat - {yil}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={260}>
@@ -290,7 +290,7 @@ export default function Raporlar() {
               {/* Fatura sayısı trendi */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Aylık Fatura Adedi — {yil}</CardTitle>
+                  <CardTitle className="text-base">Aylık Fatura Adedi - {yil}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={180}>
@@ -392,7 +392,7 @@ export default function Raporlar() {
                 <Card>
                   <CardContent className="p-4">
                     <p className="text-xs text-muted-foreground">En Büyük Müşteri</p>
-                    <p className="text-base font-bold mt-1 truncate">{bagliFirmalar[0]?.bagliFirmaAd ?? "—"}</p>
+                    <p className="text-base font-bold mt-1 truncate">{bagliFirmalar[0]?.bagliFirmaAd ?? "-"}</p>
                     <p className="text-xs text-muted-foreground">{fmtK(bagliFirmalar[0]?.toplamFatura ?? 0)}</p>
                   </CardContent>
                 </Card>
@@ -408,7 +408,7 @@ export default function Raporlar() {
 
               {/* Müşteri tablosu */}
               <Card>
-                <CardHeader><CardTitle className="text-base">Müşteri Bazlı Fatura & Tahsilat — {yil}</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-base">Müşteri Bazlı Fatura & Tahsilat - {yil}</CardTitle></CardHeader>
                 <CardContent className="p-0">
                   <div className="divide-y">
                     {bagliFirmalar.map((f, i) => {
@@ -487,7 +487,7 @@ export default function Raporlar() {
                 </Button>
               </div>
               <Card>
-                <CardHeader><CardTitle className="text-base">Gemi Bazlı Gelir — {yil}</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-base">Gemi Bazlı Gelir - {yil}</CardTitle></CardHeader>
                 <CardContent className="p-0">
                   <div className="divide-y">
                     {gemiGelir.map((g, i) => {
@@ -587,7 +587,7 @@ export default function Raporlar() {
               </Card>
               {yaslandirma.dilimler.map(d => d.faturalar && d.faturalar.length > 0 && (
                 <Card key={d.etiket}>
-                  <CardHeader><CardTitle className="text-base">{d.etiket} — Faturalar</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-base">{d.etiket} - Faturalar</CardTitle></CardHeader>
                   <CardContent>
                     <div className="space-y-2">
                       {d.faturalar.slice(0, 10).map(f => (

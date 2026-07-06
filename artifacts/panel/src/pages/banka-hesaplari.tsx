@@ -199,7 +199,7 @@ export default function BankaHesaplari() {
                       <Landmark className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold">{h.bankaAdi || "—"}</h3>
+                      <h3 className="font-semibold">{h.bankaAdi || "-"}</h3>
                       <p className="text-xs text-muted-foreground">{h.hesapAdi}</p>
                     </div>
                   </div>

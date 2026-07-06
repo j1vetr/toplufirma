@@ -430,7 +430,7 @@ export default function Firmalar() {
               <Input value={form.adres} onChange={e => setForm(f => ({ ...f, adres: e.target.value }))} data-testid="input-firma-adres" />
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label>Etiket <span className="text-xs text-muted-foreground">(opsiyonel — ülke, bölge vb.)</span></Label>
+              <Label>Etiket <span className="text-xs text-muted-foreground">(opsiyonel - ülke, bölge vb.)</span></Label>
               <Input value={form.etiket} onChange={e => setForm(f => ({ ...f, etiket: e.target.value }))} placeholder="Örn: İngiltere, Kıbrıs, Hollanda" data-testid="input-firma-etiket" />
             </div>
             {modalTip === "grup" && (
@@ -462,7 +462,7 @@ export default function Firmalar() {
                   })}
                 </div>
                 {form.gorunurSirketIds.length > 0 && (
-                  <p className="text-xs text-muted-foreground">{form.gorunurSirketIds.length} şirket seçildi — sadece bu şirketlerde görünür</p>
+                  <p className="text-xs text-muted-foreground">{form.gorunurSirketIds.length} şirket seçildi - sadece bu şirketlerde görünür</p>
                 )}
               </div>
             )}
@@ -475,7 +475,7 @@ export default function Firmalar() {
                 >
                   <SelectTrigger data-testid="select-grup-firma"><SelectValue placeholder="Seçiniz" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">— Yok —</SelectItem>
+                    <SelectItem value="none">Yok</SelectItem>
                     {grupFirmalar.map(g => (
                       <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>
                     ))}
@@ -508,7 +508,7 @@ export default function Firmalar() {
 
       <Dialog open={!!ekstreFirmaId} onOpenChange={o => !o && setEkstreFirmaId(null)}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{ekstreFirmaAd} — Cari Ekstre</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{ekstreFirmaAd} - Cari Ekstre</DialogTitle></DialogHeader>
           <div className="flex gap-3 items-end pb-2 border-b flex-wrap">
             <div className="space-y-1">
               <Label className="text-xs">Başlangıç</Label>

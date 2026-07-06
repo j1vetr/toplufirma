@@ -457,7 +457,7 @@ export default function Teklifler() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold">Teklifler</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">Proforma teklifler ve fiyat teklifleri</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Proforma Teklifler ve Fiyat Teklifleri</p>
         </div>
         {canWrite && (
           <Button onClick={() => formAc()}>
@@ -477,7 +477,7 @@ export default function Teklifler() {
             className="gap-1.5"
           >
             {d.label}
-            <span className={`text-xs rounded-sm px-1.5 py-0.5 ${durumFiltre === d.key ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
+            <span className={`text-xs rounded-sm px-1.5 py-0.5 ${durumFiltre === d.key ? "bg-black/15 text-black" : "bg-muted text-muted-foreground"}`}>
               {durumSayilari[d.key]}
             </span>
           </Button>
@@ -510,7 +510,7 @@ export default function Teklifler() {
                 <div className="p-5 flex-1 space-y-3">
                   {/* Üst: teklif no + durum */}
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-mono text-sm font-bold text-primary tracking-wide">{t.teklifNo}</span>
+                    <span className="font-mono text-sm font-semibold text-foreground tracking-wide">{t.teklifNo}</span>
                     <Badge variant={DURUM_RENK[t.durum] as "default" | "secondary" | "outline" | "destructive"} className="shrink-0">
                       {DURUM_ETIKET[t.durum]}
                     </Badge>
@@ -564,7 +564,7 @@ export default function Teklifler() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-primary hover:text-primary hover:bg-primary/10 gap-1.5"
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted gap-1.5"
                     onClick={() => pdfAc(t)}
                     disabled={pdfYukleniyor === t.id}
                   >
@@ -849,7 +849,7 @@ export default function Teklifler() {
       <Dialog open={!!durumDegistirTeklif} onOpenChange={o => !o && setDurumDegistirTeklif(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Durum Değiştir — {durumDegistirTeklif?.teklifNo}</DialogTitle>
+            <DialogTitle>Durum Değiştir - {durumDegistirTeklif?.teklifNo}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 py-2">
             {(["taslak", "gonderildi", "onaylandi", "reddedildi"] as const).map(d => (
@@ -875,7 +875,7 @@ export default function Teklifler() {
       <Dialog open={!!donusturTeklif} onOpenChange={o => !o && setDonusturTeklif(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Faturaya Dönüştür — {donusturTeklif?.teklifNo}</DialogTitle>
+            <DialogTitle>Faturaya Dönüştür - {donusturTeklif?.teklifNo}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">

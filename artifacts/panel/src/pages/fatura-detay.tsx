@@ -216,7 +216,7 @@ export default function FaturaDetay() {
           >
             <Download className="mr-1 h-4 w-4" /> {pdfIndiriyor ? "İndiriliyor..." : "PDF"}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => { setGonderKonu(`Fatura ${fatura.faturaNo} — ${fatura.catiFirmaAd ?? ""}`); setGonderModal(true); }}>
+          <Button variant="outline" size="sm" onClick={() => { setGonderKonu(`Fatura ${fatura.faturaNo} - ${fatura.catiFirmaAd ?? ""}`); setGonderModal(true); }}>
             <Mail className="mr-1 h-4 w-4" /> E-posta
           </Button>
           {canWrite && fatura.durum === "taslak" && (
@@ -399,7 +399,7 @@ export default function FaturaDetay() {
             </div>
             <div className="space-y-1.5">
               <Label>E-posta Konusu</Label>
-              <Input value={gonderKonu} onChange={e => setGonderKonu(e.target.value)} placeholder={`Fatura ${fatura?.faturaNo ?? ""} — ${fatura?.catiFirmaAd ?? ""}`} />
+              <Input value={gonderKonu} onChange={e => setGonderKonu(e.target.value)} placeholder={`Fatura ${fatura?.faturaNo ?? ""} - ${fatura?.catiFirmaAd ?? ""}`} />
             </div>
             <div className="space-y-1.5">
               <Label>Özel Mesaj <span className="text-xs text-muted-foreground">(opsiyonel)</span></Label>

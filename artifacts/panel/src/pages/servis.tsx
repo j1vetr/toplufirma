@@ -176,7 +176,7 @@ function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: KayitForm
             <SelectContent>
               {filtreliGemiler.map(g => (
                 <SelectItem key={g.id} value={String(g.id)}>
-                  {g.ad}{g.imoNumarasi ? ` — IMO: ${g.imoNumarasi}` : ""}
+                  {g.ad}{g.imoNumarasi ? ` - IMO: ${g.imoNumarasi}` : ""}
                 </SelectItem>
               ))}
             </SelectContent>

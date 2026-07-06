@@ -139,7 +139,7 @@ export default function Ekipmanlar() {
       ) : (
         <div className="space-y-2">
           {secilenGemi && (
-            <p className="text-sm text-muted-foreground font-medium">{secilenGemi.ad} — {gemiEkipmanlari.length} ekipman</p>
+            <p className="text-sm text-muted-foreground font-medium">{secilenGemi.ad} - {gemiEkipmanlari.length} ekipman</p>
           )}
           {gemiEkipmanlari.map(e => {
             const garantiUyari = e.garantiBitisTarihi && e.garantiBitisTarihi <= in30Str;

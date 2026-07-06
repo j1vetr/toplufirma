@@ -610,7 +610,7 @@ export default function Ayarlar() {
                             <Landmark className="h-5 w-5 text-green-600" />
                           </div>
                           <div>
-                            <h3 className="font-semibold">{h.bankaAdi || "—"}</h3>
+                            <h3 className="font-semibold">{h.bankaAdi || "-"}</h3>
                             <p className="text-xs text-muted-foreground">{h.hesapAdi}</p>
                           </div>
                         </div>
@@ -807,7 +807,7 @@ export default function Ayarlar() {
                 </div>
                 <div className="border-t pt-4 flex flex-col gap-2">
                   <p className="text-sm font-medium">Yedek Yükle (İçe Aktar)</p>
-                  <p className="text-xs text-muted-foreground">Daha önce bu sistemden alınmış bir <code>.sql</code> yedek dosyasını seçin. Mevcut verilerle çakışabilir — önce yedek aldığınızdan emin olun.</p>
+                  <p className="text-xs text-muted-foreground">Daha önce bu sistemden alınmış bir <code>.sql</code> yedek dosyasını seçin. Mevcut verilerle çakışabilir - önce yedek aldığınızdan emin olun.</p>
                   <input ref={dosyaInputRef} type="file" accept=".sql,text/plain,application/octet-stream" className="hidden" onChange={yedegiYukle} />
                   <Button onClick={() => dosyaInputRef.current?.click()} disabled={yuklemeYukleniyor} className="w-fit" variant="outline">
                     {yuklemeYukleniyor ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
@@ -879,7 +879,7 @@ export default function Ayarlar() {
               <Input value={firmaForm.adres} onChange={e => setFirmaForm(f => ({ ...f, adres: e.target.value }))} data-testid="input-firma-adres" />
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label>Etiket <span className="text-xs text-muted-foreground">(opsiyonel — ülke, bölge vb.)</span></Label>
+              <Label>Etiket <span className="text-xs text-muted-foreground">(opsiyonel - ülke, bölge vb.)</span></Label>
               <Input value={firmaForm.etiket} onChange={e => setFirmaForm(f => ({ ...f, etiket: e.target.value }))} placeholder="Örn: Türkiye, İngiltere, Kıbrıs" data-testid="input-firma-etiket" />
             </div>
             <div className="space-y-1.5">
@@ -908,7 +908,7 @@ export default function Ayarlar() {
           <DialogHeader><DialogTitle>SMTP / E-posta Ayarları</DialogTitle></DialogHeader>
           {smtpData && (
             <div className="text-xs text-muted-foreground bg-muted/50 rounded-none border p-3 mb-2">
-              Mevcut: {smtpData.smtpHost}:{smtpData.smtpPort} — {smtpData.gonderenAdres}
+              Mevcut: {smtpData.smtpHost}:{smtpData.smtpPort} - {smtpData.gonderenAdres}
             </div>
           )}
           <div className="space-y-3">
