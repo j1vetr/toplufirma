@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { faturalar, firmalar, odemeler, bankaHesaplari, firmaEpostaAyarlari, gonderiGecmisi } from "@workspace/db";
 import { eq, and, inArray, gte, lte, lt } from "drizzle-orm";
 import { sirketErisimKontrol, requireYazma, firmaYazmaDenetimi } from "../middleware/auth";
+import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 import { createRequire } from "node:module";
 import path from "node:path";
 import nodemailer from "nodemailer";
@@ -99,20 +100,23 @@ router.get("/cariler", async (req, res) => {
     const gecerliFirmaIdleri = catiFirmaId ? [Number(catiFirmaId)] : izinliSirketler;
     if (gecerliFirmaIdleri.length === 0) { res.json([]); return; }
 
-    const [allBagli, faturaDiscover] = await Promise.all([
-      db.select().from(firmalar).where(eq(firmalar.tip, "bagli")),
-      db.select({ bagliFirmaId: faturalar.bagliFirmaId, catiFirmaId: faturalar.catiFirmaId })
-        .from(faturalar)
-        .where(inArray(faturalar.catiFirmaId, gecerliFirmaIdleri)),
-    ]);
+    const allBagli = await db.select().from(firmalar).where(eq(firmalar.tip, "bagli"));
 
     const catiMap = new Map<number, number>();
 
-    for (const f of allBagli) {
-      if (f.ustFirmaId && gecerliFirmaIdleri.includes(f.ustFirmaId)) {
-        catiMap.set(f.id, f.ustFirmaId);
+    // gorunurBagliFirmaIds correctly handles both ustFirmaId and grupFirmaId chains
+    for (const cId of gecerliFirmaIdleri) {
+      const bagliFirmaIds = await gorunurBagliFirmaIds(cId);
+      for (const bId of bagliFirmaIds) {
+        if (!catiMap.has(bId)) catiMap.set(bId, cId);
       }
     }
+
+    // Also discover via existing invoices (edge case: invoices linked to firms not in the chain)
+    const faturaDiscover = await db
+      .select({ bagliFirmaId: faturalar.bagliFirmaId, catiFirmaId: faturalar.catiFirmaId })
+      .from(faturalar)
+      .where(inArray(faturalar.catiFirmaId, gecerliFirmaIdleri));
     for (const p of faturaDiscover) {
       if (!catiMap.has(p.bagliFirmaId)) {
         catiMap.set(p.bagliFirmaId, p.catiFirmaId);
