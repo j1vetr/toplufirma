@@ -75,6 +75,7 @@ export default function Cariler() {
     return [...filtered].sort((a, b) => {
       if (siralama === "ad_asc") return a.bagliFirmaAd.localeCompare(b.bagliFirmaAd, "tr");
       if (siralama === "ad_desc") return b.bagliFirmaAd.localeCompare(a.bagliFirmaAd, "tr");
+      if (siralama === "bakiye_asc") return a.bakiye - b.bakiye;
       if (siralama === "sonIslem_desc") {
         const aT = a.sonIslemTarihi ?? "";
         const bT = b.sonIslemTarihi ?? "";
@@ -103,7 +104,7 @@ export default function Cariler() {
             {cariler.length} müşteri &mdash; toplam {filtrelenmis.filter(c => c.acikFaturaAdedi > 0).length} aktif hesap
           </p>
         </div>
-        <Link href="/firmalar">
+        <Link href="/firmalar?yeni=bagli">
           <Button size="sm" className="gap-1.5">
             <Plus className="h-4 w-4" />
             Yeni Müşteri
@@ -167,7 +168,8 @@ export default function Cariler() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="bakiye_desc">En Yüksek Bakiye</SelectItem>
+            <SelectItem value="bakiye_desc">Bakiye (Yüksek→Düşük)</SelectItem>
+            <SelectItem value="bakiye_asc">Bakiye (Düşük→Yüksek)</SelectItem>
             <SelectItem value="ad_asc">Ad (A→Z)</SelectItem>
             <SelectItem value="ad_desc">Ad (Z→A)</SelectItem>
             <SelectItem value="sonIslem_desc">Son İşlem</SelectItem>

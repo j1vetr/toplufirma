@@ -139,10 +139,13 @@ export default function Faturalar() {
     staleTime: 30_000,
   });
 
-  const gonderilmisFaturaIds = useMemo(
-    () => new Set(gonderiData.map(g => g.kayitId)),
-    [gonderiData]
-  );
+  const gonderilmiFaturalar = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const g of gonderiData) {
+      if (!map.has(g.kayitId)) map.set(g.kayitId, g.gonderilmeTarihi);
+    }
+    return map;
+  }, [gonderiData]);
 
   const bugun = new Date().toISOString().split("T")[0];
   const taslakSayisi = faturalar.filter(f => f.durum === "taslak").length;
@@ -305,9 +308,19 @@ export default function Faturalar() {
               <Link href={`/faturalar/${f.id}`} className="font-semibold hover:text-primary" data-testid={`link-fatura-${f.id}`}>{f.faturaNo}</Link>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${DURUM_RENK[f.durum]}`}>{DURUM_ETIKET[f.durum]}</span>
               {vadesiGecmis && <span className="text-xs text-red-500 font-medium">Vadesi Geçmiş</span>}
-              {gonderilmisFaturaIds.has(f.id) && (
-                <span title="E-posta gönderildi" className="text-xs text-blue-400 select-none" aria-label="E-posta gönderildi">✉</span>
-              )}
+              {gonderilmiFaturalar.has(f.id) && (() => {
+                const tarih = gonderilmiFaturalar.get(f.id)!;
+                const tarihStr = new Date(tarih).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+                return (
+                  <span
+                    title={`${tarihStr} tarihinde gönderildi`}
+                    className="text-xs text-blue-400 select-none cursor-default"
+                    aria-label="E-posta gönderildi"
+                  >
+                    ✉ Gönderildi
+                  </span>
+                );
+              })()}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">{f.bagliFirmaAd} {f.gemiAd ? `- ${f.gemiAd}` : ""}</p>
             <p className="text-xs text-muted-foreground">{f.faturaTarihi} — Vade: {f.vadeTarihi}</p>

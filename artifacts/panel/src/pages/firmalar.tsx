@@ -150,6 +150,16 @@ export default function Firmalar() {
   const updateFirma = useUpdateFirma();
   const deleteFirma = useDeleteFirma();
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("yeni") === "bagli") {
+      setModalTip("bagli");
+      setForm({ ...BOSH_FORMA, grupFirmaId: "" });
+      setDuzenleId(null);
+      setFirmaModal(true);
+    }
+  }, []);
+
   function acFirmaModal(tip: "grup" | "bagli", preGrupId?: number, id?: number) {
     setModalTip(tip);
     if (id) {
