@@ -547,7 +547,7 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
 
     // Sütun genişlikleri (8 sütun: A-H)
     ws.columns = [
-      { key: "tarih",      width: 13 },  // A
+      { key: "tarih",      width: 24 },  // A
       { key: "belgeNo",    width: 18 },  // B
       { key: "aciklama",   width: 38 },  // C
       { key: "vadeTarihi", width: 13 },  // D
@@ -630,9 +630,6 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     // --- Satır 9: Kolon başlıkları ---
     const hdrRow = ws.getRow(9);
     hdrRow.height = 22;
-    hdrRow.values = ["", "Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye", "Durum"];
-    // ExcelJS row.values is 1-indexed; shift by setting manually
-    hdrRow.values = [null, "Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye", "Durum"];
     for (let c = 1; c <= 8; c++) {
       const cell = hdrRow.getCell(c);
       cell.value = ["Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye", "Durum"][c - 1];
