@@ -53,7 +53,6 @@ const navigation = [
   { name: "Gönderim Geçmişi", href: "/gonderi-gecmisi", icon: Send },
   { name: "Raporlar", href: "/raporlar", icon: PieChart },
   { name: "Ayarlarımız", href: "/ayarlar", icon: Settings },
-  { name: "Bağlantı Tanısı", href: "/tani", icon: Stethoscope },
 ];
 
 interface LayoutProps {
