@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { faturalar, firmalar, odemeler, bankaHesaplari } from "@workspace/db";
-import { eq, and, inArray, gte, lte } from "drizzle-orm";
+import { eq, and, inArray, gte, lte, lt } from "drizzle-orm";
 import { sirketErisimKontrol } from "../middleware/auth";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -402,6 +402,24 @@ router.get("/cariler/:bagliFirmaId", async (req, res) => {
     const toplamBorc = kalemler.reduce((s, e) => s + e.borc, 0);
     const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
 
+    let oncekiBakiye: number | null = null;
+    if (baslangic) {
+      const [prevFaturaRows, prevOdemeRows] = await Promise.all([
+        db.select().from(faturalar).where(and(
+          eq(faturalar.bagliFirmaId, bagliFirmaId),
+          lt(faturalar.faturaTarihi, baslangic),
+        )),
+        db.select().from(odemeler).where(and(
+          eq(odemeler.bagliFirmaId, bagliFirmaId),
+          lt(odemeler.tarih, baslangic),
+        )),
+      ]);
+      const prevKalemler = buildEntries(prevFaturaRows, prevOdemeRows);
+      oncekiBakiye = prevKalemler.length > 0
+        ? prevKalemler[prevKalemler.length - 1].bakiye
+        : 0;
+    }
+
     res.json({
       firma: {
         id: bagliFirma.id,
@@ -427,6 +445,7 @@ router.get("/cariler/:bagliFirmaId", async (req, res) => {
       },
       kalemler,
       bankaHesaplari: bankaRows,
+      oncekiBakiye,
     });
   } catch (err) {
     console.error("[cariler/detay] error:", err);

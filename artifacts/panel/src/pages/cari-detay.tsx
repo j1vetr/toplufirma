@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,8 +17,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import {
-  ArrowLeft, Download, Plus, Loader2, FileText, TrendingUp,
-  TrendingDown, TriangleAlert,
+  ArrowLeft, Download, Plus, Loader2, FileText,
+  TrendingUp, TrendingDown, TriangleAlert, Trash2,
 } from "lucide-react";
 
 interface CariKalem {
@@ -39,6 +39,7 @@ interface CariDetay {
   ozet: { toplamBorc: number; toplamAlacak: number; bakiye: number; paraBirimi: string };
   kalemler: CariKalem[];
   bankaHesaplari: { id: number; hesapAdi: string; bankaAdi: string | null; paraBirimi: string }[];
+  oncekiBakiye?: number | null;
 }
 
 const apiBase = () => {
@@ -54,6 +55,16 @@ const TUR_RENK: Record<string, string> = {
   fatura: "bg-blue-100 text-blue-700",
   tahsilat: "bg-green-100 text-green-700",
   odeme: "bg-orange-100 text-orange-700",
+};
+const FATURA_DURUM_BADGE: Record<string, string> = {
+  acik: "bg-orange-100 text-orange-700",
+  kismi_odendi: "bg-yellow-100 text-yellow-700",
+  odendi: "bg-green-100 text-green-700",
+};
+const FATURA_DURUM_ETIKET: Record<string, string> = {
+  acik: "Açık",
+  kismi_odendi: "Kısmi Ödendi",
+  odendi: "Ödendi",
 };
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
@@ -81,6 +92,8 @@ export default function CariDetay() {
   const [islemBanka, setIslemBanka] = useState("");
   const [islemAciklama, setIslemAciklama] = useState("");
   const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
+  const [silmeOnay, setSilmeOnay] = useState<string | null>(null);
+  const [siliniyor, setSiliniyor] = useState(false);
 
   const createOdeme = useCreateOdeme();
   const { data: bankaHesaplariGenel = [] } = useListBankaHesaplari(undefined, {
@@ -103,12 +116,21 @@ export default function CariDetay() {
     enabled: !!id,
   });
 
-  function filtrele() {
-    setAktifBaslangic(baslangic);
-    setAktifBitis(bitis);
-  }
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setAktifBaslangic(baslangic);
+      setAktifBitis(bitis);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [baslangic, bitis]);
+
   function filtreTemizle() {
     setBaslangic(""); setBitis(""); setAktifBaslangic(""); setAktifBitis("");
+  }
+
+  function openIslemModal() {
+    setIslemPb(detay?.firma.paraBirimi ?? "USD");
+    setIslemModal(true);
   }
 
   async function pdfIndir() {
@@ -133,6 +155,28 @@ export default function CariDetay() {
       toast({ title: "PDF indirilemedi", variant: "destructive" });
     } finally {
       setPdfIndiriyor(false);
+    }
+  }
+
+  async function islemSil(kalemId: string) {
+    const odemeId = Number(kalemId.replace(/^o-/, ""));
+    if (!odemeId) return;
+    setSiliniyor(true);
+    try {
+      const token = localStorage.getItem("panel_token") ?? "";
+      const r = await fetch(`${apiBase()}/odemeler/${odemeId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Silinemedi");
+      await qc.invalidateQueries({ queryKey: ["cari-detay", id] });
+      qc.invalidateQueries({ queryKey: ["cariler"] });
+      setSilmeOnay(null);
+      toast({ title: "İşlem silindi" });
+    } catch {
+      toast({ title: "Silme başarısız", variant: "destructive" });
+    } finally {
+      setSiliniyor(false);
     }
   }
 
@@ -179,12 +223,22 @@ export default function CariDetay() {
   }
 
   const { firma, catiFirma, ozet, kalemler } = detay;
+  const oncekiBakiye = detay.oncekiBakiye ?? null;
   const catiFirmaBankalar = bankaHesaplariGenel.filter(b => b.catiFirmaId === catiFirma?.id);
 
   const bakiyeRenk =
     ozet.bakiye > 0.01 ? "text-orange-600" : ozet.bakiye < -0.01 ? "text-red-600" : "text-green-600";
   const bakiyeBg =
     ozet.bakiye > 0.01 ? "bg-orange-50" : ozet.bakiye < -0.01 ? "bg-red-50" : "bg-green-50";
+
+  const devredenRenk =
+    oncekiBakiye !== null && oncekiBakiye > 0.01
+      ? "text-orange-600"
+      : oncekiBakiye !== null && oncekiBakiye < -0.01
+      ? "text-red-600"
+      : "text-green-600";
+
+  const silmeKalem = silmeOnay ? kalemler.find(k => k.id === silmeOnay) : null;
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -203,7 +257,7 @@ export default function CariDetay() {
             {pdfIndiriyor ? "Hazırlanıyor..." : "Ekstre PDF"}
           </Button>
           {canWrite && catiFirma && (
-            <Button size="sm" onClick={() => setIslemModal(true)}>
+            <Button size="sm" onClick={openIslemModal}>
               <Plus className="mr-1 h-4 w-4" /> İşlem Ekle
             </Button>
           )}
@@ -227,9 +281,13 @@ export default function CariDetay() {
               onChange={e => setBitis(e.target.value)}
               className="h-8 w-36 text-xs"
             />
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={filtrele}>Filtrele</Button>
             {(aktifBaslangic || aktifBitis) && (
-              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={filtreTemizle}>Temizle</Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={filtreTemizle}>
+                Temizle
+              </Button>
+            )}
+            {(baslangic !== aktifBaslangic || bitis !== aktifBitis) && (baslangic || bitis) && (
+              <span className="text-xs text-muted-foreground animate-pulse">yükleniyor…</span>
             )}
           </div>
         </CardContent>
@@ -263,7 +321,7 @@ export default function CariDetay() {
 
       <Card>
         <div className="overflow-x-auto">
-          {kalemler.length === 0 ? (
+          {kalemler.length === 0 && oncekiBakiye === null ? (
             <div className="text-center py-16 text-muted-foreground">
               <FileText className="h-10 w-10 mx-auto mb-3 opacity-20" />
               <p>Bu dönemde kayıt bulunamadı.</p>
@@ -278,22 +336,46 @@ export default function CariDetay() {
                   <th className="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">BORÇ</th>
                   <th className="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">ALACAK</th>
                   <th className="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">BAKİYE</th>
+                  {canWrite && <th className="w-8" />}
                 </tr>
               </thead>
               <tbody>
+                {oncekiBakiye !== null && (
+                  <tr className="border-b bg-slate-50/60">
+                    <td className="px-4 py-2 text-muted-foreground whitespace-nowrap text-xs italic">
+                      {aktifBaslangic || "—"}
+                    </td>
+                    <td className="px-4 py-2 text-muted-foreground italic text-xs">
+                      Devreden Bakiye
+                    </td>
+                    <td />
+                    <td />
+                    <td />
+                    <td className={`px-4 py-2 text-right font-bold tabular-nums whitespace-nowrap text-sm ${devredenRenk}`}>
+                      {fmt(Math.abs(oncekiBakiye))}
+                    </td>
+                    {canWrite && <td />}
+                  </tr>
+                )}
                 {kalemler.map((k, i) => {
                   const rowBakiyeRenk =
                     k.bakiye > 0.01 ? "text-orange-600" : k.bakiye < -0.01 ? "text-red-600" : "text-green-600";
+                  const isTahsilatOdeme = k.tip !== "fatura";
                   return (
                     <tr key={k.id} className={`border-b last:border-0 ${i % 2 === 1 ? "bg-muted/20" : ""}`}>
                       <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap text-xs">{k.tarih}</td>
                       <td className="px-4 py-2.5 max-w-xs">
                         {k.faturaId ? (
-                          <Link href={`/faturalar/${k.faturaId}`} className="hover:underline font-medium">
+                          <Link href={`/faturalar/${k.faturaId}`} className="hover:underline font-medium block leading-tight">
                             {k.aciklama}
                           </Link>
                         ) : (
-                          <span className="font-medium">{k.aciklama}</span>
+                          <span className="font-medium block leading-tight">{k.aciklama}</span>
+                        )}
+                        {k.tip === "fatura" && k.durum && FATURA_DURUM_ETIKET[k.durum] && (
+                          <span className={`text-xs px-1.5 py-0.5 font-medium mt-1 inline-block ${FATURA_DURUM_BADGE[k.durum] ?? "bg-gray-100 text-gray-600"}`}>
+                            {FATURA_DURUM_ETIKET[k.durum]}
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-center">
@@ -310,26 +392,42 @@ export default function CariDetay() {
                       <td className={`px-4 py-2.5 text-right font-bold tabular-nums whitespace-nowrap ${rowBakiyeRenk}`}>
                         {fmt(Math.abs(k.bakiye))}
                       </td>
+                      {canWrite && (
+                        <td className="px-2 py-2.5 text-center w-8">
+                          {isTahsilatOdeme && (
+                            <button
+                              onClick={() => setSilmeOnay(k.id)}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                              title="Sil"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot>
-                <tr className="border-t-2 bg-muted/40">
-                  <td colSpan={3} className="px-4 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wide">
-                    Dönem Toplamı
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap">
-                    {fmt(ozet.toplamBorc)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold text-green-700 tabular-nums whitespace-nowrap">
-                    {fmt(ozet.toplamAlacak)}
-                  </td>
-                  <td className={`px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap ${bakiyeRenk}`}>
-                    {fmt(Math.abs(ozet.bakiye))}
-                  </td>
-                </tr>
-              </tfoot>
+              {kalemler.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 bg-muted/40">
+                    <td colSpan={3} className="px-4 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                      Dönem Toplamı
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap">
+                      {fmt(ozet.toplamBorc)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-green-700 tabular-nums whitespace-nowrap">
+                      {fmt(ozet.toplamAlacak)}
+                    </td>
+                    <td className={`px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap ${bakiyeRenk}`}>
+                      {fmt(Math.abs(ozet.bakiye))}
+                    </td>
+                    {canWrite && <td />}
+                  </tr>
+                </tfoot>
+              )}
             </table>
           )}
         </div>
@@ -437,6 +535,48 @@ export default function CariDetay() {
               disabled={!islemTutar || createOdeme.isPending}
             >
               {createOdeme.isPending ? "Kaydediliyor..." : "Kaydet"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!silmeOnay} onOpenChange={open => { if (!open) setSilmeOnay(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-4 w-4" />
+              İşlemi Sil
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Bu işlem kaydını kalıcı olarak silmek istediğinizden emin misiniz?
+            </p>
+            {silmeKalem && (
+              <div className="bg-muted/60 p-3 text-sm space-y-1 border-l-2 border-destructive/40">
+                <p><span className="font-medium">Tür:</span> {TUR_ETIKET[silmeKalem.tip]}</p>
+                <p><span className="font-medium">Tarih:</span> {silmeKalem.tarih}</p>
+                <p>
+                  <span className="font-medium">Tutar:</span>{" "}
+                  {fmt(silmeKalem.borc > 0 ? silmeKalem.borc : silmeKalem.alacak)}{" "}
+                  {silmeKalem.paraBirimi}
+                </p>
+                {silmeKalem.aciklama && (
+                  <p><span className="font-medium">Açıklama:</span> {silmeKalem.aciklama}</p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSilmeOnay(null)}>İptal</Button>
+            <Button
+              variant="destructive"
+              onClick={() => silmeOnay && islemSil(silmeOnay)}
+              disabled={siliniyor}
+            >
+              {siliniyor
+                ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Siliniyor…</>
+                : "Sil"}
             </Button>
           </DialogFooter>
         </DialogContent>
