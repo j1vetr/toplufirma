@@ -27,29 +27,40 @@ const ExcelJS = _req("exceljs") as any;
 
 const router = Router();
 
+const DURUM_ETIKET_MAP: Record<string, string> = {
+  acik: "Açık", odendi: "Ödendi", kismi_odendi: "Kısmi", taslak: "Taslak", iptal: "İptal",
+};
+
 function buildEntries(faturaRows: typeof faturalar.$inferSelect[], odemeRows: typeof odemeler.$inferSelect[]) {
   const validFaturalar = faturaRows.filter(f => !["taslak", "iptal"].includes(f.durum));
   const fEntries = validFaturalar.map(f => ({
     id: `f-${f.id}`,
     tarih: f.faturaTarihi as string,
     tip: "fatura" as const,
-    aciklama: [f.faturaNo, f.faturaAdi].filter(Boolean).join(" — "),
+    belgeNo: f.faturaNo as string,
+    aciklama: (f.aciklama ?? f.faturaAdi ?? f.faturaNo ?? ""),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vadeTarihi: ((f as any).vadeTarihi as string | null) ?? null,
     borc: Number(f.genelToplam),
     alacak: 0,
     paraBirimi: f.paraBirimi,
     faturaId: f.id,
     durum: f.durum,
+    durumEtiket: DURUM_ETIKET_MAP[f.durum] ?? f.durum,
   }));
   const oEntries = odemeRows.map(o => ({
     id: `o-${o.id}`,
     tarih: o.tarih as string,
     tip: o.tip as "tahsilat" | "odeme",
+    belgeNo: null as string | null,
     aciklama: o.aciklama ?? (o.tip === "tahsilat" ? "Tahsilat" : "Ödeme"),
+    vadeTarihi: null as string | null,
     borc: o.tip === "odeme" ? Number(o.tutar) : 0,
     alacak: o.tip === "tahsilat" ? Number(o.tutar) : 0,
     paraBirimi: o.paraBirimi,
     faturaId: o.faturaId ?? null,
     durum: null,
+    durumEtiket: o.tip === "tahsilat" ? "Tahsilat" : "Ödeme",
   }));
   const sorted = [...fEntries, ...oEntries].sort((a, b) => {
     const d = new Date(a.tarih).getTime() - new Date(b.tarih).getTime();
@@ -240,11 +251,22 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
       db.select().from(odemeler).where(and(...odemeConds)),
     ]);
 
+    // Dönem öncesi açılış bakiyesi
+    let acilisBakiyesi = 0;
+    if (baslangic) {
+      const [preFatura, preOdeme] = await Promise.all([
+        db.select().from(faturalar).where(and(eq(faturalar.bagliFirmaId, bagliFirmaId), lt(faturalar.faturaTarihi, baslangic))),
+        db.select().from(odemeler).where(and(eq(odemeler.bagliFirmaId, bagliFirmaId), lt(odemeler.tarih, baslangic))),
+      ]);
+      const preEntries = buildEntries(preFatura, preOdeme);
+      acilisBakiyesi = preEntries.length > 0 ? preEntries[preEntries.length - 1].bakiye : 0;
+    }
+
     const kalemler = buildEntries(faturaRows, odemeRows);
     const toplamBorc = kalemler.reduce((s, e) => s + e.borc, 0);
     const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
-    const bakiye = toplamBorc - toplamAlacak;
     const paraBirimi = bagliFirma.paraBirimi || "USD";
+    const kapanisBakiyesi = acilisBakiyesi + toplamBorc - toplamAlacak;
 
     const pbSummaryMap = new Map<string, { toplamBorc: number; toplamAlacak: number }>();
     for (const e of kalemler) {
@@ -266,132 +288,127 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
 
     const fmt = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     const donemStr = baslangic || bitis
-      ? `${baslangic || "Başlangıç"} — ${bitis || "Bugün"}`
+      ? `${baslangic || "Başlangıç"} - ${bitis || "Bugün"}`
       : "Tüm Dönem";
     const tarihStr = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 
+    const DURUM_C: Record<string, string> = {
+      acik: "#d97706", odendi: "#16a34a", kismi_odendi: "#2563eb",
+      tahsilat: "#16a34a", odeme: "#6366f1",
+    };
     const dataRows = kalemler.map(e => {
-      const turEtiket = e.tip === "fatura" ? "Fatura" : e.tip === "tahsilat" ? "Tahsilat" : "Ödeme";
-      const bakiyeRenk = e.bakiye > 0.005 ? "#d97706" : e.bakiye < -0.005 ? "#dc2626" : "#16a34a";
+      const kBakiye = acilisBakiyesi + e.bakiye;
+      const bakiyeRenk = kBakiye > 0.005 ? "#d97706" : kBakiye < -0.005 ? "#dc2626" : "#16a34a";
+      const durumRenk = e.tip === "fatura" ? (DURUM_C[e.durum ?? ""] ?? "#374151") : (DURUM_C[e.tip] ?? "#374151");
       return [
-        { text: e.tarih, fontSize: 8, color: "#555" },
-        {
-          stack: [
-            { text: e.aciklama, fontSize: 8.5 },
-            { text: turEtiket, fontSize: 7, color: e.tip === "fatura" ? "#0070d1" : e.tip === "tahsilat" ? "#16a34a" : "#d97706", marginTop: 1 },
-          ],
-        },
-        { text: e.borc > 0 ? fmt(e.borc) : "", alignment: "right", fontSize: 8.5 },
-        { text: e.alacak > 0 ? fmt(e.alacak) : "", alignment: "right", fontSize: 8.5, color: "#16a34a" },
-        { text: fmt(Math.abs(e.bakiye)), alignment: "right", fontSize: 8.5, bold: true, color: bakiyeRenk },
+        { text: e.tarih, fontSize: 7.5, color: "#374151" },
+        { text: e.belgeNo ?? "", fontSize: 7.5, color: "#1d4ed8" },
+        { text: e.aciklama, fontSize: 8 },
+        { text: e.vadeTarihi ?? "", fontSize: 7.5, color: "#6b7280" },
+        { text: e.borc > 0 ? fmt(e.borc) : "", alignment: "right", fontSize: 8 },
+        { text: e.alacak > 0 ? fmt(e.alacak) : "", alignment: "right", fontSize: 8, color: "#16a34a" },
+        { text: fmt(Math.abs(kBakiye)), alignment: "right", fontSize: 8, bold: true, color: bakiyeRenk },
+        { text: e.durumEtiket, fontSize: 7, color: durumRenk, alignment: "center" },
       ];
     });
 
+    // Özet kutusu satırları
+    const nb: [boolean, boolean, boolean, boolean] = [false, false, false, false];
+    const bt: [boolean, boolean, boolean, boolean] = [false, true, false, false];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const summaryBody: any[][] = isMultiCurrency
+      ? [
+          [{ text: "ÖZET", colSpan: 2, bold: true, fontSize: 7, color: "#6b7280", characterSpacing: 1, fillColor: "#f3f4f6", border: nb, marginTop: 3, marginBottom: 3 }, {}],
+          ...pbSummaries.flatMap(s => [
+            [{ text: s.paraBirimi, bold: true, fontSize: 8, color: "#111827", colSpan: 2, border: nb, marginTop: 4 }, {}],
+            [{ text: "Toplam Borç", fontSize: 8, border: nb }, { text: fmt(s.toplamBorc), alignment: "right", fontSize: 8, bold: true, border: nb }],
+            [{ text: "Toplam Alacak", fontSize: 8, color: "#16a34a", border: nb }, { text: fmt(s.toplamAlacak), alignment: "right", fontSize: 8, bold: true, color: "#16a34a", border: nb }],
+            [{ text: "Kapanış Bakiyesi", fontSize: 8, bold: true, color: s.bakiye > 0.005 ? "#d97706" : "#16a34a", border: bt }, { text: `${fmt(Math.abs(s.bakiye))} ${s.paraBirimi}`, alignment: "right", fontSize: 8, bold: true, color: s.bakiye > 0.005 ? "#d97706" : "#16a34a", border: bt }],
+          ]),
+        ]
+      : [
+          [{ text: "ÖZET", colSpan: 2, bold: true, fontSize: 7, color: "#6b7280", characterSpacing: 1, fillColor: "#f3f4f6", border: nb, marginTop: 3, marginBottom: 3 }, {}],
+          [{ text: "Açılış Bakiyesi", fontSize: 8, border: nb }, { text: `${fmt(acilisBakiyesi)} ${paraBirimi}`, alignment: "right", fontSize: 8, bold: true, border: nb }],
+          [{ text: "Toplam Borç", fontSize: 8, border: nb }, { text: `${fmt(toplamBorc)} ${paraBirimi}`, alignment: "right", fontSize: 8, bold: true, border: nb }],
+          [{ text: "Toplam Alacak", fontSize: 8, color: "#16a34a", border: nb }, { text: `${fmt(toplamAlacak)} ${paraBirimi}`, alignment: "right", fontSize: 8, bold: true, color: "#16a34a", border: nb }],
+          [{ text: "Kapanış Bakiyesi", fontSize: 8, bold: true, color: kapanisBakiyesi > 0.005 ? "#d97706" : "#16a34a", border: bt }, { text: `${fmt(Math.abs(kapanisBakiyesi))} ${paraBirimi}`, alignment: "right", fontSize: 8, bold: true, color: kapanisBakiyesi > 0.005 ? "#d97706" : "#16a34a", border: bt }],
+        ];
+
     const docDefinition: TDocumentDefinitions = {
       defaultStyle: { font: "Roboto", fontSize: 9 },
-      pageMargins: [40, 55, 40, 55],
+      pageMargins: [36, 50, 36, 50],
       content: [
+        // Koyu başlık çubuğu
+        {
+          canvas: [{ type: "rect", x: 0, y: 0, w: 523, h: 38, r: 0, color: "#111827" }],
+          marginBottom: -38,
+        },
         {
           columns: [
             catiFirma?.logo
-              ? { image: catiFirma.logo, width: 160, marginBottom: 4 }
-              : {
-                  stack: [
-                    { text: catiFirma?.ad ?? "", fontSize: 15, bold: true, color: "#0070d1" },
-                    ...(catiFirma?.adres ? [{ text: catiFirma.adres, color: "#555", fontSize: 8, marginTop: 2 }] : []),
-                    ...(catiFirma?.vergiNo ? [{ text: `Tax No: ${catiFirma.vergiNo}`, color: "#555", fontSize: 8, marginTop: 1 }] : []),
-                  ],
-                },
+              ? { image: catiFirma.logo, width: 110, margin: [8, 6, 0, 0] }
+              : { text: catiFirma?.ad ?? "", fontSize: 12, bold: true, color: "#ffffff", margin: [10, 11, 0, 0] },
             {
-              stack: [
-                { text: "CARİ HESAP EKSTRESİ", fontSize: 18, bold: true, color: "#0070d1", alignment: "right" },
-                { text: `Düzenleme Tarihi: ${tarihStr}`, fontSize: 8, color: "#555", alignment: "right", marginTop: 4 },
-                { text: `Dönem: ${donemStr}`, fontSize: 8, color: "#555", alignment: "right", marginTop: 2 },
-              ],
-              width: "*",
+              text: "CARİ HESAP EKSTRESİ",
+              fontSize: 13, bold: true, color: "#facc15",
+              alignment: "right", margin: [0, 11, 10, 0],
             },
           ],
-          marginBottom: 14,
+          marginBottom: 16,
         },
-        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: "#0070d1" }], marginBottom: 14 },
+        // Bilgi ve özet sütunları
         {
           columns: [
             {
               width: "*",
               stack: [
-                { text: "MÜŞTERİ", fontSize: 7, bold: true, color: "#888", characterSpacing: 1 },
-                { text: bagliFirma.ad, bold: true, fontSize: 11, marginTop: 4 },
-                ...(bagliFirma.adres ? [{ text: bagliFirma.adres, color: "#555", fontSize: 8, marginTop: 2 }] : []),
-                ...(bagliFirma.vergiNo ? [{ text: `Vergi No: ${bagliFirma.vergiNo}`, color: "#555", fontSize: 8, marginTop: 1 }] : []),
-                ...(bagliFirma.telefon ? [{ text: `Tel: ${bagliFirma.telefon}`, color: "#555", fontSize: 8, marginTop: 1 }] : []),
+                { text: "MÜŞTERİ", fontSize: 7, bold: true, color: "#6b7280", characterSpacing: 1, marginBottom: 5 },
+                { text: bagliFirma.ad, bold: true, fontSize: 12, color: "#111827", marginBottom: 2 },
+                ...(bagliFirma.adres ? [{ text: bagliFirma.adres, color: "#6b7280", fontSize: 7.5, marginBottom: 1.5 }] : []),
+                ...(bagliFirma.vergiNo ? [{ text: `Vergi No: ${bagliFirma.vergiNo}`, color: "#6b7280", fontSize: 7.5, marginBottom: 1.5 }] : []),
+                ...(bagliFirma.telefon ? [{ text: `Tel: ${bagliFirma.telefon}`, color: "#6b7280", fontSize: 7.5, marginBottom: 1.5 }] : []),
+                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 260, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }], marginTop: 7, marginBottom: 7 },
+                { text: `Ekstre Tarihi: ${tarihStr}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
+                { text: `Dönem: ${donemStr}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
+                { text: `Para Birimi: ${isMultiCurrency ? "Çoklu Para Birimi" : paraBirimi}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
+                { text: `Hazırlayan: ${catiFirma?.ad ?? ""}`, color: "#111827", fontSize: 7.5, bold: true },
               ],
             },
-            isMultiCurrency
-              ? {
-                  width: 270,
-                  table: {
-                    widths: ["auto", "*", "*", "*"],
-                    body: [
-                      [
-                        { text: "PB", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
-                        { text: "TOPLAM BORÇ", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
-                        { text: "TOPLAM ALACAK", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
-                        { text: "BAKİYE", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
-                      ],
-                      ...pbSummaries.map(s => [
-                        { text: s.paraBirimi, fontSize: 8, bold: true, alignment: "center", marginTop: 3, marginBottom: 3, border: [true, false, true, true] },
-                        { text: fmt(s.toplamBorc), fontSize: 9, bold: true, alignment: "center", marginTop: 3, marginBottom: 3, border: [true, false, true, true] },
-                        { text: fmt(s.toplamAlacak), fontSize: 9, bold: true, color: "#16a34a", alignment: "center", marginTop: 3, marginBottom: 3, border: [true, false, true, true] },
-                        {
-                          text: fmt(Math.abs(s.bakiye)),
-                          fontSize: 9, bold: true,
-                          color: s.bakiye > 0.005 ? "#d97706" : s.bakiye < -0.005 ? "#dc2626" : "#16a34a",
-                          alignment: "center", marginTop: 3, marginBottom: 3, border: [true, false, true, true],
-                        },
-                      ]),
-                    ],
-                  },
-                  layout: { hLineColor: () => "#e8eaf0", vLineColor: () => "#e8eaf0" },
-                }
-              : {
-                  width: 220,
-                  table: {
-                    widths: ["*", "*", "*"],
-                    body: [
-                      [
-                        { text: "TOPLAM BORÇ", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
-                        { text: "TOPLAM ALACAK", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
-                        { text: "BAKİYE", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
-                      ],
-                      [
-                        { text: `${fmt(toplamBorc)}\n${paraBirimi}`, fontSize: 9, bold: true, alignment: "center", marginTop: 4, marginBottom: 4, border: [true, false, true, true] },
-                        { text: `${fmt(toplamAlacak)}\n${paraBirimi}`, fontSize: 9, bold: true, color: "#16a34a", alignment: "center", marginTop: 4, marginBottom: 4, border: [true, false, true, true] },
-                        {
-                          text: `${fmt(Math.abs(bakiye))}\n${paraBirimi}`,
-                          fontSize: 9, bold: true,
-                          color: bakiye > 0.005 ? "#d97706" : bakiye < -0.005 ? "#dc2626" : "#16a34a",
-                          alignment: "center", marginTop: 4, marginBottom: 4, border: [true, false, true, true],
-                        },
-                      ],
-                    ],
-                  },
-                  layout: { hLineColor: () => "#e8eaf0", vLineColor: () => "#e8eaf0" },
-                },
+            {
+              width: 205,
+              table: {
+                widths: ["*", "auto"],
+                body: summaryBody,
+              },
+              layout: {
+                hLineWidth: () => 0,
+                vLineWidth: () => 0,
+                hLineColor: () => "#e5e7eb",
+                paddingLeft: () => 8,
+                paddingRight: () => 8,
+                paddingTop: () => 5,
+                paddingBottom: () => 5,
+              },
+            },
           ],
-          marginBottom: 18,
+          marginBottom: 16,
         },
+        // Hareket tablosu
         kalemler.length > 0
           ? {
               table: {
                 headerRows: 1,
-                widths: [52, "*", 75, 75, 82],
+                widths: [46, 68, "*", 46, 60, 60, 66, 46],
                 body: [
                   [
                     { text: "TARİH", style: "thStyle" },
+                    { text: "BELGE NO", style: "thStyle" },
                     { text: "AÇIKLAMA", style: "thStyle" },
+                    { text: "VADE", style: "thStyle", alignment: "center" },
                     { text: "BORÇ", style: "thStyle", alignment: "right" },
                     { text: "ALACAK", style: "thStyle", alignment: "right" },
                     { text: "BAKİYE", style: "thStyle", alignment: "right" },
+                    { text: "DURUM", style: "thStyle", alignment: "center" },
                   ],
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   ...dataRows as any,
@@ -401,67 +418,23 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
                 hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
                   i === 0 || i === 1 || i === node.table.body.length ? 1 : 0.5,
                 vLineWidth: () => 0,
-                hLineColor: (i: number) => (i === 0 || i === 1 ? "#0070d1" : "#e8eaf0"),
-                fillColor: (i: number) => (i === 0 ? "#0070d1" : i % 2 === 0 ? "#f9fafc" : null),
+                hLineColor: (i: number) => (i === 0 || i === 1 ? "#111827" : "#e5e7eb"),
+                fillColor: (i: number) => (i === 0 ? "#111827" : i % 2 === 0 ? "#f9fafb" : null),
                 paddingTop: () => 5,
                 paddingBottom: () => 5,
+                paddingLeft: () => 6,
+                paddingRight: () => 6,
               },
-            }
-          : { text: "Bu dönemde kayıt bulunamadı.", color: "#888", italics: true, marginTop: 8 },
-        ...(isMultiCurrency
-          ? pbSummaries
-              .filter(s => s.bakiye > 0.005)
-              .map(s => ({
-                columns: [
-                  { width: "*", text: "" },
-                  {
-                    width: 260,
-                    table: {
-                      widths: ["*", "auto"],
-                      body: [[
-                        { text: `BAKİYE (TAHSİL EDİLECEK) — ${s.paraBirimi}:`, bold: true, fontSize: 10, color: "#d97706" },
-                        { text: `${fmt(s.bakiye)} ${s.paraBirimi}`, alignment: "right", bold: true, fontSize: 10, color: "#d97706" },
-                      ]],
-                    },
-                    layout: {
-                      hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === node.table.body.length ? 1.5 : 0),
-                      vLineWidth: () => 0,
-                      hLineColor: () => "#d97706",
-                    },
-                    marginTop: 10,
-                  },
-                ],
-              } as unknown as import("pdfmake/interfaces").Content))
-          : (bakiye > 0.005
-              ? [{
-                  columns: [
-                    { width: "*", text: "" },
-                    {
-                      width: 240,
-                      table: {
-                        widths: ["*", "auto"],
-                        body: [[
-                          { text: "BAKİYE (TAHSİL EDİLECEK):", bold: true, fontSize: 10, color: "#d97706" },
-                          { text: `${fmt(bakiye)} ${paraBirimi}`, alignment: "right", bold: true, fontSize: 10, color: "#d97706" },
-                        ]],
-                      },
-                      layout: {
-                        hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === node.table.body.length ? 1.5 : 0),
-                        vLineWidth: () => 0,
-                        hLineColor: () => "#d97706",
-                      },
-                      marginTop: 10,
-                    },
-                  ],
-                } as unknown as import("pdfmake/interfaces").Content]
-              : [])),
+            } as unknown as import("pdfmake/interfaces").Content
+          : { text: "Bu dönemde kayıt bulunamadı.", color: "#888", italics: true, marginTop: 8 } as import("pdfmake/interfaces").Content,
+        // Footer
         {
           text: `Bu ekstre ${tarihStr} tarihinde ${catiFirma?.ad ?? ""} tarafından düzenlenmiştir.`,
-          fontSize: 7, color: "#aaa", italics: true, marginTop: 20, alignment: "center",
+          fontSize: 7, color: "#9ca3af", italics: true, marginTop: 24, alignment: "center",
         },
       ],
       styles: {
-        thStyle: { bold: true, color: "#ffffff", fillColor: "#0070d1", fontSize: 8, characterSpacing: 0.3 },
+        thStyle: { bold: true, color: "#ffffff", fontSize: 7.5, characterSpacing: 0.3 },
       },
     };
 

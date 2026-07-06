@@ -2,3 +2,4 @@
 - [API authz patterns](api-authz-patterns.md) — validation brace bug pattern; FK ownership checks required on all write endpoints
 - [api-server no hot-reload](api-server-no-hot-reload.md) — build-once-at-startup; restart workflow after backend edits or you test a stale bundle
 - [Recurring invoices & drafts](recurring-invoice-drafts.md) — recurring defs keep scalar+child items (fallback on generate); generated invoices are taslak; exclude taslak from income sums
+- [Cari ekstre PDF structure](cari-ekstre-pdf.md) — 8-col table matches Excel template; buildEntries() has belgeNo/vadeTarihi/durumEtiket; açılış/kapanış bakiyesi calculated; Hazırlayan=catiFirma.ad
