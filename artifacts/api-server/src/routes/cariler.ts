@@ -31,6 +31,13 @@ const DURUM_ETIKET_MAP: Record<string, string> = {
   acik: "Açık", odendi: "Ödendi", kismi_odendi: "Kısmi", taslak: "Taslak", iptal: "İptal",
 };
 
+function fmtTarih(s: string | null | undefined): string {
+  if (!s) return "";
+  const parts = s.split("-");
+  if (parts.length !== 3) return s;
+  return `${parts[2]}.${parts[1]}.${parts[0]}`;
+}
+
 function buildEntries(faturaRows: typeof faturalar.$inferSelect[], odemeRows: typeof odemeler.$inferSelect[]) {
   const validFaturalar = faturaRows.filter(f => !["taslak", "iptal"].includes(f.durum));
   const fEntries = validFaturalar.map(f => ({
@@ -301,7 +308,7 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
 
     const fmt = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     const donemStr = baslangic || bitis
-      ? `${baslangic || "Başlangıç"} - ${bitis || "Bugün"}`
+      ? `${baslangic ? fmtTarih(baslangic) : "Başlangıç"} - ${bitis ? fmtTarih(bitis) : "Bugün"}`
       : "Tüm Dönem";
     const tarihStr = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 
@@ -314,10 +321,10 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
       const bakiyeRenk = kBakiye > 0.005 ? "#d97706" : kBakiye < -0.005 ? "#dc2626" : "#16a34a";
       const durumRenk = e.tip === "fatura" ? (DURUM_C[e.durum ?? ""] ?? "#374151") : (DURUM_C[e.tip] ?? "#374151");
       return [
-        { text: e.tarih, fontSize: 7.5, color: "#374151" },
+        { text: fmtTarih(e.tarih), fontSize: 7.5, color: "#374151" },
         { text: e.belgeNo ?? "", fontSize: 7.5, color: "#1d4ed8" },
         { text: e.aciklama, fontSize: 8 },
-        { text: e.vadeTarihi ?? "", fontSize: 7.5, color: "#6b7280" },
+        { text: fmtTarih(e.vadeTarihi), fontSize: 7.5, color: "#6b7280" },
         { text: e.borc > 0 ? fmt(e.borc) : "", alignment: "right", fontSize: 8 },
         { text: e.alacak > 0 ? fmt(e.alacak) : "", alignment: "right", fontSize: 8, color: "#16a34a" },
         { text: fmt(Math.abs(kBakiye)), alignment: "right", fontSize: 8, bold: true, color: bakiyeRenk },
@@ -528,7 +535,7 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     const kapanisBakiyesi = acilisBakiyesi + toplamBorc - toplamAlacak;
     const paraBirimi = bagliFirma.paraBirimi ?? "USD";
     const donemStr = baslangic || bitis
-      ? `${baslangic ?? "Başlangıç"} / ${bitis ?? "Bugün"}`
+      ? `${baslangic ? fmtTarih(baslangic) : "Başlangıç"} / ${bitis ? fmtTarih(bitis) : "Bugün"}`
       : "Tüm Dönem";
     const fmt = (n: number) => n.toFixed(2);
 
@@ -643,10 +650,10 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
       const row = ws.getRow(10 + i);
       row.height = 16;
 
-      row.getCell(1).value = e.tarih;
+      row.getCell(1).value = fmtTarih(e.tarih);
       row.getCell(2).value = e.belgeNo ?? "";
       row.getCell(3).value = e.aciklama;
-      row.getCell(4).value = e.vadeTarihi ?? "";
+      row.getCell(4).value = fmtTarih(e.vadeTarihi);
       row.getCell(5).value = e.borc   > 0.005 ? e.borc   : null;
       row.getCell(6).value = e.alacak > 0.005 ? e.alacak : null;
       row.getCell(7).value = e.bakiye;
