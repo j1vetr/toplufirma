@@ -472,6 +472,8 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     const catiId = await resolveCatiFirmaId(bagliFirmaId, bagliFirma.ustFirmaId, req);
     if (!catiId) { res.status(403).json({ error: "Bu cariye erişim izniniz yok" }); return; }
 
+    const [catiFirma] = await db.select().from(firmalar).where(eq(firmalar.id, catiId));
+
     const faturaConds: ReturnType<typeof eq>[] = [eq(faturalar.bagliFirmaId, bagliFirmaId)];
     if (baslangic) faturaConds.push(gte(faturalar.faturaTarihi, baslangic));
     if (bitis) faturaConds.push(lte(faturalar.faturaTarihi, bitis));
@@ -485,92 +487,167 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
       db.select().from(odemeler).where(and(...odemeConds)),
     ]);
 
-    const kalemler = buildEntries(faturaRows, odemeRows);
+    // Dönem öncesi açılış bakiyesi
+    let acilisBakiyesi = 0;
+    if (baslangic) {
+      const [preFatura, preOdeme] = await Promise.all([
+        db.select().from(faturalar).where(and(eq(faturalar.bagliFirmaId, bagliFirmaId), lt(faturalar.faturaTarihi, baslangic))),
+        db.select().from(odemeler).where(and(eq(odemeler.bagliFirmaId, bagliFirmaId), lt(odemeler.tarih, baslangic))),
+      ]);
+      const preEntries = buildEntries(preFatura, preOdeme);
+      acilisBakiyesi = preEntries.length > 0 ? preEntries[preEntries.length - 1].bakiye : 0;
+    }
 
+    const kalemler = buildEntries(faturaRows, odemeRows);
+    const toplamBorc   = kalemler.reduce((s, e) => s + e.borc,   0);
+    const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
+    const kapanisBakiyesi = acilisBakiyesi + toplamBorc - toplamAlacak;
+    const paraBirimi = bagliFirma.paraBirimi ?? "USD";
+    const donemStr = baslangic || bitis
+      ? `${baslangic ?? "Başlangıç"} / ${bitis ?? "Bugün"}`
+      : "Tüm Dönem";
+    const fmt = (n: number) => n.toFixed(2);
+
+    // === Workbook ===
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "TOOV";
     workbook.created = new Date();
-
     const ws = workbook.addWorksheet("Ekstre");
+
+    // Sütun genişlikleri (8 sütun: A-H)
     ws.columns = [
-      { header: "Tarih",       key: "tarih",       width: 14 },
-      { header: "Açıklama",    key: "aciklama",    width: 44 },
-      { header: "Tür",         key: "tur",         width: 12 },
-      { header: "Borç",        key: "borc",        width: 16 },
-      { header: "Alacak",      key: "alacak",      width: 16 },
-      { header: "Bakiye",      key: "bakiye",      width: 16 },
-      { header: "Para Birimi", key: "paraBirimi",  width: 13 },
+      { key: "tarih",      width: 13 },  // A
+      { key: "belgeNo",    width: 18 },  // B
+      { key: "aciklama",   width: 38 },  // C
+      { key: "vadeTarihi", width: 13 },  // D
+      { key: "borc",       width: 14 },  // E
+      { key: "alacak",     width: 14 },  // F
+      { key: "bakiye",     width: 15 },  // G
+      { key: "durum",      width: 13 },  // H
     ];
 
-    const headerRow = ws.getRow(1);
-    headerRow.height = 24;
-    headerRow.eachCell(cell => {
-      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1C3C6E" } };
+    const NAVY  = "FF1C3C6E";
+    const WHITE = "FFFFFFFF";
+    const LIGHT_BLUE = "FFBDD7EE";
+
+    const solidFill = (argb: string): ExcelJS.Fill =>
+      ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+
+    // --- Satır 1: Başlık ---
+    ws.mergeCells("A1:H1");
+    const r1 = ws.getRow(1);
+    r1.height = 30;
+    const titleCell = ws.getCell("A1");
+    titleCell.value = "CARİ HESAP EKSTRESİ";
+    titleCell.font  = { bold: true, color: { argb: WHITE }, size: 14 };
+    titleCell.fill  = solidFill(NAVY);
+    titleCell.alignment = { vertical: "middle", horizontal: "center" };
+
+    // --- Satır 2: boş ---
+    ws.getRow(2).height = 8;
+
+    // --- Satır 3: Firma/Müşteri + ÖZET başlık ---
+    ws.getRow(3).height = 18;
+    const setLabel = (addr: string, text: string) => {
+      const c = ws.getCell(addr);
+      c.value = text;
+      c.font  = { bold: true };
+    };
+    setLabel("A3", "Firma / Müşteri");
+    ws.getCell("B3").value = bagliFirma.ad;
+    ws.mergeCells("G3:H3");
+    const ozetCell = ws.getCell("G3");
+    ozetCell.value = "ÖZET";
+    ozetCell.font  = { bold: true, color: { argb: WHITE }, size: 11 };
+    ozetCell.fill  = solidFill(NAVY);
+    ozetCell.alignment = { vertical: "middle", horizontal: "center" };
+
+    // --- Satır 4: Ekstre Tarih Aralığı + Açılış Bakiyesi ---
+    ws.getRow(4).height = 16;
+    setLabel("A4", "Ekstre Tarih Aralığı");
+    ws.getCell("B4").value = donemStr;
+    setLabel("G4", "Açılış Bakiyesi");
+    ws.getCell("H4").value = fmt(acilisBakiyesi);
+    ws.getCell("H4").alignment = { horizontal: "right" };
+
+    // --- Satır 5: Para Birimi + Toplam Borç ---
+    ws.getRow(5).height = 16;
+    setLabel("A5", "Para Birimi");
+    ws.getCell("B5").value = paraBirimi;
+    setLabel("G5", "Toplam Borç");
+    ws.getCell("H5").value = fmt(toplamBorc);
+    ws.getCell("H5").alignment = { horizontal: "right" };
+
+    // --- Satır 6: Hazırlayan + Toplam Alacak ---
+    ws.getRow(6).height = 16;
+    setLabel("A6", "Hazırlayan");
+    ws.getCell("B6").value = catiFirma?.ad ?? "";
+    setLabel("G6", "Toplam Alacak");
+    ws.getCell("H6").value = fmt(toplamAlacak);
+    ws.getCell("H6").alignment = { horizontal: "right" };
+
+    // --- Satır 7: Kapanış Bakiyesi ---
+    ws.getRow(7).height = 16;
+    setLabel("G7", "Kapanış Bakiyesi");
+    ws.getCell("H7").value = fmt(kapanisBakiyesi);
+    ws.getCell("H7").alignment = { horizontal: "right" };
+    ws.getCell("H7").font = { bold: true };
+
+    // --- Satır 8: boş ---
+    ws.getRow(8).height = 10;
+
+    // --- Satır 9: Kolon başlıkları ---
+    const hdrRow = ws.getRow(9);
+    hdrRow.height = 22;
+    hdrRow.values = ["", "Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye", "Durum"];
+    // ExcelJS row.values is 1-indexed; shift by setting manually
+    hdrRow.values = [null, "Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye", "Durum"];
+    for (let c = 1; c <= 8; c++) {
+      const cell = hdrRow.getCell(c);
+      cell.value = ["Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye", "Durum"][c - 1];
+      cell.font  = { bold: true, color: { argb: WHITE }, size: 10 };
+      cell.fill  = solidFill(NAVY);
       cell.alignment = { vertical: "middle", horizontal: "center" };
-      cell.border = { bottom: { style: "medium", color: { argb: "FFFFED00" } } };
-    });
+    }
 
-    const TUR_ETIKET: Record<string, string> = { fatura: "Fatura", tahsilat: "Tahsilat", odeme: "Ödeme" };
+    // Freeze rows 1–9 so header stays visible when scrolling
+    ws.views = [{ state: "frozen", ySplit: 9 }];
 
-    for (const e of kalemler) {
-      const row = ws.addRow({
-        tarih:      e.tarih,
-        aciklama:   e.aciklama,
-        tur:        TUR_ETIKET[e.tip] ?? e.tip,
-        borc:       e.borc   > 0.005 ? e.borc   : null,
-        alacak:     e.alacak > 0.005 ? e.alacak : null,
-        bakiye:     e.bakiye,
-        paraBirimi: e.paraBirimi,
-      });
+    // --- Satır 10+: Veri satırları ---
+    for (let i = 0; i < kalemler.length; i++) {
+      const e = kalemler[i];
+      const row = ws.getRow(10 + i);
+      row.height = 16;
 
-      (["borc", "alacak", "bakiye"] as const).forEach(key => {
-        const cell = row.getCell(key);
+      row.getCell(1).value = e.tarih;
+      row.getCell(2).value = e.belgeNo ?? "";
+      row.getCell(3).value = e.aciklama;
+      row.getCell(4).value = e.vadeTarihi ?? "";
+      row.getCell(5).value = e.borc   > 0.005 ? e.borc   : null;
+      row.getCell(6).value = e.alacak > 0.005 ? e.alacak : null;
+      row.getCell(7).value = e.bakiye;
+      row.getCell(8).value = e.durumEtiket;
+
+      // Sayı formatı
+      [5, 6, 7].forEach(col => {
+        const cell = row.getCell(col);
         if (cell.value !== null && cell.value !== undefined) cell.numFmt = "#,##0.00";
       });
 
+      // Bakiye rengi
       const bv = Number(e.bakiye);
-      row.getCell("bakiye").font = {
-        color: { argb: bv > 0.005 ? "FFCA8A04" : bv < -0.005 ? "FFDC2626" : "FF16A34A" },
-      };
+      const bakiyeArgb = bv > 0.005 ? "FFCA8A04" : bv < -0.005 ? "FFDC2626" : "FF16A34A";
+      row.getCell(7).font = { color: { argb: bakiyeArgb } };
 
-      if (row.number % 2 === 0) {
-        row.eachCell(cell => {
-          if (!cell.fill || (cell.fill as any).type === "none") {
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7F8FA" } };
-          }
-        });
+      // Çizgili arka plan (her çift satır açık mavi)
+      if (i % 2 === 0) {
+        for (let c = 1; c <= 8; c++) {
+          row.getCell(c).fill = solidFill(LIGHT_BLUE);
+        }
+        // Bakiye font'unu yeniden uygula (fill'den sonra kaybolabilir)
+        row.getCell(7).font = { color: { argb: bakiyeArgb } };
       }
     }
-
-    ws.addRow([]);
-
-    const totalsRow = ws.addRow({
-      tarih:      "",
-      aciklama:   "DÖNEM TOPLAMI",
-      tur:        "",
-      borc:       kalemler.reduce((s, e) => s + e.borc,   0),
-      alacak:     kalemler.reduce((s, e) => s + e.alacak, 0),
-      bakiye:     kalemler.length > 0 ? kalemler[kalemler.length - 1].bakiye : 0,
-      paraBirimi: bagliFirma.paraBirimi ?? "USD",
-    });
-    totalsRow.eachCell(cell => {
-      cell.font = { bold: true };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEEEEE" } };
-      cell.border = { top: { style: "thin", color: { argb: "FFCCCCCC" } } };
-    });
-    (["borc", "alacak", "bakiye"] as const).forEach(key => {
-      totalsRow.getCell(key).numFmt = "#,##0.00";
-    });
-
-    ws.views = [{ state: "frozen", ySplit: 1 }];
-
-    const meta = workbook.addWorksheet("Bilgi");
-    meta.columns = [{ width: 22 }, { width: 32 }];
-    meta.addRow(["Cari Firma",    bagliFirma.ad]);
-    meta.addRow(["Dönem Başlangıç", baslangic || "Tüm Dönem"]);
-    meta.addRow(["Dönem Bitiş",    bitis    || "Bugün"]);
-    meta.addRow(["Oluşturma Tarihi", new Date().toLocaleDateString("tr-TR")]);
 
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = bagliFirma.ad.replace(/[\\/:*?"<>|]/g, "-");
