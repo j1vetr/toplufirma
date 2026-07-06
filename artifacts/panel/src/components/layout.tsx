@@ -238,14 +238,6 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
               </span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem
-                onClick={() => setAktifSirketId(null)}
-                className={cn("cursor-pointer", aktifSirketId === null && "font-bold")}
-                data-testid="sirket-secici-tum"
-              >
-                Tüm Firmalar
-              </DropdownMenuItem>
-              {firmalar.length > 0 && <DropdownMenuSeparator />}
               {firmalar.map(f => (
                 <DropdownMenuItem
                   key={f.id}
@@ -317,10 +309,6 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
                 </span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuItem onClick={() => setAktifSirketId(null)} className={cn("cursor-pointer", aktifSirketId === null && "font-bold text-primary")}>
-                  Tüm Firmalar
-                </DropdownMenuItem>
-                {firmalar.length > 0 && <DropdownMenuSeparator />}
                 {firmalar.map(f => (
                   <DropdownMenuItem key={f.id} onClick={() => setAktifSirketId(f.id)} className={cn("cursor-pointer", aktifSirketId === f.id && "font-bold text-primary")}>
                     {f.ad}

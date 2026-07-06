@@ -93,11 +93,16 @@ router.get("/cariler", async (req, res) => {
     const { catiFirmaId } = req.query as Record<string, string>;
     const izinliSirketler = req.izinliSirketler ?? [];
 
-    if (catiFirmaId && !izinliSirketler.includes(Number(catiFirmaId))) {
+    if (catiFirmaId && !sirketErisimKontrol(Number(catiFirmaId), req)) {
       res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return;
     }
 
-    const gecerliFirmaIdleri = catiFirmaId ? [Number(catiFirmaId)] : izinliSirketler;
+    const isYonetici = req.kullanici?.rol === "yonetici";
+    const gecerliFirmaIdleri = catiFirmaId
+      ? [Number(catiFirmaId)]
+      : isYonetici
+        ? (await db.select({ id: firmalar.id }).from(firmalar).where(eq(firmalar.tip, "cati"))).map(f => f.id)
+        : izinliSirketler;
     if (gecerliFirmaIdleri.length === 0) { res.json([]); return; }
 
     const allBagli = await db.select().from(firmalar).where(eq(firmalar.tip, "bagli"));
