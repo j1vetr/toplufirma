@@ -91,12 +91,12 @@ export function GemiSecici({
         {seciliGemi ? (
           <span className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
             <Ship className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="truncate">
+            <span className="font-medium shrink-0">
               {seciliGemi.ad}
               {seciliGemi.imoNumarasi ? ` (${seciliGemi.imoNumarasi})` : ""}
             </span>
             {seciliGemi.firmaAd && (
-              <span className="text-xs text-muted-foreground shrink-0 truncate">
+              <span className="text-xs text-muted-foreground truncate min-w-0">
                 · {seciliGemi.firmaAd}
               </span>
             )}

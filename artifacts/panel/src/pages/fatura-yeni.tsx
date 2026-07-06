@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { useSirket } from "@/contexts/sirket-context";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListFirmalar, getListFirmalarQueryKey,
@@ -71,10 +72,11 @@ export default function FaturaYeni() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { aktifSirketId } = useSirket();
 
   const vadeManuelDuzenleRef = useRef(false);
 
-  const [catiFirmaId, setCatiFirmaId] = useState("");
+  const [catiFirmaId, setCatiFirmaId] = useState(() => aktifSirketId ? String(aktifSirketId) : "");
   const [bagliFirmaId, setBagliFirmaId] = useState("");
   const [grupFirmaId, setGrupFirmaId] = useState("");
   const [faturaAdi, setFaturaAdi] = useState("");
@@ -235,7 +237,7 @@ export default function FaturaYeni() {
   const gemiSecildi = !!gemiId;
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-5xl">
       <div className="flex items-center gap-3">
         <Link href="/faturalar"><Button variant="ghost" size="icon" className="rounded-sm"><ArrowLeft className="h-4 w-4" /></Button></Link>
         <h2 className="text-xl font-display font-semibold">Yeni Fatura</h2>
@@ -245,48 +247,23 @@ export default function FaturaYeni() {
         <CardHeader><CardTitle className="text-base">Fatura Bilgileri</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-2 gap-4">
 
-          {/* Kendi Firmamız */}
+          {/* Kendi Firmamız — read-only, aktif firmadan geliyor */}
           <div className="space-y-1.5">
-            <Label>Kendi Firmamız *</Label>
-            <Select
-              value={catiFirmaId}
-              onValueChange={v => {
-                setCatiFirmaId(v);
-                setBagliFirmaId("");
-                setGrupFirmaId("");
-                setGemiId("");
-                autoSelectSeri(v ? Number(v) : null);
-              }}
-            >
-              <SelectTrigger data-testid="select-fatura-sirket">
-                {catiFirmaId && seciliCatiFirma ? (
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="truncate">{seciliCatiFirma.ad}</span>
-                    {seciliCatiFirma.etiket && (
-                      <span className="text-[10px] bg-zinc-800 text-white px-1.5 py-0.5 font-bold leading-none shrink-0">
-                        {seciliCatiFirma.etiket}
-                      </span>
-                    )}
-                  </span>
-                ) : (
-                  <SelectValue placeholder="Kendi firmamızı seçin" />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {catiFirmalar.map(f => (
-                  <SelectItem key={f.id} value={String(f.id)}>
-                    <span className="flex items-center gap-2">
-                      <span>{f.ad}</span>
-                      {f.etiket && (
-                        <span className="text-[10px] bg-zinc-800 text-white px-1.5 py-0.5 font-bold leading-none">
-                          {f.etiket}
-                        </span>
-                      )}
+            <Label>Kendi Firmamız</Label>
+            <div className="h-9 border px-3 flex items-center gap-2 text-sm bg-muted/30">
+              {seciliCatiFirma ? (
+                <>
+                  <span className="truncate font-medium">{seciliCatiFirma.ad}</span>
+                  {seciliCatiFirma.etiket && (
+                    <span className="text-[10px] bg-zinc-800 text-white px-1.5 py-0.5 font-bold leading-none shrink-0">
+                      {seciliCatiFirma.etiket}
                     </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  )}
+                </>
+              ) : (
+                <span className="text-muted-foreground">Üst menüden firma seçin</span>
+              )}
+            </div>
           </div>
 
           {/* Gemi — primary customer selector (grouped + searchable) */}
