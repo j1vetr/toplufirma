@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, firmalar, odemeler, bankaHesaplari } from "@workspace/db";
+import { faturalar, firmalar, odemeler, bankaHesaplari, firmaEpostaAyarlari, gonderiGecmisi } from "@workspace/db";
 import { eq, and, inArray, gte, lte, lt } from "drizzle-orm";
-import { sirketErisimKontrol } from "../middleware/auth";
+import { sirketErisimKontrol, requireYazma, firmaYazmaDenetimi } from "../middleware/auth";
 import { createRequire } from "node:module";
 import path from "node:path";
+import nodemailer from "nodemailer";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 
 const _req = createRequire(import.meta.url);
@@ -20,6 +21,8 @@ _pdfmake.fonts = {
   },
 };
 _pdfmake.setLocalAccessPolicy(() => true);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ExcelJS = _req("exceljs") as any;
 
 const router = Router();
 
@@ -366,6 +369,271 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
   } catch (err) {
     console.error("[cariler/pdf] error:", err);
     if (!res.headersSent) res.status(500).json({ error: "PDF oluşturulamadı" });
+  }
+});
+
+router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
+  try {
+    const bagliFirmaId = Number(req.params.bagliFirmaId);
+    const { baslangic, bitis } = req.query as Record<string, string | undefined>;
+
+    const [bagliFirma] = await db.select().from(firmalar).where(eq(firmalar.id, bagliFirmaId));
+    if (!bagliFirma || bagliFirma.tip !== "bagli") { res.status(404).json({ error: "Cari bulunamadı" }); return; }
+
+    const catiId = await resolveCatiFirmaId(bagliFirmaId, bagliFirma.ustFirmaId, req);
+    if (!catiId) { res.status(403).json({ error: "Bu cariye erişim izniniz yok" }); return; }
+
+    const faturaConds: ReturnType<typeof eq>[] = [eq(faturalar.bagliFirmaId, bagliFirmaId)];
+    if (baslangic) faturaConds.push(gte(faturalar.faturaTarihi, baslangic));
+    if (bitis) faturaConds.push(lte(faturalar.faturaTarihi, bitis));
+
+    const odemeConds: ReturnType<typeof eq>[] = [eq(odemeler.bagliFirmaId, bagliFirmaId)];
+    if (baslangic) odemeConds.push(gte(odemeler.tarih, baslangic));
+    if (bitis) odemeConds.push(lte(odemeler.tarih, bitis));
+
+    const [faturaRows, odemeRows] = await Promise.all([
+      db.select().from(faturalar).where(and(...faturaConds)),
+      db.select().from(odemeler).where(and(...odemeConds)),
+    ]);
+
+    const kalemler = buildEntries(faturaRows, odemeRows);
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "TOOV";
+    workbook.created = new Date();
+
+    const ws = workbook.addWorksheet("Ekstre");
+    ws.columns = [
+      { header: "Tarih",       key: "tarih",       width: 14 },
+      { header: "Açıklama",    key: "aciklama",    width: 44 },
+      { header: "Tür",         key: "tur",         width: 12 },
+      { header: "Borç",        key: "borc",        width: 16 },
+      { header: "Alacak",      key: "alacak",      width: 16 },
+      { header: "Bakiye",      key: "bakiye",      width: 16 },
+      { header: "Para Birimi", key: "paraBirimi",  width: 13 },
+    ];
+
+    const headerRow = ws.getRow(1);
+    headerRow.height = 24;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1C3C6E" } };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.border = { bottom: { style: "medium", color: { argb: "FFFFED00" } } };
+    });
+
+    const TUR_ETIKET: Record<string, string> = { fatura: "Fatura", tahsilat: "Tahsilat", odeme: "Ödeme" };
+
+    for (const e of kalemler) {
+      const row = ws.addRow({
+        tarih:      e.tarih,
+        aciklama:   e.aciklama,
+        tur:        TUR_ETIKET[e.tip] ?? e.tip,
+        borc:       e.borc   > 0.005 ? e.borc   : null,
+        alacak:     e.alacak > 0.005 ? e.alacak : null,
+        bakiye:     e.bakiye,
+        paraBirimi: e.paraBirimi,
+      });
+
+      (["borc", "alacak", "bakiye"] as const).forEach(key => {
+        const cell = row.getCell(key);
+        if (cell.value !== null && cell.value !== undefined) cell.numFmt = "#,##0.00";
+      });
+
+      const bv = Number(e.bakiye);
+      row.getCell("bakiye").font = {
+        color: { argb: bv > 0.005 ? "FFCA8A04" : bv < -0.005 ? "FFDC2626" : "FF16A34A" },
+      };
+
+      if (row.number % 2 === 0) {
+        row.eachCell(cell => {
+          if (!cell.fill || (cell.fill as any).type === "none") {
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7F8FA" } };
+          }
+        });
+      }
+    }
+
+    ws.addRow([]);
+
+    const totalsRow = ws.addRow({
+      tarih:      "",
+      aciklama:   "DÖNEM TOPLAMI",
+      tur:        "",
+      borc:       kalemler.reduce((s, e) => s + e.borc,   0),
+      alacak:     kalemler.reduce((s, e) => s + e.alacak, 0),
+      bakiye:     kalemler.length > 0 ? kalemler[kalemler.length - 1].bakiye : 0,
+      paraBirimi: bagliFirma.paraBirimi ?? "USD",
+    });
+    totalsRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEEEEE" } };
+      cell.border = { top: { style: "thin", color: { argb: "FFCCCCCC" } } };
+    });
+    (["borc", "alacak", "bakiye"] as const).forEach(key => {
+      totalsRow.getCell(key).numFmt = "#,##0.00";
+    });
+
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+
+    const meta = workbook.addWorksheet("Bilgi");
+    meta.columns = [{ width: 22 }, { width: 32 }];
+    meta.addRow(["Cari Firma",    bagliFirma.ad]);
+    meta.addRow(["Dönem Başlangıç", baslangic || "Tüm Dönem"]);
+    meta.addRow(["Dönem Bitiş",    bitis    || "Bugün"]);
+    meta.addRow(["Oluşturma Tarihi", new Date().toLocaleDateString("tr-TR")]);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const safeName = bagliFirma.ad.replace(/[\\/:*?"<>|]/g, "-");
+    const dosyaAdi = `ekstre-${safeName}.xlsx`;
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(dosyaAdi)}"`);
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error("[cariler/excel] error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Excel oluşturulamadı" });
+  }
+});
+
+router.post("/cariler/:bagliFirmaId/send-ekstre", requireYazma, async (req, res) => {
+  try {
+    const bagliFirmaId = Number(req.params.bagliFirmaId);
+    const { aliciEposta, mesaj, baslangic, bitis } = req.body as {
+      aliciEposta: string; mesaj?: string; baslangic?: string; bitis?: string;
+    };
+
+    if (!aliciEposta?.trim()) { res.status(400).json({ error: "Alıcı e-posta adresi gerekli" }); return; }
+
+    const [bagliFirma] = await db.select().from(firmalar).where(eq(firmalar.id, bagliFirmaId));
+    if (!bagliFirma || bagliFirma.tip !== "bagli") { res.status(404).json({ error: "Cari bulunamadı" }); return; }
+
+    const catiId = await resolveCatiFirmaId(bagliFirmaId, bagliFirma.ustFirmaId, req);
+    if (!catiId) { res.status(403).json({ error: "Bu cariye erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(catiId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
+
+    const [catiFirma, ayarlar] = await Promise.all([
+      db.select().from(firmalar).where(eq(firmalar.id, catiId)).then(r => r[0] ?? null),
+      db.select().from(firmaEpostaAyarlari).where(eq(firmaEpostaAyarlari.firmaId, catiId)).then(r => r[0] ?? null),
+    ]);
+
+    if (!ayarlar || !ayarlar.aktif || !ayarlar.smtpSifre) {
+      res.status(422).json({ error: "Bu firma için aktif SMTP ayarları yapılandırılmamış" }); return;
+    }
+
+    const ps = new URLSearchParams();
+    if (baslangic) ps.set("baslangic", baslangic);
+    if (bitis) ps.set("bitis", bitis);
+    const pdfUrl = `http://localhost:${process.env.PORT ?? 3001}/api/cariler/${bagliFirmaId}/pdf${ps.toString() ? `?${ps}` : ""}`;
+    const pdfResp = await fetch(pdfUrl, { headers: { authorization: req.headers.authorization ?? "" } });
+    if (!pdfResp.ok) { res.status(500).json({ error: "Ekstre PDF oluşturulamadı" }); return; }
+    const pdfBuffer = Buffer.from(await pdfResp.arrayBuffer());
+
+    const donemStr = baslangic || bitis
+      ? `${baslangic || "Başlangıç"} — ${bitis || "Bugün"}`
+      : "Tüm Dönem";
+    const tarihStr = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+    const subject = `Cari Ekstre — ${bagliFirma.ad} (${donemStr})`;
+
+    const logDataUrl = (catiFirma?.logo && /^data:image\//.test(catiFirma.logo)) ? catiFirma.logo : null;
+
+    const bodyMesaj = mesaj
+      ? mesaj.replace(/\n/g, "<br>")
+      : `Cari hesap ekstrenizi ekte bulabilirsiniz. Dönem: <strong>${donemStr}</strong>.`;
+
+    const html = `<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${subject}</title></head>
+<body style="margin:0;padding:0;background:#f0f0f0;font-family:Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr><td style="background:#000;padding:24px 32px 0 32px;text-align:center;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="border:3px solid #ffed00;background:#f8f8f5;margin:0 auto;">
+      <tr><td style="padding:12px 24px;">
+        ${logDataUrl
+          ? `<img src="${logDataUrl}" alt="${catiFirma?.ad ?? ""}" style="max-height:50px;max-width:180px;display:block;margin:0 auto;">`
+          : `<p style="margin:0;font-size:18px;font-weight:bold;color:#111;">${catiFirma?.ad ?? ""}</p>`}
+      </td></tr>
+    </table>
+  </td></tr>
+  <tr><td style="background:#ffed00;height:4px;font-size:4px;line-height:4px;">&nbsp;</td></tr>
+  <tr><td style="background:#fff;padding:32px;">
+    <p style="margin:0 0 20px;font-size:15px;color:#1a1a1a;line-height:1.6;">Sayın <strong>${bagliFirma.ad}</strong>,<br><br>${bodyMesaj}</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f8f8;border-left:4px solid #ffed00;margin-bottom:24px;">
+      <tr><td style="padding:20px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:bold;color:#888;text-transform:uppercase;letter-spacing:0.8px;">CARİ HESAP EKSTRESİ</p>
+        <p style="margin:0 0 12px;font-size:22px;font-weight:bold;color:#1a1a1a;">${bagliFirma.ad}</p>
+        <p style="margin:0;font-size:13px;color:#555;"><strong>Dönem:</strong> ${donemStr}</p>
+        <p style="margin:4px 0 0;font-size:13px;color:#555;"><strong>Düzenleme Tarihi:</strong> ${tarihStr}</p>
+      </td></tr>
+    </table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fffde7;border:1px solid #ffed00;margin-bottom:28px;">
+      <tr><td style="padding:14px 18px;font-size:13px;color:#5a4d00;">
+        Cari hesap ekstresi PDF dosyası bu e-postaya eklenmiştir.
+      </td></tr>
+    </table>
+    <p style="margin:0 0 6px;font-size:14px;color:#1a1a1a;">Saygılarımızla,</p>
+    <p style="margin:0;font-size:14px;font-weight:bold;color:#1a1a1a;">${catiFirma?.ad ?? ""}</p>
+  </td></tr>
+  <tr><td style="background:#1a1a1a;padding:20px 32px;">
+    <p style="margin:0;font-size:12px;font-weight:bold;color:#fff;">${catiFirma?.ad ?? ""}</p>
+    ${catiFirma?.adres ? `<p style="margin:4px 0 0;font-size:11px;color:#999;">${catiFirma.adres}</p>` : ""}
+    ${catiFirma?.vergiNo ? `<p style="margin:4px 0 0;font-size:11px;color:#999;">Vergi No: ${catiFirma.vergiNo}</p>` : ""}
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+    const text = [
+      `Sayın ${bagliFirma.ad},`,
+      "",
+      mesaj ?? `Cari hesap ekstrenizi ekte bulabilirsiniz. Dönem: ${donemStr}.`,
+      "",
+      "CARİ HESAP EKSTRESİ",
+      `Cari: ${bagliFirma.ad}`,
+      `Dönem: ${donemStr}`,
+      `Düzenleme Tarihi: ${tarihStr}`,
+      "",
+      "Saygılarımızla,",
+      catiFirma?.ad ?? "",
+    ].join("\n");
+
+    const guvenlik = ayarlar.smtpGuvenlik ?? "starttls";
+    const transporter = nodemailer.createTransport({
+      host:       ayarlar.smtpHost,
+      port:       ayarlar.smtpPort ?? 587,
+      secure:     guvenlik === "ssl",
+      requireTLS: guvenlik === "starttls",
+      auth: { user: ayarlar.smtpKullanici, pass: ayarlar.smtpSifre },
+    });
+
+    const safeName = bagliFirma.ad.replace(/[\\/:*?"<>|]/g, "-");
+    const dosyaAdi = `ekstre-${safeName}.pdf`;
+    await transporter.sendMail({
+      from:        `"${ayarlar.gonderenAd}" <${ayarlar.gonderenAdres}>`,
+      to:          aliciEposta.trim(),
+      subject,
+      html,
+      text,
+      attachments: [{ filename: dosyaAdi, content: pdfBuffer, contentType: "application/pdf" }],
+    });
+
+    await db.insert(gonderiGecmisi).values({
+      kayitTipi:           "ekstre",
+      kayitId:             bagliFirmaId,
+      aliciEposta:         aliciEposta.trim(),
+      gonderenKullaniciId: req.kullanici?.id ?? null,
+      gonderenAd:          req.kullanici?.ad ?? null,
+    });
+
+    res.json({ mesaj: `Ekstre ${aliciEposta.trim()} adresine gönderildi` });
+  } catch (err) {
+    console.error("[cariler/send-ekstre] error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "E-posta gönderilemedi" });
   }
 });
 

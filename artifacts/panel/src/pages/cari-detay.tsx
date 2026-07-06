@@ -19,7 +19,9 @@ import { useYetki } from "@/hooks/use-yetki";
 import {
   ArrowLeft, Download, Plus, Loader2, FileText,
   TrendingUp, TrendingDown, TriangleAlert, Trash2,
+  FileSpreadsheet, Mail, Send,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface CariKalem {
   id: string;
@@ -92,8 +94,14 @@ export default function CariDetay() {
   const [islemBanka, setIslemBanka] = useState("");
   const [islemAciklama, setIslemAciklama] = useState("");
   const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
+  const [excelIndiriyor, setExcelIndiriyor] = useState(false);
   const [silmeOnay, setSilmeOnay] = useState<string | null>(null);
   const [siliniyor, setSiliniyor] = useState(false);
+
+  const [gonderiModal, setGonderiModal] = useState(false);
+  const [gonderiEposta, setGonderiEposta] = useState("");
+  const [gonderiMesaj, setGonderiMesaj] = useState("");
+  const [gonderiyor, setGonderiyor] = useState(false);
 
   const createOdeme = useCreateOdeme();
   const { data: bankaHesaplariGenel = [] } = useListBankaHesaplari(undefined, {
@@ -155,6 +163,67 @@ export default function CariDetay() {
       toast({ title: "PDF indirilemedi", variant: "destructive" });
     } finally {
       setPdfIndiriyor(false);
+    }
+  }
+
+  async function excelIndir() {
+    setExcelIndiriyor(true);
+    try {
+      const token = localStorage.getItem("panel_token") ?? "";
+      const ps = new URLSearchParams();
+      if (aktifBaslangic) ps.set("baslangic", aktifBaslangic);
+      if (aktifBitis) ps.set("bitis", aktifBitis);
+      const r = await fetch(`${apiBase()}/cariler/${id}/excel?${ps}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Excel oluşturulamadı");
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ekstre-${detay?.firma.ad ?? id}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Excel indirilemedi", variant: "destructive" });
+    } finally {
+      setExcelIndiriyor(false);
+    }
+  }
+
+  function openGonderiModal() {
+    setGonderiEposta(detay?.firma.eposta ?? "");
+    setGonderiMesaj("");
+    setGonderiModal(true);
+  }
+
+  async function ekstreGonder() {
+    if (!gonderiEposta.trim()) return;
+    setGonderiyor(true);
+    try {
+      const token = localStorage.getItem("panel_token") ?? "";
+      const r = await fetch(`${apiBase()}/cariler/${id}/send-ekstre`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          aliciEposta: gonderiEposta.trim(),
+          mesaj: gonderiMesaj.trim() || undefined,
+          baslangic: aktifBaslangic || undefined,
+          bitis: aktifBitis || undefined,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Gönderilemedi");
+      toast({ title: "Ekstre gönderildi", description: data.mesaj });
+      setGonderiModal(false);
+    } catch (err: unknown) {
+      toast({
+        title: "Gönderim başarısız",
+        description: err instanceof Error ? err.message : "Beklenmedik hata",
+        variant: "destructive",
+      });
+    } finally {
+      setGonderiyor(false);
     }
   }
 
@@ -254,8 +323,17 @@ export default function CariDetay() {
         <div className="flex gap-2 flex-wrap justify-end">
           <Button variant="outline" size="sm" onClick={pdfIndir} disabled={pdfIndiriyor}>
             {pdfIndiriyor ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
-            {pdfIndiriyor ? "Hazırlanıyor..." : "Ekstre PDF"}
+            {pdfIndiriyor ? "Hazırlanıyor..." : "PDF"}
           </Button>
+          <Button variant="outline" size="sm" onClick={excelIndir} disabled={excelIndiriyor}>
+            {excelIndiriyor ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-1 h-4 w-4" />}
+            {excelIndiriyor ? "Hazırlanıyor..." : "Excel"}
+          </Button>
+          {canWrite && catiFirma && (
+            <Button variant="outline" size="sm" onClick={openGonderiModal}>
+              <Mail className="mr-1 h-4 w-4" /> E-posta
+            </Button>
+          )}
           {canWrite && catiFirma && (
             <Button size="sm" onClick={openIslemModal}>
               <Plus className="mr-1 h-4 w-4" /> İşlem Ekle
@@ -577,6 +655,56 @@ export default function CariDetay() {
               {siliniyor
                 ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Siliniyor…</>
                 : "Sil"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={gonderiModal} onOpenChange={open => { if (!open) setGonderiModal(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Ekstre E-posta Gönder
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-1 space-y-4">
+            <div className="space-y-1.5">
+              <Label>Alıcı E-posta <span className="text-destructive">*</span></Label>
+              <Input
+                type="email"
+                value={gonderiEposta}
+                onChange={e => setGonderiEposta(e.target.value)}
+                placeholder="ornek@firma.com"
+              />
+            </div>
+            {(aktifBaslangic || aktifBitis) && (
+              <div className="bg-muted/60 rounded px-3 py-2 text-xs text-muted-foreground">
+                <span className="font-medium">Dönem:</span>{" "}
+                {aktifBaslangic || "—"} → {aktifBitis || "Bugün"}
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Mesaj <span className="text-muted-foreground text-xs">(opsiyonel)</span></Label>
+              <Textarea
+                value={gonderiMesaj}
+                onChange={e => setGonderiMesaj(e.target.value)}
+                placeholder="Cari hesap ekstrenizi ekte bulabilirsiniz..."
+                rows={4}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Ekstre PDF dosyası e-postaya ek olarak gönderilecektir.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGonderiModal(false)} disabled={gonderiyor}>
+              İptal
+            </Button>
+            <Button onClick={ekstreGonder} disabled={!gonderiEposta.trim() || gonderiyor}>
+              {gonderiyor
+                ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Gönderiliyor…</>
+                : <><Send className="mr-1 h-4 w-4" />Gönder</>}
             </Button>
           </DialogFooter>
         </DialogContent>
