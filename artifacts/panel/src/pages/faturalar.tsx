@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   useListFaturalar, getListFaturalarQueryKey,
   useDeleteFatura,
@@ -61,11 +61,22 @@ async function pdfIndir(id: number, faturaNo: string) {
   URL.revokeObjectURL(url);
 }
 
-async function excelIndir(catiFirmaId?: number | null) {
+async function excelIndir(catiFirmaId?: number | null, filters?: {
+  arama?: string;
+  durum?: string;
+  baslangicTarihi?: string;
+  bitisTarihi?: string;
+  paraBirimi?: string;
+}) {
   const token = localStorage.getItem("panel_token");
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
   const params = new URLSearchParams();
   if (catiFirmaId) params.set("catiFirmaId", String(catiFirmaId));
+  if (filters?.arama) params.set("arama", filters.arama);
+  if (filters?.durum && filters.durum !== "tumu") params.set("durum", filters.durum);
+  if (filters?.baslangicTarihi) params.set("baslangicTarihi", filters.baslangicTarihi);
+  if (filters?.bitisTarihi) params.set("bitisTarihi", filters.bitisTarihi);
+  if (filters?.paraBirimi && filters.paraBirimi !== "tumu") params.set("paraBirimi", filters.paraBirimi);
   const resp = await fetch(`${base}/api/faturalar/excel?${params}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
@@ -112,6 +123,26 @@ export default function Faturalar() {
   );
   const deleteFatura = useDeleteFatura();
   const topluDurumGuncelle = useTopluDurumGuncelle();
+
+  const { data: gonderiData = [] } = useQuery<{ kayitId: number; gonderilmeTarihi: string }[]>({
+    queryKey: ["gonderi-gecmisi-fatura", aktifSirketId],
+    queryFn: async () => {
+      const token = localStorage.getItem("panel_token") ?? "";
+      const params = new URLSearchParams({ kayitTipi: "fatura" });
+      if (aktifSirketId) params.set("catiFirmaId", String(aktifSirketId));
+      const r = await fetch(`${apiBase()}/gonderi-gecmisi?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const gonderilmisFaturaIds = useMemo(
+    () => new Set(gonderiData.map(g => g.kayitId)),
+    [gonderiData]
+  );
 
   const bugun = new Date().toISOString().split("T")[0];
   const taslakSayisi = faturalar.filter(f => f.durum === "taslak").length;
@@ -274,6 +305,9 @@ export default function Faturalar() {
               <Link href={`/faturalar/${f.id}`} className="font-semibold hover:text-primary" data-testid={`link-fatura-${f.id}`}>{f.faturaNo}</Link>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${DURUM_RENK[f.durum]}`}>{DURUM_ETIKET[f.durum]}</span>
               {vadesiGecmis && <span className="text-xs text-red-500 font-medium">Vadesi Geçmiş</span>}
+              {gonderilmisFaturaIds.has(f.id) && (
+                <span title="E-posta gönderildi" className="text-xs text-blue-400 select-none" aria-label="E-posta gönderildi">✉</span>
+              )}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">{f.bagliFirmaAd} {f.gemiAd ? `- ${f.gemiAd}` : ""}</p>
             <p className="text-xs text-muted-foreground">{f.faturaTarihi} — Vade: {f.vadeTarihi}</p>
@@ -381,7 +415,15 @@ export default function Faturalar() {
             disabled={excelIndiriyor}
             onClick={async () => {
               setExcelIndiriyor(true);
-              try { await excelIndir(aktifSirketId); }
+              try {
+                await excelIndir(aktifSirketId, {
+                  arama: arama || undefined,
+                  durum: durumFiltre !== "tumu" ? durumFiltre : undefined,
+                  baslangicTarihi: baslangicTarihi || undefined,
+                  bitisTarihi: bitisTarihi || undefined,
+                  paraBirimi: pbFiltre !== "tumu" ? pbFiltre : undefined,
+                });
+              }
               catch { toast({ title: "Excel indirilemedi", variant: "destructive" }); }
               finally { setExcelIndiriyor(false); }
             }}

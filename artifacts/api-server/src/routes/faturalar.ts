@@ -189,7 +189,7 @@ router.patch("/faturalar/toplu-durum", requireYazma, async (req, res) => {
 
 router.get("/faturalar/excel", async (req, res) => {
   try {
-    const { catiFirmaId } = req.query as Record<string, string>;
+    const { catiFirmaId, arama, durum, baslangicTarihi, bitisTarihi, paraBirimi } = req.query as Record<string, string>;
     if (catiFirmaId && !sirketErisimKontrol(Number(catiFirmaId), req)) {
       res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return;
     }
@@ -208,6 +208,18 @@ router.get("/faturalar/excel", async (req, res) => {
     rows = rows.filter(r => scoped.some(s => s.f.id === r.f.id));
 
     const bagliAds = await bagliAdlariGetir();
+
+    if (arama) {
+      const q = arama.toLowerCase();
+      rows = rows.filter(r =>
+        r.f.faturaNo?.toLowerCase().includes(q) ||
+        (bagliAds[r.f.bagliFirmaId ?? 0] ?? "").toLowerCase().includes(q)
+      );
+    }
+    if (durum && durum !== "tumu") rows = rows.filter(r => r.f.durum === durum);
+    if (paraBirimi && paraBirimi !== "tumu") rows = rows.filter(r => r.f.paraBirimi === paraBirimi);
+    if (baslangicTarihi) rows = rows.filter(r => r.f.faturaTarihi >= baslangicTarihi);
+    if (bitisTarihi) rows = rows.filter(r => r.f.faturaTarihi <= bitisTarihi);
 
     const wb = new ExcelJS.Workbook();
     wb.creator = "Muhasebe Paneli";

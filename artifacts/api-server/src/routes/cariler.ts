@@ -155,6 +155,12 @@ router.get("/cariler", async (req, res) => {
       const bakiye = toplamBorc - toplamAlacak;
       const acikFaturaAdedi = bFaturalar.filter(f => ["acik", "kismi_odendi"].includes(f.durum)).length;
 
+      const tumTarihler = [
+        ...bFaturalar.map(f => f.faturaTarihi as string),
+        ...bOdemeler.map(o => o.tarih as string),
+      ].filter(Boolean).sort();
+      const sonIslemTarihi = tumTarihler.length > 0 ? tumTarihler[tumTarihler.length - 1] : null;
+
       return {
         bagliFirmaId: bf.id,
         bagliFirmaAd: bf.ad,
@@ -165,6 +171,7 @@ router.get("/cariler", async (req, res) => {
         bakiye,
         acikFaturaAdedi,
         paraBirimi: bf.paraBirimi || "USD",
+        sonIslemTarihi,
       };
     });
 

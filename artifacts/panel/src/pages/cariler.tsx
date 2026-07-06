@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useSirket } from "@/contexts/sirket-context";
-import { BookOpen, Search, TrendingDown, ChevronRight, AlertCircle } from "lucide-react";
+import { BookOpen, Search, TrendingDown, ChevronRight, AlertCircle, Plus } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { tr } from "date-fns/locale";
 
 interface CariOzet {
   bagliFirmaId: number;
@@ -20,6 +22,7 @@ interface CariOzet {
   bakiye: number;
   acikFaturaAdedi: number;
   paraBirimi: string;
+  sonIslemTarihi: string | null;
 }
 
 const apiBase = () => {
@@ -30,10 +33,20 @@ const apiBase = () => {
 const fmt = (n: number) =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
+function sonIslemYaz(tarih: string | null): string {
+  if (!tarih) return "";
+  try {
+    return formatDistanceToNow(new Date(tarih), { addSuffix: true, locale: tr });
+  } catch {
+    return tarih;
+  }
+}
+
 export default function Cariler() {
   const { aktifSirketId } = useSirket();
   const [arama, setArama] = useState("");
   const [bakiyeFiltre, setBakiyeFiltre] = useState("tumu");
+  const [siralama, setSiralama] = useState("bakiye_desc");
 
   const { data: cariler = [], isLoading } = useQuery<CariOzet[]>({
     queryKey: ["cariler", aktifSirketId],
@@ -49,16 +62,28 @@ export default function Cariler() {
     },
   });
 
-  const filtrelenmis = cariler.filter(c => {
-    const aramaUyum = !arama || c.bagliFirmaAd.toLowerCase().includes(arama.toLowerCase());
-    const bakiyeUyum =
-      bakiyeFiltre === "tumu" ||
-      (bakiyeFiltre === "bakiyeli" && c.bakiye > 0.01) ||
-      (bakiyeFiltre === "temiz" && c.bakiye <= 0.01);
-    return aramaUyum && bakiyeUyum;
-  });
+  const filtrelenmis = useMemo(() => {
+    const filtered = cariler.filter(c => {
+      const aramaUyum = !arama || c.bagliFirmaAd.toLowerCase().includes(arama.toLowerCase());
+      const bakiyeUyum =
+        bakiyeFiltre === "tumu" ||
+        (bakiyeFiltre === "bakiyeli" && c.bakiye > 0.01) ||
+        (bakiyeFiltre === "temiz" && c.bakiye <= 0.01);
+      return aramaUyum && bakiyeUyum;
+    });
 
-  const toplamBorç = filtrelenmis.reduce((s, c) => s + c.toplamBorc, 0);
+    return [...filtered].sort((a, b) => {
+      if (siralama === "ad_asc") return a.bagliFirmaAd.localeCompare(b.bagliFirmaAd, "tr");
+      if (siralama === "ad_desc") return b.bagliFirmaAd.localeCompare(a.bagliFirmaAd, "tr");
+      if (siralama === "sonIslem_desc") {
+        const aT = a.sonIslemTarihi ?? "";
+        const bT = b.sonIslemTarihi ?? "";
+        return bT.localeCompare(aT);
+      }
+      return b.bakiye - a.bakiye;
+    });
+  }, [cariler, arama, bakiyeFiltre, siralama]);
+
   const toplamAlacak = filtrelenmis.reduce((s, c) => s + c.toplamAlacak, 0);
 
   if (isLoading) {
@@ -78,6 +103,12 @@ export default function Cariler() {
             {cariler.length} müşteri &mdash; toplam {filtrelenmis.filter(c => c.acikFaturaAdedi > 0).length} aktif hesap
           </p>
         </div>
+        <Link href="/firmalar">
+          <Button size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Yeni Müşteri
+          </Button>
+        </Link>
       </div>
 
       {filtrelenmis.length > 0 && (
@@ -131,6 +162,17 @@ export default function Cariler() {
             <SelectItem value="temiz">Kapatılmış</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={siralama} onValueChange={setSiralama}>
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="bakiye_desc">En Yüksek Bakiye</SelectItem>
+            <SelectItem value="ad_asc">Ad (A→Z)</SelectItem>
+            <SelectItem value="ad_desc">Ad (Z→A)</SelectItem>
+            <SelectItem value="sonIslem_desc">Son İşlem</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {filtrelenmis.length === 0 ? (
@@ -181,7 +223,7 @@ export default function Cariler() {
 
                         <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
                           <div>
-                            <p className="text-xs text-muted-foreground">Toplam Borç</p>
+                            <p className="text-xs text-muted-foreground">Toplam Fatura</p>
                             <p className="font-medium">{fmt(c.toplamBorc)}</p>
                           </div>
                           <div>
@@ -204,8 +246,17 @@ export default function Cariler() {
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
                               %{kalintiYuzde.toFixed(0)} tahsil edildi &bull; {c.paraBirimi}
+                              {c.sonIslemTarihi && (
+                                <> &bull; Son işlem: {sonIslemYaz(c.sonIslemTarihi)}</>
+                              )}
                             </p>
                           </div>
+                        )}
+
+                        {!c.toplamBorc && c.sonIslemTarihi && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Son işlem: {sonIslemYaz(c.sonIslemTarihi)}
+                          </p>
                         )}
                       </div>
 
