@@ -119,7 +119,10 @@ export default function FaturaYeni() {
     { tip: "grup" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "grup"] } },
   );
-  const { data: gemiler = [] } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
+  const gemilerParams = catiFirmaId ? { catiFirmaId: Number(catiFirmaId) } : undefined;
+  const { data: gemiler = [] } = useListGemiler(gemilerParams, {
+    query: { queryKey: [...getListGemilerQueryKey(), catiFirmaId] },
+  });
   const { data: seriler = [] } = useListFaturaSerileri(undefined, { query: { queryKey: getListFaturaSerileriQueryKey() } });
   const { data: kdvOranlari = [] } = useListKdvOranlari(undefined, { query: { queryKey: getListKdvOranlariQueryKey() } });
   const createFatura = useCreateFatura();
@@ -293,7 +296,6 @@ export default function FaturaYeni() {
               gemiler={gemiSecenekleri}
               value={gemiId}
               onChange={onGemiChange}
-              catiFirmaFilter={catiFirmaId ? Number(catiFirmaId) : null}
               placeholder="Gemi seçin (opsiyonel)"
             />
           </div>
