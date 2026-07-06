@@ -161,6 +161,25 @@ router.get("/cariler", async (req, res) => {
       ].filter(Boolean).sort();
       const sonIslemTarihi = tumTarihler.length > 0 ? tumTarihler[tumTarihler.length - 1] : null;
 
+      const allPb = new Set([
+        ...validF.map(f => f.paraBirimi ?? "USD"),
+        ...bOdemeler.map(o => o.paraBirimi ?? "USD"),
+      ]);
+      const bakiyeDetay = [...allPb].map(pb => {
+        const fBorc = validF
+          .filter(f => (f.paraBirimi ?? "USD") === pb)
+          .reduce((s, f) => s + Number(f.genelToplam), 0);
+        const oBorc = bOdemeler
+          .filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "odeme")
+          .reduce((s, o) => s + Number(o.tutar), 0);
+        const oAlacak = bOdemeler
+          .filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "tahsilat")
+          .reduce((s, o) => s + Number(o.tutar), 0);
+        const pbBorc = fBorc + oBorc;
+        const pbAlacak = oAlacak;
+        return { paraBirimi: pb, toplamBorc: pbBorc, toplamAlacak: pbAlacak, bakiye: pbBorc - pbAlacak };
+      }).filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
+
       return {
         bagliFirmaId: bf.id,
         bagliFirmaAd: bf.ad,
@@ -172,6 +191,7 @@ router.get("/cariler", async (req, res) => {
         acikFaturaAdedi,
         paraBirimi: bf.paraBirimi || "USD",
         sonIslemTarihi,
+        bakiyeDetay,
       };
     });
 

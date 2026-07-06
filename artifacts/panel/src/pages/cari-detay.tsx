@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -102,6 +102,7 @@ export default function CariDetay() {
   const [gonderiEposta, setGonderiEposta] = useState("");
   const [gonderiMesaj, setGonderiMesaj] = useState("");
   const [gonderiyor, setGonderiyor] = useState(false);
+  const [aktifPb, setAktifPb] = useState<string | null>(null);
 
   const createOdeme = useCreateOdeme();
   const { data: bankaHesaplariGenel = [] } = useListBankaHesaplari(undefined, {
@@ -123,6 +124,32 @@ export default function CariDetay() {
     },
     enabled: !!id,
   });
+
+  const pbOzetler = useMemo(() => {
+    const kalemler = detay?.kalemler ?? [];
+    const map = new Map<string, { toplamBorc: number; toplamAlacak: number }>();
+    for (const k of kalemler) {
+      const pb = k.paraBirimi;
+      const cur = map.get(pb) ?? { toplamBorc: 0, toplamAlacak: 0 };
+      cur.toplamBorc += k.borc;
+      cur.toplamAlacak += k.alacak;
+      map.set(pb, cur);
+    }
+    return [...map.entries()]
+      .map(([pb, v]) => ({
+        paraBirimi: pb,
+        toplamBorc: v.toplamBorc,
+        toplamAlacak: v.toplamAlacak,
+        bakiye: v.toplamBorc - v.toplamAlacak,
+      }))
+      .filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
+  }, [detay?.kalemler]);
+
+  useEffect(() => {
+    if (pbOzetler.length > 0 && (aktifPb === null || !pbOzetler.find(d => d.paraBirimi === aktifPb))) {
+      setAktifPb(pbOzetler[0].paraBirimi);
+    }
+  }, [pbOzetler, aktifPb]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -371,31 +398,82 @@ export default function CariDetay() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Toplam Borç</p>
-            <p className="text-xl font-display font-bold">{fmt(ozet.toplamBorc)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{ozet.paraBirimi}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Toplam Tahsilat</p>
-            <p className="text-xl font-display font-bold text-green-700">{fmt(ozet.toplamAlacak)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{ozet.paraBirimi}</p>
-          </CardContent>
-        </Card>
-        <Card className={bakiyeBg}>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Net Bakiye</p>
-            <p className={`text-xl font-display font-bold ${bakiyeRenk}`}>{fmt(Math.abs(ozet.bakiye))}</p>
-            <p className={`text-xs mt-0.5 ${bakiyeRenk}`}>
-              {ozet.paraBirimi} &bull; {ozet.bakiye > 0.01 ? "Tahsil edilecek" : ozet.bakiye < -0.01 ? "Ödenecek" : "Kapatılmış"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {pbOzetler.length > 1 ? (
+        <div className="space-y-2">
+          <div className="flex gap-1.5 flex-wrap">
+            {pbOzetler.map(d => (
+              <button
+                key={d.paraBirimi}
+                onClick={() => setAktifPb(d.paraBirimi)}
+                className={`px-3 py-1 text-xs font-semibold border transition-colors rounded-none ${
+                  aktifPb === d.paraBirimi
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-muted text-muted-foreground border-muted-foreground/20 hover:bg-muted/80"
+                }`}
+              >
+                {d.paraBirimi}
+              </button>
+            ))}
+          </div>
+          {pbOzetler.filter(d => d.paraBirimi === aktifPb).map(d => {
+            const pbBakiyeRenk = d.bakiye > 0.01 ? "text-orange-600" : d.bakiye < -0.01 ? "text-red-600" : "text-green-600";
+            const pbBakiyeBg  = d.bakiye > 0.01 ? "bg-orange-50" : d.bakiye < -0.01 ? "bg-red-50" : "bg-green-50";
+            return (
+              <div key={d.paraBirimi} className="grid grid-cols-3 gap-3">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Toplam Borç</p>
+                    <p className="text-xl font-display font-bold">{fmt(d.toplamBorc)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{d.paraBirimi}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Toplam Tahsilat</p>
+                    <p className="text-xl font-display font-bold text-green-700">{fmt(d.toplamAlacak)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{d.paraBirimi}</p>
+                  </CardContent>
+                </Card>
+                <Card className={pbBakiyeBg}>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Net Bakiye</p>
+                    <p className={`text-xl font-display font-bold ${pbBakiyeRenk}`}>{fmt(Math.abs(d.bakiye))}</p>
+                    <p className={`text-xs mt-0.5 ${pbBakiyeRenk}`}>
+                      {d.paraBirimi} &bull; {d.bakiye > 0.01 ? "Tahsil edilecek" : d.bakiye < -0.01 ? "Ödenecek" : "Kapatılmış"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Toplam Borç</p>
+              <p className="text-xl font-display font-bold">{fmt(ozet.toplamBorc)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{ozet.paraBirimi}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Toplam Tahsilat</p>
+              <p className="text-xl font-display font-bold text-green-700">{fmt(ozet.toplamAlacak)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{ozet.paraBirimi}</p>
+            </CardContent>
+          </Card>
+          <Card className={bakiyeBg}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Net Bakiye</p>
+              <p className={`text-xl font-display font-bold ${bakiyeRenk}`}>{fmt(Math.abs(ozet.bakiye))}</p>
+              <p className={`text-xs mt-0.5 ${bakiyeRenk}`}>
+                {ozet.paraBirimi} &bull; {ozet.bakiye > 0.01 ? "Tahsil edilecek" : ozet.bakiye < -0.01 ? "Ödenecek" : "Kapatılmış"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card>
         <div className="overflow-x-auto">

@@ -12,6 +12,13 @@ import { BookOpen, Search, TrendingDown, ChevronRight, AlertCircle, Plus } from 
 import { formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
 
+interface BakiyeDetay {
+  paraBirimi: string;
+  toplamBorc: number;
+  toplamAlacak: number;
+  bakiye: number;
+}
+
 interface CariOzet {
   bagliFirmaId: number;
   bagliFirmaAd: string;
@@ -23,6 +30,7 @@ interface CariOzet {
   acikFaturaAdedi: number;
   paraBirimi: string;
   sonIslemTarihi: string | null;
+  bakiyeDetay?: BakiyeDetay[];
 }
 
 const apiBase = () => {
@@ -223,20 +231,40 @@ export default function Cariler() {
                           )}
                         </div>
 
-                        <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Toplam Fatura</p>
-                            <p className="font-medium">{fmt(c.toplamBorc)}</p>
+                        {c.bakiyeDetay && c.bakiyeDetay.length > 1 ? (
+                          <div className="mt-3 space-y-1.5">
+                            <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground font-medium mb-0.5">
+                              <span>Para Birimi</span>
+                              <span className="text-right">Fatura</span>
+                              <span className="text-right">Bakiye</span>
+                            </div>
+                            {c.bakiyeDetay.map(d => {
+                              const dRenk = d.bakiye > 0.01 ? "text-orange-600" : d.bakiye < -0.01 ? "text-red-600" : "text-green-600";
+                              return (
+                                <div key={d.paraBirimi} className="grid grid-cols-3 gap-1 text-xs">
+                                  <span className="font-semibold text-muted-foreground">{d.paraBirimi}</span>
+                                  <span className="text-right tabular-nums">{fmt(d.toplamBorc)}</span>
+                                  <span className={`text-right tabular-nums font-bold ${dRenk}`}>{fmt(Math.abs(d.bakiye))}</span>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Tahsilat</p>
-                            <p className="font-medium text-green-700">{fmt(c.toplamAlacak)}</p>
+                        ) : (
+                          <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Toplam Fatura</p>
+                              <p className="font-medium">{fmt(c.toplamBorc)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Tahsilat</p>
+                              <p className="font-medium text-green-700">{fmt(c.toplamAlacak)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Bakiye</p>
+                              <p className={`font-bold ${bakiyeRenk}`}>{fmt(Math.abs(c.bakiye))}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Bakiye</p>
-                            <p className={`font-bold ${bakiyeRenk}`}>{fmt(Math.abs(c.bakiye))}</p>
-                          </div>
-                        </div>
+                        )}
 
                         {c.toplamBorc > 0 && (
                           <div className="mt-3">
@@ -247,7 +275,8 @@ export default function Cariler() {
                               />
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                              %{kalintiYuzde.toFixed(0)} tahsil edildi &bull; {c.paraBirimi}
+                              %{kalintiYuzde.toFixed(0)} tahsil edildi
+                              {c.bakiyeDetay && c.bakiyeDetay.length <= 1 && <> &bull; {c.paraBirimi}</>}
                               {c.sonIslemTarihi && (
                                 <> &bull; Son işlem: {sonIslemYaz(c.sonIslemTarihi)}</>
                               )}
