@@ -237,6 +237,24 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
     const bakiye = toplamBorc - toplamAlacak;
     const paraBirimi = bagliFirma.paraBirimi || "USD";
 
+    const pbSummaryMap = new Map<string, { toplamBorc: number; toplamAlacak: number }>();
+    for (const e of kalemler) {
+      const pb = e.paraBirimi ?? "USD";
+      const cur = pbSummaryMap.get(pb) ?? { toplamBorc: 0, toplamAlacak: 0 };
+      cur.toplamBorc += e.borc;
+      cur.toplamAlacak += e.alacak;
+      pbSummaryMap.set(pb, cur);
+    }
+    const pbSummaries = [...pbSummaryMap.entries()]
+      .map(([pb, { toplamBorc: pbBorc, toplamAlacak: pbAlacak }]) => ({
+        paraBirimi: pb,
+        toplamBorc: pbBorc,
+        toplamAlacak: pbAlacak,
+        bakiye: pbBorc - pbAlacak,
+      }))
+      .filter(s => s.toplamBorc > 0.005 || s.toplamAlacak > 0.005);
+    const isMultiCurrency = pbSummaries.length > 1;
+
     const fmt = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     const donemStr = baslangic || bitis
       ? `${baslangic || "Başlangıç"} — ${bitis || "Bugün"}`
@@ -299,30 +317,57 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
                 ...(bagliFirma.telefon ? [{ text: `Tel: ${bagliFirma.telefon}`, color: "#555", fontSize: 8, marginTop: 1 }] : []),
               ],
             },
-            {
-              width: 220,
-              table: {
-                widths: ["*", "*", "*"],
-                body: [
-                  [
-                    { text: "TOPLAM BORÇ", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
-                    { text: "TOPLAM ALACAK", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
-                    { text: "BAKİYE", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
-                  ],
-                  [
-                    { text: `${fmt(toplamBorc)}\n${paraBirimi}`, fontSize: 9, bold: true, alignment: "center", marginTop: 4, marginBottom: 4, border: [true, false, true, true] },
-                    { text: `${fmt(toplamAlacak)}\n${paraBirimi}`, fontSize: 9, bold: true, color: "#16a34a", alignment: "center", marginTop: 4, marginBottom: 4, border: [true, false, true, true] },
-                    {
-                      text: `${fmt(Math.abs(bakiye))}\n${paraBirimi}`,
-                      fontSize: 9, bold: true,
-                      color: bakiye > 0.005 ? "#d97706" : bakiye < -0.005 ? "#dc2626" : "#16a34a",
-                      alignment: "center", marginTop: 4, marginBottom: 4, border: [true, false, true, true],
-                    },
-                  ],
-                ],
-              },
-              layout: { hLineColor: () => "#e8eaf0", vLineColor: () => "#e8eaf0" },
-            },
+            isMultiCurrency
+              ? {
+                  width: 270,
+                  table: {
+                    widths: ["auto", "*", "*", "*"],
+                    body: [
+                      [
+                        { text: "PB", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
+                        { text: "TOPLAM BORÇ", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
+                        { text: "TOPLAM ALACAK", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
+                        { text: "BAKİYE", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
+                      ],
+                      ...pbSummaries.map(s => [
+                        { text: s.paraBirimi, fontSize: 8, bold: true, alignment: "center", marginTop: 3, marginBottom: 3, border: [true, false, true, true] },
+                        { text: fmt(s.toplamBorc), fontSize: 9, bold: true, alignment: "center", marginTop: 3, marginBottom: 3, border: [true, false, true, true] },
+                        { text: fmt(s.toplamAlacak), fontSize: 9, bold: true, color: "#16a34a", alignment: "center", marginTop: 3, marginBottom: 3, border: [true, false, true, true] },
+                        {
+                          text: fmt(Math.abs(s.bakiye)),
+                          fontSize: 9, bold: true,
+                          color: s.bakiye > 0.005 ? "#d97706" : s.bakiye < -0.005 ? "#dc2626" : "#16a34a",
+                          alignment: "center", marginTop: 3, marginBottom: 3, border: [true, false, true, true],
+                        },
+                      ]),
+                    ],
+                  },
+                  layout: { hLineColor: () => "#e8eaf0", vLineColor: () => "#e8eaf0" },
+                }
+              : {
+                  width: 220,
+                  table: {
+                    widths: ["*", "*", "*"],
+                    body: [
+                      [
+                        { text: "TOPLAM BORÇ", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
+                        { text: "TOPLAM ALACAK", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
+                        { text: "BAKİYE", fontSize: 7, bold: true, color: "#888", characterSpacing: 0.5, alignment: "center", fillColor: "#f9fafc", border: [true, true, true, false] },
+                      ],
+                      [
+                        { text: `${fmt(toplamBorc)}\n${paraBirimi}`, fontSize: 9, bold: true, alignment: "center", marginTop: 4, marginBottom: 4, border: [true, false, true, true] },
+                        { text: `${fmt(toplamAlacak)}\n${paraBirimi}`, fontSize: 9, bold: true, color: "#16a34a", alignment: "center", marginTop: 4, marginBottom: 4, border: [true, false, true, true] },
+                        {
+                          text: `${fmt(Math.abs(bakiye))}\n${paraBirimi}`,
+                          fontSize: 9, bold: true,
+                          color: bakiye > 0.005 ? "#d97706" : bakiye < -0.005 ? "#dc2626" : "#16a34a",
+                          alignment: "center", marginTop: 4, marginBottom: 4, border: [true, false, true, true],
+                        },
+                      ],
+                    ],
+                  },
+                  layout: { hLineColor: () => "#e8eaf0", vLineColor: () => "#e8eaf0" },
+                },
           ],
           marginBottom: 18,
         },
@@ -354,29 +399,53 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
               },
             }
           : { text: "Bu dönemde kayıt bulunamadı.", color: "#888", italics: true, marginTop: 8 },
-        ...(bakiye > 0.005
-          ? [{
-              columns: [
-                { width: "*", text: "" },
-                {
-                  width: 240,
-                  table: {
-                    widths: ["*", "auto"],
-                    body: [[
-                      { text: "BAKİYE (TAHSIL EDİLECEK):", bold: true, fontSize: 10, color: "#d97706" },
-                      { text: `${fmt(bakiye)} ${paraBirimi}`, alignment: "right", bold: true, fontSize: 10, color: "#d97706" },
-                    ]],
+        ...(isMultiCurrency
+          ? pbSummaries
+              .filter(s => s.bakiye > 0.005)
+              .map(s => ({
+                columns: [
+                  { width: "*", text: "" },
+                  {
+                    width: 260,
+                    table: {
+                      widths: ["*", "auto"],
+                      body: [[
+                        { text: `BAKİYE (TAHSİL EDİLECEK) — ${s.paraBirimi}:`, bold: true, fontSize: 10, color: "#d97706" },
+                        { text: `${fmt(s.bakiye)} ${s.paraBirimi}`, alignment: "right", bold: true, fontSize: 10, color: "#d97706" },
+                      ]],
+                    },
+                    layout: {
+                      hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === node.table.body.length ? 1.5 : 0),
+                      vLineWidth: () => 0,
+                      hLineColor: () => "#d97706",
+                    },
+                    marginTop: 10,
                   },
-                  layout: {
-                    hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === node.table.body.length ? 1.5 : 0),
-                    vLineWidth: () => 0,
-                    hLineColor: () => "#d97706",
-                  },
-                  marginTop: 10,
-                },
-              ],
-            } as unknown as import("pdfmake/interfaces").Content]
-          : []),
+                ],
+              } as unknown as import("pdfmake/interfaces").Content))
+          : (bakiye > 0.005
+              ? [{
+                  columns: [
+                    { width: "*", text: "" },
+                    {
+                      width: 240,
+                      table: {
+                        widths: ["*", "auto"],
+                        body: [[
+                          { text: "BAKİYE (TAHSİL EDİLECEK):", bold: true, fontSize: 10, color: "#d97706" },
+                          { text: `${fmt(bakiye)} ${paraBirimi}`, alignment: "right", bold: true, fontSize: 10, color: "#d97706" },
+                        ]],
+                      },
+                      layout: {
+                        hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === node.table.body.length ? 1.5 : 0),
+                        vLineWidth: () => 0,
+                        hLineColor: () => "#d97706",
+                      },
+                      marginTop: 10,
+                    },
+                  ],
+                } as unknown as import("pdfmake/interfaces").Content]
+              : [])),
         {
           text: `Bu ekstre ${tarihStr} tarihinde ${catiFirma?.ad ?? ""} tarafından düzenlenmiştir.`,
           fontSize: 7, color: "#aaa", italics: true, marginTop: 20, alignment: "center",
