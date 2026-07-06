@@ -93,7 +93,24 @@ export default function Cariler() {
     });
   }, [cariler, arama, bakiyeFiltre, siralama]);
 
-  const toplamAlacak = filtrelenmis.reduce((s, c) => s + c.toplamAlacak, 0);
+  const ozet = useMemo(() => {
+    const map: Record<string, { alacakBakiye: number; tahsilat: number }> = {};
+    for (const c of filtrelenmis) {
+      if (c.bakiyeDetay && c.bakiyeDetay.length > 0) {
+        for (const d of c.bakiyeDetay) {
+          if (!map[d.paraBirimi]) map[d.paraBirimi] = { alacakBakiye: 0, tahsilat: 0 };
+          map[d.paraBirimi].alacakBakiye += Math.max(0, d.bakiye);
+          map[d.paraBirimi].tahsilat += d.toplamAlacak;
+        }
+      } else {
+        const pb = c.paraBirimi || "TRY";
+        if (!map[pb]) map[pb] = { alacakBakiye: 0, tahsilat: 0 };
+        map[pb].alacakBakiye += Math.max(0, c.bakiye);
+        map[pb].tahsilat += c.toplamAlacak;
+      }
+    }
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
+  }, [filtrelenmis]);
 
   if (isLoading) {
     return (
@@ -123,28 +140,58 @@ export default function Cariler() {
       {filtrelenmis.length > 0 && (
         <div className="grid grid-cols-2 gap-4">
           <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 rounded-sm bg-orange-500/10">
+            <CardContent className="p-4 flex items-start gap-3">
+              <div className="p-2.5 rounded-sm bg-orange-500/10 mt-0.5 shrink-0">
                 <TrendingDown className="h-5 w-5 text-orange-500" />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Toplam Alacak (Bakiye)</p>
-                <p className="text-lg font-display font-bold text-orange-600">
-                  {fmt(filtrelenmis.reduce((s, c) => s + Math.max(0, c.bakiye), 0))}
-                </p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground mb-1">Toplam Alacak (Bakiye)</p>
+                {ozet.length === 0 ? (
+                  <p className="text-lg font-display font-bold text-orange-600">0,00</p>
+                ) : ozet.length === 1 ? (
+                  <p className="text-lg font-display font-bold text-orange-600">
+                    {fmt(ozet[0][1].alacakBakiye)} {ozet[0][0]}
+                  </p>
+                ) : (
+                  <div className="space-y-0.5">
+                    {ozet.map(([pb, v]) => (
+                      <div key={pb} className="flex items-baseline justify-between gap-2">
+                        <span className="text-xs font-semibold text-muted-foreground">{pb}</span>
+                        <span className="text-sm font-display font-bold text-orange-600 tabular-nums">
+                          {fmt(v.alacakBakiye)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 rounded-sm bg-blue-500/10">
+            <CardContent className="p-4 flex items-start gap-3">
+              <div className="p-2.5 rounded-sm bg-blue-500/10 mt-0.5 shrink-0">
                 <BookOpen className="h-5 w-5 text-blue-500" />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Toplam Tahsilat</p>
-                <p className="text-lg font-display font-bold text-blue-600">
-                  {fmt(toplamAlacak)}
-                </p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground mb-1">Toplam Tahsilat</p>
+                {ozet.length === 0 ? (
+                  <p className="text-lg font-display font-bold text-blue-600">0,00</p>
+                ) : ozet.length === 1 ? (
+                  <p className="text-lg font-display font-bold text-blue-600">
+                    {fmt(ozet[0][1].tahsilat)} {ozet[0][0]}
+                  </p>
+                ) : (
+                  <div className="space-y-0.5">
+                    {ozet.map(([pb, v]) => (
+                      <div key={pb} className="flex items-baseline justify-between gap-2">
+                        <span className="text-xs font-semibold text-muted-foreground">{pb}</span>
+                        <span className="text-sm font-display font-bold text-blue-600 tabular-nums">
+                          {fmt(v.tahsilat)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
