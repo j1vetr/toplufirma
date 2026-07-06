@@ -589,14 +589,14 @@ export default function CariDetay() {
         </div>
       </Card>
 
-      {ozet.bakiye > 0.01 && (
-        <div className="flex items-center gap-2 text-sm text-orange-600 p-3 bg-orange-50 border border-orange-200 rounded-none">
+      {pbOzetler.filter(d => d.bakiye > 0.01).map(d => (
+        <div key={d.paraBirimi} className="flex items-center gap-2 text-sm text-orange-600 p-3 bg-orange-50 border border-orange-200 rounded-none">
           <TriangleAlert className="h-4 w-4 shrink-0" />
           <span>
-            <strong>{fmt(ozet.bakiye)} {ozet.paraBirimi}</strong> tahsil edilecek bakiye mevcut.
+            <strong>{fmt(d.bakiye)} {d.paraBirimi}</strong> tahsil edilecek bakiye mevcut.
           </span>
         </div>
-      )}
+      ))}
 
       <Dialog open={islemModal} onOpenChange={setIslemModal}>
         <DialogContent className="sm:max-w-md">
