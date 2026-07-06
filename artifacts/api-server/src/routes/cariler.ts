@@ -359,7 +359,19 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
         {
           columns: [
             catiFirma?.logo
-              ? { image: catiFirma.logo, width: 110, margin: [8, 6, 0, 0] }
+              ? {
+                  table: {
+                    body: [[{ image: catiFirma.logo, width: 84, margin: [4, 4, 4, 4], border: [true, true, true, true] }]],
+                  },
+                  layout: {
+                    fillColor: () => "#ffffff",
+                    hLineColor: () => "#1c3c6e",
+                    vLineColor: () => "#1c3c6e",
+                    hLineWidth: () => 1,
+                    vLineWidth: () => 1,
+                  },
+                  margin: [8, 3, 0, 0],
+                }
               : { text: catiFirma?.ad ?? "", fontSize: 12, bold: true, color: "#ffffff", margin: [10, 11, 0, 0] },
             {
               text: "CARİ HESAP EKSTRESİ",
