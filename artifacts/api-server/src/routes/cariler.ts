@@ -351,34 +351,46 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
       defaultStyle: { font: "Roboto", fontSize: 9 },
       pageMargins: [36, 50, 36, 50],
       content: [
-        // Koyu başlık çubuğu
+        // Başlık: sol sütun beyaz (logo), sağ sütun koyu (başlık yazısı)
         {
-          canvas: [{ type: "rect", x: 0, y: 0, w: 523, h: 38, r: 0, color: "#111827" }],
-          marginBottom: -38,
-        },
-        {
-          columns: [
-            catiFirma?.logo
-              ? {
-                  table: {
-                    body: [[{ image: catiFirma.logo, width: 84, margin: [4, 4, 4, 4], border: [true, true, true, true] }]],
+          table: {
+            widths: [130, "*"],
+            body: [[
+              catiFirma?.logo
+                ? {
+                    image: catiFirma.logo,
+                    width: 110,
+                    alignment: "center" as const,
+                    fillColor: "#ffffff",
+                    border: [false, false, true, false] as [boolean, boolean, boolean, boolean],
+                    margin: [8, 6, 8, 6],
+                  }
+                : {
+                    text: catiFirma?.ad ?? "",
+                    fontSize: 11, bold: true, color: "#ffffff",
+                    fillColor: "#111827",
+                    border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                    margin: [10, 13, 0, 0],
                   },
-                  layout: {
-                    fillColor: () => "#ffffff",
-                    hLineColor: () => "#1c3c6e",
-                    vLineColor: () => "#1c3c6e",
-                    hLineWidth: () => 1,
-                    vLineWidth: () => 1,
-                  },
-                  margin: [8, 3, 0, 0],
-                }
-              : { text: catiFirma?.ad ?? "", fontSize: 12, bold: true, color: "#ffffff", margin: [10, 11, 0, 0] },
-            {
-              text: "CARİ HESAP EKSTRESİ",
-              fontSize: 13, bold: true, color: "#facc15",
-              alignment: "right", margin: [0, 11, 10, 0],
-            },
-          ],
+              {
+                text: "CARİ HESAP EKSTRESİ",
+                fontSize: 13, bold: true, color: "#facc15",
+                fillColor: "#111827",
+                border: [false, false, false, false] as [boolean, boolean, boolean, boolean],
+                alignment: "right" as const,
+                margin: [0, 13, 10, 0],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: () => 0,
+            vLineWidth: (i: number) => (i === 1 ? 2 : 0),
+            vLineColor: () => "#1c3c6e",
+            paddingLeft: () => 0,
+            paddingRight: () => 0,
+            paddingTop: () => 0,
+            paddingBottom: () => 0,
+          },
           marginBottom: 16,
         },
         // Bilgi ve özet sütunları
