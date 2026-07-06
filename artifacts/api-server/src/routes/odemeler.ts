@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { odemeler, firmalar, gemiler, bankaHesaplari, faturalar } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
+import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 
 const router = Router();
 
@@ -42,8 +43,10 @@ router.post("/odemeler", requireYazma, async (req, res) => {
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
     if (bagliFirmaId) {
-      const [bf] = await db.select({ uid: firmalar.ustFirmaId }).from(firmalar).where(eq(firmalar.id, Number(bagliFirmaId)));
-      if (!bf || bf.uid !== Number(catiFirmaId)) { res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return; }
+      const gorIds = await gorunurBagliFirmaIds(Number(catiFirmaId));
+      if (!gorIds.includes(Number(bagliFirmaId))) {
+        res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return;
+      }
     }
     if (faturaId) {
       const [fat] = await db.select({ cid: faturalar.catiFirmaId }).from(faturalar).where(eq(faturalar.id, Number(faturaId)));

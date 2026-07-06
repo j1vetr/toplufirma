@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,19 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useSirket } from "@/contexts/sirket-context";
-import { BookOpen, Search, TrendingDown, ChevronRight, AlertCircle, Plus } from "lucide-react";
+import { BookOpen, Search, TrendingDown, ChevronRight, AlertCircle, Plus, CreditCard } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
+import {
+  useCreateOdeme, useListBankaHesaplari, getListBankaHesaplariQueryKey,
+} from "@workspace/api-client-react";
+import type { OdemeInputOdemeYontemi } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface BakiyeDetay {
   paraBirimi: string;
@@ -24,6 +33,7 @@ interface CariOzet {
   bagliFirmaAd: string;
   catiFirmaId: number | null;
   catiFirmaAd: string | null;
+  gemiAd?: string | null;
   toplamBorc: number;
   toplamAlacak: number;
   bakiye: number;
@@ -50,11 +60,74 @@ function sonIslemYaz(tarih: string | null): string {
   }
 }
 
+const YONTEM_ETIKET: Record<string, string> = {
+  banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
+  kredi_karti: "Kredi Kartı", wise: "Wise", paypal: "PayPal", diger: "Diğer",
+};
+const PARA_BIRIMLERI = ["USD", "EUR", "TRY", "GBP"];
+
+function localToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
 export default function Cariler() {
   const { aktifSirketId } = useSirket();
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const [arama, setArama] = useState("");
   const [bakiyeFiltre, setBakiyeFiltre] = useState("tumu");
   const [siralama, setSiralama] = useState("bakiye_desc");
+
+  const [odemeModal, setOdemeModal] = useState<CariOzet | null>(null);
+  const [odTutar, setOdTutar] = useState("");
+  const [odPb, setOdPb] = useState("USD");
+  const [odTarih, setOdTarih] = useState(localToday());
+  const [odYontem, setOdYontem] = useState("banka_havalesi");
+  const [odBanka, setOdBanka] = useState("none");
+  const [odAciklama, setOdAciklama] = useState("");
+
+  const createOdeme = useCreateOdeme();
+  const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, {
+    query: { queryKey: getListBankaHesaplariQueryKey(), enabled: !!odemeModal?.catiFirmaId },
+  });
+  const modalBankalar = bankaHesaplari.filter(b => b.catiFirmaId === odemeModal?.catiFirmaId && b.faturadaGoster !== false);
+
+  function odemeAc(c: CariOzet, e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setOdTutar("");
+    setOdPb(c.paraBirimi || "USD");
+    setOdTarih(localToday());
+    setOdYontem("banka_havalesi");
+    setOdBanka("none");
+    setOdAciklama("");
+    setOdemeModal(c);
+  }
+
+  function odemeKaydet() {
+    if (!odemeModal?.catiFirmaId || !odTutar || !odTarih) return;
+    createOdeme.mutate({
+      data: {
+        catiFirmaId: odemeModal.catiFirmaId,
+        bagliFirmaId: odemeModal.bagliFirmaId,
+        tip: "tahsilat",
+        tarih: odTarih,
+        tutar: Number(odTutar),
+        paraBirimi: odPb,
+        odemeYontemi: odYontem as OdemeInputOdemeYontemi,
+        bankaHesabiId: odBanka !== "none" ? Number(odBanka) : undefined,
+        aciklama: odAciklama || undefined,
+      },
+    }, {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: ["cariler"] });
+        setOdemeModal(null);
+        toast({ title: "Ödeme kaydedildi" });
+      },
+      onError: () => toast({ title: "Ödeme kaydedilemedi", variant: "destructive" }),
+    });
+  }
 
   const { data: cariler = [], isLoading } = useQuery<CariOzet[]>({
     queryKey: ["cariler", aktifSirketId],
@@ -265,10 +338,14 @@ export default function Cariler() {
                       <div className="flex-1 p-4 min-w-0">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="font-semibold text-base leading-tight truncate">{c.bagliFirmaAd}</p>
-                            {c.catiFirmaAd && (
-                              <p className="text-xs text-muted-foreground mt-0.5">{c.catiFirmaAd}</p>
-                            )}
+                            <p className="font-semibold text-base leading-tight truncate">
+                              {c.bagliFirmaAd}
+                              {(c.gemiAd || c.catiFirmaAd) && (
+                                <span className="font-normal text-sm text-muted-foreground ml-1">
+                                  ({[c.gemiAd, c.catiFirmaAd].filter(Boolean).join(" - ")})
+                                </span>
+                              )}
+                            </p>
                           </div>
                           {c.acikFaturaAdedi > 0 && (
                             <span className="shrink-0 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
@@ -338,7 +415,16 @@ export default function Cariler() {
                         )}
                       </div>
 
-                      <div className={`flex items-center px-4 border-l ${bakiyeBg}`}>
+                      <div className={`flex items-center gap-1 px-3 border-l ${bakiyeBg}`}>
+                        {c.catiFirmaId && (
+                          <button
+                            title="Ödeme Kaydet"
+                            onClick={(e) => odemeAc(c, e)}
+                            className="p-1.5 rounded-none hover:bg-black/5 transition-colors"
+                          >
+                            <CreditCard className={`h-4 w-4 ${bakiyeRenk} opacity-70`} />
+                          </button>
+                        )}
                         <ChevronRight className={`h-5 w-5 ${bakiyeRenk}`} />
                       </div>
                     </div>
@@ -349,6 +435,86 @@ export default function Cariler() {
           })}
         </div>
       )}
+      <Dialog open={!!odemeModal} onOpenChange={open => { if (!open) setOdemeModal(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ödeme Kaydet - {odemeModal?.bagliFirmaAd}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-3">
+              <div className="flex-1 space-y-1.5">
+                <Label>Tutar *</Label>
+                <input
+                  type="number"
+                  value={odTutar}
+                  onChange={e => setOdTutar(e.target.value)}
+                  step="0.01" min="0"
+                  className="flex h-9 w-full rounded-none border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="w-28 space-y-1.5">
+                <Label>Para Birimi</Label>
+                <Select value={odPb} onValueChange={setOdPb}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PARA_BIRIMLERI.map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tarih *</Label>
+              <input
+                type="date"
+                value={odTarih}
+                onChange={e => setOdTarih(e.target.value)}
+                className="flex h-9 w-full rounded-none border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ödeme Yöntemi</Label>
+              <Select value={odYontem} onValueChange={setOdYontem}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(YONTEM_ETIKET).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {modalBankalar.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Banka Hesabı <span className="text-xs text-muted-foreground">(opsiyonel)</span></Label>
+                <Select value={odBanka} onValueChange={v => { setOdBanka(v); if (v !== "none") { const b = modalBankalar.find(x => String(x.id) === v); if (b?.paraBirimi) setOdPb(b.paraBirimi); } }}>
+                  <SelectTrigger><SelectValue placeholder="Belirtilmedi" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Belirtilmedi</SelectItem>
+                    {modalBankalar.map(b => (
+                      <SelectItem key={b.id} value={String(b.id)}>
+                        {b.bankaAdi ? `${b.bankaAdi} - ` : ""}{b.hesapAdi}{b.paraBirimi ? ` (${b.paraBirimi})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Açıklama <span className="text-xs text-muted-foreground">(opsiyonel)</span></Label>
+              <input
+                value={odAciklama}
+                onChange={e => setOdAciklama(e.target.value)}
+                placeholder="Ödeme açıklaması"
+                className="flex h-9 w-full rounded-none border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOdemeModal(null)}>İptal</Button>
+            <Button onClick={odemeKaydet} disabled={!odTutar || !odTarih || createOdeme.isPending}>
+              {createOdeme.isPending ? "Kaydediliyor..." : "Kaydet"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

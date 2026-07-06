@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturalar, firmalar, odemeler, bankaHesaplari, firmaEpostaAyarlari, gonderiGecmisi } from "@workspace/db";
+import { faturalar, firmalar, odemeler, bankaHesaplari, firmaEpostaAyarlari, gonderiGecmisi, gemiler } from "@workspace/db";
 import { eq, and, inArray, gte, lte, lt } from "drizzle-orm";
 import { sirketErisimKontrol, requireYazma, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
@@ -161,6 +161,13 @@ router.get("/cariler", async (req, res) => {
       db.select().from(odemeler).where(inArray(odemeler.bagliFirmaId, bagliFirmaIdleri)),
     ]);
 
+    const gemiIdleri = [...new Set(faturaRows.map(f => f.gemiId).filter((g): g is number => g != null))];
+    const gemiMap = new Map<number, string>();
+    if (gemiIdleri.length > 0) {
+      const gemiRows = await db.select({ id: gemiler.id, ad: gemiler.ad }).from(gemiler).where(inArray(gemiler.id, gemiIdleri));
+      for (const g of gemiRows) gemiMap.set(g.id, g.ad);
+    }
+
     const result = erisilen.map(bf => {
       const effectiveCati = catiMap.get(bf.id);
       const catiFirma = catiFirmalar.find(c => c.id === effectiveCati);
@@ -200,11 +207,17 @@ router.get("/cariler", async (req, res) => {
         return { paraBirimi: pb, toplamBorc: pbBorc, toplamAlacak: pbAlacak, bakiye: pbBorc - pbAlacak };
       }).filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
 
+      const gemiIcinFaturalar = bFaturalar
+        .filter(f => f.gemiId != null)
+        .sort((a, b) => new Date(b.faturaTarihi as string).getTime() - new Date(a.faturaTarihi as string).getTime());
+      const gemiAd = gemiIcinFaturalar.length > 0 ? (gemiMap.get(gemiIcinFaturalar[0].gemiId!) ?? null) : null;
+
       return {
         bagliFirmaId: bf.id,
         bagliFirmaAd: bf.ad,
         catiFirmaId: effectiveCati ?? null,
         catiFirmaAd: catiFirma?.ad ?? null,
+        gemiAd,
         toplamBorc,
         toplamAlacak,
         bakiye,

@@ -30,3 +30,7 @@ Every FK reference in a write payload must be verified to belong to the same `si
 ## Rule 3 — healthz must be on public router
 `/api/healthz` must be mounted in `app.ts` before `requireAuth`, not in the authenticated route index.
 **Why:** Health checks from platform/infra probes are unauthenticated.
+
+## Rule 4 — bagliFirmaId ownership: use gorunurBagliFirmaIds, not ustFirmaId
+When validating that a `bagliFirmaId` belongs to a `catiFirmaId`, do NOT check `firmalar.ustFirmaId === catiFirmaId` directly. Use `gorunurBagliFirmaIds(catiFirmaId)` from `utils/gorunurluk`.
+**Why:** baglı firmalar may be linked via a grupFirmaId chain (baglı→grup→catı), so `ustFirmaId` points to the grup firma, not the catı firma — direct comparison always fails for these cases.

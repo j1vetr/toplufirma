@@ -19,7 +19,7 @@ import { useYetki } from "@/hooks/use-yetki";
 import {
   ArrowLeft, Download, Plus, Loader2, FileText,
   TrendingUp, TrendingDown, TriangleAlert, Trash2,
-  FileSpreadsheet, Mail, Send,
+  FileSpreadsheet, Mail, Send, CreditCard,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -164,7 +164,18 @@ export default function CariDetay() {
   }
 
   function openIslemModal() {
+    setIslemTip("tahsilat");
     setIslemPb(detay?.firma.paraBirimi ?? "USD");
+    setIslemModal(true);
+  }
+
+  function openOdemeModal() {
+    setIslemTip("tahsilat");
+    setIslemPb(detay?.firma.paraBirimi ?? "USD");
+    setIslemTarih(new Date().toISOString().split("T")[0]);
+    setIslemTutar("");
+    setIslemAciklama("");
+    setIslemBanka("");
     setIslemModal(true);
   }
 
@@ -362,38 +373,61 @@ export default function CariDetay() {
             </Button>
           )}
           {canWrite && catiFirma && (
-            <Button size="sm" onClick={openIslemModal}>
+            <Button size="sm" variant="outline" onClick={openIslemModal}>
               <Plus className="mr-1 h-4 w-4" /> İşlem Ekle
+            </Button>
+          )}
+          {canWrite && catiFirma && (
+            <Button size="sm" onClick={openOdemeModal}>
+              <CreditCard className="mr-1 h-4 w-4" /> Ödeme Kaydet
             </Button>
           )}
         </div>
       </div>
 
       <Card>
-        <CardContent className="p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <p className="text-xs text-muted-foreground shrink-0 font-medium">Dönem filtresi:</p>
-          <div className="flex items-center gap-2 flex-1 flex-wrap">
-            <Input
-              type="date"
-              value={baslangic}
-              onChange={e => setBaslangic(e.target.value)}
-              className="h-8 w-36 text-xs"
-            />
-            <span className="text-muted-foreground text-xs">-</span>
-            <Input
-              type="date"
-              value={bitis}
-              onChange={e => setBitis(e.target.value)}
-              className="h-8 w-36 text-xs"
-            />
-            {(aktifBaslangic || aktifBitis) && (
-              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={filtreTemizle}>
-                Temizle
-              </Button>
-            )}
-            {(baslangic !== aktifBaslangic || bitis !== aktifBitis) && (baslangic || bitis) && (
-              <span className="text-xs text-muted-foreground animate-pulse">yükleniyor…</span>
-            )}
+        <CardContent className="p-3 flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <p className="text-xs text-muted-foreground shrink-0 font-medium">Dönem filtresi:</p>
+            <div className="flex items-center gap-2 flex-1 flex-wrap">
+              <Input
+                type="date"
+                value={baslangic}
+                onChange={e => setBaslangic(e.target.value)}
+                className="h-8 w-36 text-xs"
+              />
+              <span className="text-muted-foreground text-xs">-</span>
+              <Input
+                type="date"
+                value={bitis}
+                onChange={e => setBitis(e.target.value)}
+                className="h-8 w-36 text-xs"
+              />
+              {(aktifBaslangic || aktifBitis) && (
+                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={filtreTemizle}>
+                  Temizle
+                </Button>
+              )}
+              {(baslangic !== aktifBaslangic || bitis !== aktifBitis) && (baslangic || bitis) && (
+                <span className="text-xs text-muted-foreground animate-pulse">yükleniyor…</span>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-1.5 flex-wrap">
+            {[
+              { label: "Bu Ay", fn: () => { const n = new Date(); const b = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-01`; const e = n.toISOString().split("T")[0]; setBaslangic(b); setBitis(e); setAktifBaslangic(b); setAktifBitis(e); } },
+              { label: "Önceki Ay", fn: () => { const n = new Date(); const b = new Date(n.getFullYear(), n.getMonth()-1, 1); const e2 = new Date(n.getFullYear(), n.getMonth(), 0); const bs = `${b.getFullYear()}-${String(b.getMonth()+1).padStart(2,"0")}-01`; const es = `${e2.getFullYear()}-${String(e2.getMonth()+1).padStart(2,"0")}-${String(e2.getDate()).padStart(2,"0")}`; setBaslangic(bs); setBitis(es); setAktifBaslangic(bs); setAktifBitis(es); } },
+              { label: "Son 3 Ay", fn: () => { const n = new Date(); const b = new Date(n); b.setMonth(b.getMonth()-3); const bs = b.toISOString().split("T")[0]; const es = n.toISOString().split("T")[0]; setBaslangic(bs); setBitis(es); setAktifBaslangic(bs); setAktifBitis(es); } },
+              { label: "Bu Yıl", fn: () => { const n = new Date(); const bs = `${n.getFullYear()}-01-01`; const es = n.toISOString().split("T")[0]; setBaslangic(bs); setBitis(es); setAktifBaslangic(bs); setAktifBitis(es); } },
+            ].map(({ label, fn }) => (
+              <button
+                key={label}
+                onClick={fn}
+                className="px-2.5 py-0.5 text-xs border rounded-none hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </CardContent>
       </Card>
