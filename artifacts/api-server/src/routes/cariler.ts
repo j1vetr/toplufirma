@@ -365,8 +365,6 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
                 { text: "MÜŞTERİ", fontSize: 7, bold: true, color: "#6b7280", characterSpacing: 1, marginBottom: 5 },
                 { text: bagliFirma.ad, bold: true, fontSize: 12, color: "#111827", marginBottom: 2 },
                 ...(bagliFirma.adres ? [{ text: bagliFirma.adres, color: "#6b7280", fontSize: 7.5, marginBottom: 1.5 }] : []),
-                ...(bagliFirma.vergiNo ? [{ text: `Vergi No: ${bagliFirma.vergiNo}`, color: "#6b7280", fontSize: 7.5, marginBottom: 1.5 }] : []),
-                ...(bagliFirma.telefon ? [{ text: `Tel: ${bagliFirma.telefon}`, color: "#6b7280", fontSize: 7.5, marginBottom: 1.5 }] : []),
                 { canvas: [{ type: "line", x1: 0, y1: 0, x2: 260, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }], marginTop: 7, marginBottom: 7 },
                 { text: `Ekstre Tarihi: ${tarihStr}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
                 { text: `Dönem: ${donemStr}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
