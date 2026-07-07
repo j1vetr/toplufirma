@@ -399,38 +399,17 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
           },
           marginBottom: 16,
         },
-        // Bilgi ve özet sütunları
+        // Bilgi satırı
         {
-          columns: [
-            {
-              width: "*",
-              stack: [
-                { text: "MÜŞTERİ", fontSize: 7, bold: true, color: "#6b7280", characterSpacing: 1, marginBottom: 5 },
-                { text: bagliFirma.ad, bold: true, fontSize: 12, color: "#111827", marginBottom: 2 },
-                ...(bagliFirma.adres ? [{ text: bagliFirma.adres, color: "#6b7280", fontSize: 7.5, marginBottom: 1.5 }] : []),
-                { canvas: [{ type: "line", x1: 0, y1: 0, x2: 260, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }], marginTop: 7, marginBottom: 7 },
-                { text: `Ekstre Tarihi: ${tarihStr}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
-                { text: `Dönem: ${donemStr}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
-                { text: `Para Birimi: ${isMultiCurrency ? "Çoklu Para Birimi" : paraBirimi}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
-                { text: `Hazırlayan: ${catiFirma?.ad ?? ""}`, color: "#111827", fontSize: 7.5, bold: true },
-              ],
-            },
-            {
-              width: 205,
-              table: {
-                widths: ["*", "auto"],
-                body: summaryBody,
-              },
-              layout: {
-                hLineWidth: () => 0,
-                vLineWidth: () => 0,
-                hLineColor: () => "#e5e7eb",
-                paddingLeft: () => 8,
-                paddingRight: () => 8,
-                paddingTop: () => 5,
-                paddingBottom: () => 5,
-              },
-            },
+          stack: [
+            { text: "MÜŞTERİ", fontSize: 7, bold: true, color: "#6b7280", characterSpacing: 1, marginBottom: 5 },
+            { text: bagliFirma.ad, bold: true, fontSize: 12, color: "#111827", marginBottom: 2 },
+            ...(bagliFirma.adres ? [{ text: bagliFirma.adres, color: "#6b7280", fontSize: 7.5, marginBottom: 1.5 }] : []),
+            { canvas: [{ type: "line", x1: 0, y1: 0, x2: 260, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }], marginTop: 7, marginBottom: 7 },
+            { text: `Ekstre Tarihi: ${tarihStr}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
+            { text: `Dönem: ${donemStr}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
+            { text: `Para Birimi: ${isMultiCurrency ? "Çoklu Para Birimi" : paraBirimi}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
+            { text: `Hazırlayan: ${catiFirma?.ad ?? ""}`, color: "#111827", fontSize: 7.5, bold: true },
           ],
           marginBottom: 16,
         },
@@ -467,6 +446,26 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
               },
             } as unknown as import("pdfmake/interfaces").Content
           : { text: "Bu dönemde kayıt bulunamadı.", color: "#888", italics: true, marginTop: 8 } as import("pdfmake/interfaces").Content,
+        // ÖZET — tablo altı, sağa hizalı
+        {
+          columns: [
+            { width: "*", text: "" },
+            {
+              width: 205,
+              table: { widths: ["*", "auto"], body: summaryBody },
+              layout: {
+                hLineWidth: () => 0,
+                vLineWidth: () => 0,
+                hLineColor: () => "#e5e7eb",
+                paddingLeft: () => 8,
+                paddingRight: () => 8,
+                paddingTop: () => 5,
+                paddingBottom: () => 5,
+              },
+              marginTop: 10,
+            },
+          ],
+        } as unknown as import("pdfmake/interfaces").Content,
       ],
       footer: (currentPage: number, pageCount: number) => ({
         columns: [
@@ -591,14 +590,8 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     };
     setLabel("A3", "Firma / Müşteri");
     ws.getCell("B3").value = bagliFirma.ad;
-    ws.mergeCells("F3:G3");
-    const ozetCell = ws.getCell("F3");
-    ozetCell.value = "ÖZET";
-    ozetCell.font  = { bold: true, color: { argb: WHITE }, size: 11 };
-    ozetCell.fill  = solidFill(NAVY);
-    ozetCell.alignment = { vertical: "middle", horizontal: "center" };
 
-    // --- Satır 4: Ekstre Tarih Aralığı + Açılış Bakiyesi ---
+    // --- Satır 4: Ekstre Tarih Aralığı ---
     ws.getRow(4).height = 16;
     setLabel("A4", "Ekstre Tarih Aralığı");
     ws.getCell("B4").value = donemStr;
@@ -609,28 +602,17 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
       c.alignment = { horizontal: "right" };
     };
 
-    setLabel("F4", "Açılış Bakiyesi");
-    setNum("G4", acilisBakiyesi);
-
-    // --- Satır 5: Para Birimi + Toplam Borç ---
+    // --- Satır 5: Para Birimi ---
     ws.getRow(5).height = 16;
     setLabel("A5", "Para Birimi");
     ws.getCell("B5").value = paraBirimi;
-    setLabel("F5", "Toplam Borç");
-    setNum("G5", toplamBorc);
 
-    // --- Satır 6: Hazırlayan + Toplam Alacak ---
+    // --- Satır 6: Hazırlayan ---
     ws.getRow(6).height = 16;
     setLabel("A6", "Hazırlayan");
     ws.getCell("B6").value = catiFirma?.ad ?? "";
-    setLabel("F6", "Toplam Alacak");
-    setNum("G6", toplamAlacak);
 
-    // --- Satır 7: Kapanış Bakiyesi ---
     ws.getRow(7).height = 16;
-    setLabel("F7", "Kapanış Bakiyesi");
-    setNum("G7", kapanisBakiyesi);
-    ws.getCell("G7").font = { bold: true };
 
     // --- Satır 8: boş ---
     ws.getRow(8).height = 10;
@@ -688,13 +670,45 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
 
       // Çizgili arka plan (her çift satır açık mavi)
       if (i % 2 === 0) {
-        for (let c = 1; c <= 8; c++) {
+        for (let c = 1; c <= 7; c++) {
           row.getCell(c).fill = solidFill(LIGHT_BLUE);
         }
         // Bakiye font'unu yeniden uygula (fill'den sonra kaybolabilir)
         row.getCell(7).font = { bold: true, color: { argb: bakiyeArgb } };
       }
     }
+
+    // --- ÖZET — son veri satırının altında, F:G sütunlarına ---
+    const ozetStartRow = 10 + kalemler.length + 1;
+    ws.getRow(ozetStartRow - 1).height = 8; // boşluk
+
+    // Başlık: F:G merged
+    ws.mergeCells(`F${ozetStartRow}:G${ozetStartRow}`);
+    const ozetHdr = ws.getCell(`F${ozetStartRow}`);
+    ozetHdr.value = "ÖZET";
+    ozetHdr.font  = { bold: true, color: { argb: WHITE }, size: 10 };
+    ozetHdr.fill  = solidFill(NAVY);
+    ozetHdr.alignment = { vertical: "middle", horizontal: "center" };
+    ws.getRow(ozetStartRow).height = 18;
+
+    const ozetRows: [string, number, boolean][] = [
+      ["Açılış Bakiyesi",  acilisBakiyesi,   false],
+      ["Toplam Borç",      toplamBorc,       false],
+      ["Toplam Alacak",    toplamAlacak,     false],
+      ["Kapanış Bakiyesi", kapanisBakiyesi,  true],
+    ];
+    ozetRows.forEach(([label, value, isBold], idx) => {
+      const r = ozetStartRow + 1 + idx;
+      ws.getRow(r).height = 16;
+      const lc = ws.getCell(`F${r}`);
+      lc.value = label;
+      lc.font  = { bold: isBold };
+      const vc = ws.getCell(`G${r}`);
+      vc.value   = value;
+      vc.numFmt  = "#,##0.00";
+      vc.alignment = { horizontal: "right" };
+      vc.font    = { bold: isBold };
+    });
 
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = bagliFirma.ad.replace(/[\\/:*?"<>|]/g, "-");
