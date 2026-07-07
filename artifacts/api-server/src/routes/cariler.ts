@@ -328,7 +328,6 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
         { text: e.borc > 0 ? fmt(e.borc) : "", alignment: "right", fontSize: 8 },
         { text: e.alacak > 0 ? fmt(e.alacak) : "", alignment: "right", fontSize: 8, color: "#16a34a" },
         { text: fmt(Math.abs(kBakiye)), alignment: "right", fontSize: 8, bold: true, color: bakiyeRenk },
-        { text: e.durumEtiket, fontSize: 7, color: durumRenk, alignment: "center" },
       ];
     });
 
@@ -440,7 +439,7 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
           ? {
               table: {
                 headerRows: 1,
-                widths: [46, 68, "*", 46, 60, 60, 66, 46],
+                widths: [46, 68, "*", 46, 60, 60, 66],
                 body: [
                   [
                     { text: "TARİH", style: "thStyle" },
@@ -450,7 +449,6 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
                     { text: "BORÇ", style: "thStyle", alignment: "right" },
                     { text: "ALACAK", style: "thStyle", alignment: "right" },
                     { text: "BAKİYE", style: "thStyle", alignment: "right" },
-                    { text: "DURUM", style: "thStyle", alignment: "center" },
                   ],
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   ...dataRows as any,
@@ -553,16 +551,15 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     workbook.created = new Date();
     const ws = workbook.addWorksheet("Ekstre");
 
-    // Sütun genişlikleri (8 sütun: A-H)
+    // Sütun genişlikleri (7 sütun: A-G)
     ws.columns = [
       { key: "tarih",      width: 24 },  // A
       { key: "belgeNo",    width: 18 },  // B
-      { key: "aciklama",   width: 38 },  // C
+      { key: "aciklama",   width: 58 },  // C
       { key: "vadeTarihi", width: 13 },  // D
       { key: "borc",       width: 14 },  // E
       { key: "alacak",     width: 14 },  // F
       { key: "bakiye",     width: 15 },  // G
-      { key: "durum",      width: 13 },  // H
     ];
 
     const NAVY  = "FF1C3C6E";
@@ -573,7 +570,7 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
       ({ type: "pattern", pattern: "solid", fgColor: { argb } });
 
     // --- Satır 1: Başlık ---
-    ws.mergeCells("A1:H1");
+    ws.mergeCells("A1:G1");
     const r1 = ws.getRow(1);
     r1.height = 30;
     const titleCell = ws.getCell("A1");
@@ -594,8 +591,8 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     };
     setLabel("A3", "Firma / Müşteri");
     ws.getCell("B3").value = bagliFirma.ad;
-    ws.mergeCells("G3:H3");
-    const ozetCell = ws.getCell("G3");
+    ws.mergeCells("F3:G3");
+    const ozetCell = ws.getCell("F3");
     ozetCell.value = "ÖZET";
     ozetCell.font  = { bold: true, color: { argb: WHITE }, size: 11 };
     ozetCell.fill  = solidFill(NAVY);
@@ -612,28 +609,28 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
       c.alignment = { horizontal: "right" };
     };
 
-    setLabel("G4", "Açılış Bakiyesi");
-    setNum("H4", acilisBakiyesi);
+    setLabel("F4", "Açılış Bakiyesi");
+    setNum("G4", acilisBakiyesi);
 
     // --- Satır 5: Para Birimi + Toplam Borç ---
     ws.getRow(5).height = 16;
     setLabel("A5", "Para Birimi");
     ws.getCell("B5").value = paraBirimi;
-    setLabel("G5", "Toplam Borç");
-    setNum("H5", toplamBorc);
+    setLabel("F5", "Toplam Borç");
+    setNum("G5", toplamBorc);
 
     // --- Satır 6: Hazırlayan + Toplam Alacak ---
     ws.getRow(6).height = 16;
     setLabel("A6", "Hazırlayan");
     ws.getCell("B6").value = catiFirma?.ad ?? "";
-    setLabel("G6", "Toplam Alacak");
-    setNum("H6", toplamAlacak);
+    setLabel("F6", "Toplam Alacak");
+    setNum("G6", toplamAlacak);
 
     // --- Satır 7: Kapanış Bakiyesi ---
     ws.getRow(7).height = 16;
-    setLabel("G7", "Kapanış Bakiyesi");
-    setNum("H7", kapanisBakiyesi);
-    ws.getCell("H7").font = { bold: true };
+    setLabel("F7", "Kapanış Bakiyesi");
+    setNum("G7", kapanisBakiyesi);
+    ws.getCell("G7").font = { bold: true };
 
     // --- Satır 8: boş ---
     ws.getRow(8).height = 10;
@@ -641,9 +638,9 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     // --- Satır 9: Kolon başlıkları ---
     const hdrRow = ws.getRow(9);
     hdrRow.height = 22;
-    for (let c = 1; c <= 8; c++) {
+    for (let c = 1; c <= 7; c++) {
       const cell = hdrRow.getCell(c);
-      cell.value = ["Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye", "Durum"][c - 1];
+      cell.value = ["Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye"][c - 1];
       cell.font  = { bold: true, color: { argb: WHITE }, size: 10 };
       cell.fill  = solidFill(NAVY);
       cell.alignment = { vertical: "middle", horizontal: "center" };
@@ -677,7 +674,6 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
       row.getCell(5).value = e.borc   > 0.005 ? e.borc   : null;
       row.getCell(6).value = e.alacak > 0.005 ? e.alacak : null;
       row.getCell(7).value = e.bakiye;
-      row.getCell(8).value = e.durumEtiket;
 
       // Sayı formatı
       [5, 6, 7].forEach(col => {
