@@ -439,7 +439,7 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
           ? {
               table: {
                 headerRows: 1,
-                widths: [46, 68, "*", 46, 60, 60, 66],
+                widths: [40, 54, "*", 36, 48, 48, 56],
                 body: [
                   [
                     { text: "TARİH", style: "thStyle" },
@@ -555,7 +555,7 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     ws.columns = [
       { key: "tarih",      width: 24 },  // A
       { key: "belgeNo",    width: 18 },  // B
-      { key: "aciklama",   width: 58 },  // C
+      { key: "aciklama",   width: 68 },  // C
       { key: "vadeTarihi", width: 13 },  // D
       { key: "borc",       width: 14 },  // E
       { key: "alacak",     width: 14 },  // F
