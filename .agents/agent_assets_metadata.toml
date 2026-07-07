@@ -1,0 +1,14 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "X42uI7kGy5VAeBM2RQFzJ"
+uri = "file://artifacts/api-server/sample-output/ornek-ekstre.pdf"
+type = "pdf"
+title = "Örnek PDF Ekstre"
+
+[[outputs]]
+id = "0ApBSaOqToLkFLiIQSVKB"
+uri = "file://artifacts/api-server/sample-output/ornek-ekstre.xlsx"
+type = "table"
+title = "Örnek Excel Ekstre"
