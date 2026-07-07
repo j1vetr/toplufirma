@@ -67,7 +67,7 @@ function buildEntries(faturaRows: typeof faturalar.$inferSelect[], odemeRows: ty
     paraBirimi: o.paraBirimi,
     faturaId: o.faturaId ?? null,
     durum: null,
-    durumEtiket: o.tip === "tahsilat" ? "Tahsilat" : "Ödeme",
+    durumEtiket: "-",
   }));
   const sorted = [...fEntries, ...oEntries].sort((a, b) => {
     const d = new Date(a.tarih).getTime() - new Date(b.tarih).getTime();
@@ -469,12 +469,20 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
               },
             } as unknown as import("pdfmake/interfaces").Content
           : { text: "Bu dönemde kayıt bulunamadı.", color: "#888", italics: true, marginTop: 8 } as import("pdfmake/interfaces").Content,
-        // Footer
-        {
-          text: `Bu ekstre ${tarihStr} tarihinde ${catiFirma?.ad ?? ""} tarafından düzenlenmiştir.`,
-          fontSize: 7, color: "#9ca3af", italics: true, marginTop: 24, alignment: "center",
-        },
       ],
+      footer: (currentPage: number, pageCount: number) => ({
+        columns: [
+          {
+            text: `Bu ekstre ${tarihStr} tarihinde ${catiFirma?.ad ?? ""} tarafından düzenlenmiştir.`,
+            fontSize: 7, color: "#9ca3af", italics: true,
+          },
+          {
+            text: `${currentPage} / ${pageCount}`,
+            alignment: "right", fontSize: 7, color: "#9ca3af",
+          },
+        ],
+        margin: [36, 8, 36, 0],
+      }),
       styles: {
         thStyle: { bold: true, color: "#ffffff", fontSize: 7.5, characterSpacing: 0.3 },
       },
@@ -597,31 +605,34 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     ws.getRow(4).height = 16;
     setLabel("A4", "Ekstre Tarih Aralığı");
     ws.getCell("B4").value = donemStr;
+    const setNum = (addr: string, val: number) => {
+      const c = ws.getCell(addr);
+      c.value = val;
+      c.numFmt = "#,##0.00";
+      c.alignment = { horizontal: "right" };
+    };
+
     setLabel("G4", "Açılış Bakiyesi");
-    ws.getCell("H4").value = fmt(acilisBakiyesi);
-    ws.getCell("H4").alignment = { horizontal: "right" };
+    setNum("H4", acilisBakiyesi);
 
     // --- Satır 5: Para Birimi + Toplam Borç ---
     ws.getRow(5).height = 16;
     setLabel("A5", "Para Birimi");
     ws.getCell("B5").value = paraBirimi;
     setLabel("G5", "Toplam Borç");
-    ws.getCell("H5").value = fmt(toplamBorc);
-    ws.getCell("H5").alignment = { horizontal: "right" };
+    setNum("H5", toplamBorc);
 
     // --- Satır 6: Hazırlayan + Toplam Alacak ---
     ws.getRow(6).height = 16;
     setLabel("A6", "Hazırlayan");
     ws.getCell("B6").value = catiFirma?.ad ?? "";
     setLabel("G6", "Toplam Alacak");
-    ws.getCell("H6").value = fmt(toplamAlacak);
-    ws.getCell("H6").alignment = { horizontal: "right" };
+    setNum("H6", toplamAlacak);
 
     // --- Satır 7: Kapanış Bakiyesi ---
     ws.getRow(7).height = 16;
     setLabel("G7", "Kapanış Bakiyesi");
-    ws.getCell("H7").value = fmt(kapanisBakiyesi);
-    ws.getCell("H7").alignment = { horizontal: "right" };
+    setNum("H7", kapanisBakiyesi);
     ws.getCell("H7").font = { bold: true };
 
     // --- Satır 8: boş ---
@@ -637,6 +648,18 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
       cell.fill  = solidFill(NAVY);
       cell.alignment = { vertical: "middle", horizontal: "center" };
     }
+
+    // Baskı ayarları (A4, yatay, sayfaya sığdır)
+    ws.pageSetup = {
+      paperSize: 9,
+      orientation: "landscape",
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.5, right: 0.5, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 },
+    };
+    // Alt sağda sayfa numarası
+    ws.headerFooter = { oddFooter: "&R&8Sayfa &P / &N" };
 
     // Freeze rows 1–9 so header stays visible when scrolling
     ws.views = [{ state: "frozen", ySplit: 9 }];
@@ -662,10 +685,10 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
         if (cell.value !== null && cell.value !== undefined) cell.numFmt = "#,##0.00";
       });
 
-      // Bakiye rengi
+      // Bakiye rengi + bold
       const bv = Number(e.bakiye);
       const bakiyeArgb = bv > 0.005 ? "FFCA8A04" : bv < -0.005 ? "FFDC2626" : "FF16A34A";
-      row.getCell(7).font = { color: { argb: bakiyeArgb } };
+      row.getCell(7).font = { bold: true, color: { argb: bakiyeArgb } };
 
       // Çizgili arka plan (her çift satır açık mavi)
       if (i % 2 === 0) {
@@ -673,7 +696,7 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
           row.getCell(c).fill = solidFill(LIGHT_BLUE);
         }
         // Bakiye font'unu yeniden uygula (fill'den sonra kaybolabilir)
-        row.getCell(7).font = { color: { argb: bakiyeArgb } };
+        row.getCell(7).font = { bold: true, color: { argb: bakiyeArgb } };
       }
     }
 
