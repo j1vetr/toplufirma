@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { firmalar, firmaEpostaAyarlari, faturalar, odemeler, firmaSirketGorunurluk } from "@workspace/db";
+import { firmalar, firmaEpostaAyarlari, faturalar, odemeler, firmaSirketGorunurluk, faturaSerileri } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireYazma, requireYonetici, sirketErisimKontrol, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
@@ -101,7 +101,7 @@ router.post("/firmalar", requireYazma, async (req, res) => {
       if (req.kullanici?.rol !== "yonetici") { res.status(403).json({ error: "Firma oluşturmak için yönetici yetkisi gerekli" }); return; }
     }
 
-    const { gorunurSirketIds } = req.body;
+    const { gorunurSirketIds, seriBaslangicNo } = req.body;
     const [row] = await db.insert(firmalar).values({
       tip, ustFirmaId: tip === "bagli" ? (ustFirmaId ?? null) : null,
       grupFirmaId: tip === "bagli" && grupFirmaId ? Number(grupFirmaId) : null,
@@ -113,6 +113,15 @@ router.post("/firmalar", requireYazma, async (req, res) => {
       await db.insert(firmaSirketGorunurluk).values(
         gorunurSirketIds.map((sid: number) => ({ firmaId: row.id, catiFirmaId: Number(sid) }))
       );
+    }
+    if (tip === "cati" && seriOneki) {
+      await db.insert(faturaSerileri).values({
+        catiFirmaId: row.id,
+        ad: "Varsayılan",
+        onek: seriOneki,
+        sonrakiNo: seriBaslangicNo ? Number(seriBaslangicNo) : 1,
+        varsayilan: true,
+      });
     }
     res.status(201).json(formatFirma(row, null, Array.isArray(gorunurSirketIds) ? gorunurSirketIds.map(Number) : []));
   } catch (err: unknown) {

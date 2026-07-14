@@ -60,9 +60,9 @@ async function apiFetch(path: string, opts?: RequestInit) {
 interface FirmaForm {
   ad: string; vergiNo: string; vergiDairesi: string;
   adres: string; telefon: string; cepTel: string; eposta: string; seriOneki: string; logoUrl: string;
-  etiket: string;
+  etiket: string; seriBaslangicNo: string;
 }
-const BOSH_FIRMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", cepTel: "", eposta: "", seriOneki: "", logoUrl: "", etiket: "" };
+const BOSH_FIRMA: FirmaForm = { ad: "", vergiNo: "", vergiDairesi: "", adres: "", telefon: "", cepTel: "", eposta: "", seriOneki: "", logoUrl: "", etiket: "", seriBaslangicNo: "1" };
 
 interface SmtpForm {
   smtpHost: string; smtpPort: string; smtpGuvenlik: string;
@@ -258,6 +258,7 @@ export default function Ayarlar() {
       ...(firmaForm.cepTel && { cepTel: firmaForm.cepTel }),
       ...(firmaForm.eposta && { eposta: firmaForm.eposta }),
       ...(firmaForm.seriOneki && { seriOneki: firmaForm.seriOneki }),
+      ...(firmaForm.seriOneki && !duzenleId && { seriBaslangicNo: Number(firmaForm.seriBaslangicNo) || 1 }),
       ...(firmaForm.etiket && { etiket: firmaForm.etiket }),
       ...(firmaForm.logoUrl && { logoUrl: firmaForm.logoUrl }),
       aktif: true,
@@ -740,6 +741,13 @@ export default function Ayarlar() {
                 ))}
                 {faturaSerileri.length === 0 && <div className="text-center text-muted-foreground py-10">Henüz fatura serisi tanımlanmamış.</div>}
               </div>
+              {canWrite && (
+                <div className="flex justify-end mt-4">
+                  <Button onClick={() => seriAc()}>
+                    <Plus className="mr-2 h-4 w-4" /> Seri Ekle
+                  </Button>
+                </div>
+              )}
             </TabsContent>
             <TabsContent value="sablonlar" className="mt-6">
               {canWrite && (
@@ -877,7 +885,21 @@ export default function Ayarlar() {
             <div className="space-y-1.5">
               <Label>Fatura Seri Öneki</Label>
               <Input value={firmaForm.seriOneki} onChange={e => setFirmaForm(f => ({ ...f, seriOneki: e.target.value.toUpperCase() }))} placeholder="LAC" data-testid="input-firma-seri" />
+              <p className="text-xs text-muted-foreground">Fatura serisi otomatik oluşturulur</p>
             </div>
+            {!duzenleId && firmaForm.seriOneki && (
+              <div className="space-y-1.5">
+                <Label>Başlangıç No</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={firmaForm.seriBaslangicNo}
+                  onChange={e => setFirmaForm(f => ({ ...f, seriBaslangicNo: e.target.value }))}
+                  placeholder="1"
+                  data-testid="input-firma-seri-baslangic"
+                />
+              </div>
+            )}
             <div className="col-span-2 space-y-1.5">
               <Label>Logo <span className="text-xs text-muted-foreground">(faturada görünür)</span></Label>
               <div className="flex items-center gap-3">
