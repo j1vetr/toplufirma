@@ -13,6 +13,8 @@ router.get("/gonderi-gecmisi", async (req, res) => {
 
     const catiFirmaFaturalar = alias(firmalar, "cati_firma_faturalar");
     const catiFirmaTeklifler = alias(firmalar, "cati_firma_teklifler");
+    const bagliFirmaCariEmail = alias(firmalar, "bagli_firma_cari_email");
+    const catiFirmaCariEmail = alias(firmalar, "cati_firma_cari_email");
 
     const rows = await db
       .select({
@@ -23,14 +25,16 @@ router.get("/gonderi-gecmisi", async (req, res) => {
         gonderenAd: gonderiGecmisi.gonderenAd,
         gonderilmeTarihi: gonderiGecmisi.gonderilmeTarihi,
         kayitNo: sql<string>`COALESCE(${faturalar.faturaNo}, ${teklifler.teklifNo})`,
-        catiFirmaId: sql<number>`COALESCE(${faturalar.catiFirmaId}, ${teklifler.catiFirmaId})`,
-        catiFirmaAd: sql<string>`COALESCE(${catiFirmaFaturalar.ad}, ${catiFirmaTeklifler.ad})`,
+        catiFirmaId: sql<number>`COALESCE(${faturalar.catiFirmaId}, ${teklifler.catiFirmaId}, ${bagliFirmaCariEmail.ustFirmaId})`,
+        catiFirmaAd: sql<string>`COALESCE(${catiFirmaFaturalar.ad}, ${catiFirmaTeklifler.ad}, ${catiFirmaCariEmail.ad})`,
       })
       .from(gonderiGecmisi)
       .leftJoin(faturalar, and(eq(gonderiGecmisi.kayitTipi, "fatura"), eq(gonderiGecmisi.kayitId, faturalar.id)))
       .leftJoin(teklifler, and(eq(gonderiGecmisi.kayitTipi, "teklif"), eq(gonderiGecmisi.kayitId, teklifler.id)))
       .leftJoin(catiFirmaFaturalar, eq(faturalar.catiFirmaId, catiFirmaFaturalar.id))
       .leftJoin(catiFirmaTeklifler, eq(teklifler.catiFirmaId, catiFirmaTeklifler.id))
+      .leftJoin(bagliFirmaCariEmail, and(eq(gonderiGecmisi.kayitTipi, "cari_email"), eq(gonderiGecmisi.kayitId, bagliFirmaCariEmail.id)))
+      .leftJoin(catiFirmaCariEmail, eq(bagliFirmaCariEmail.ustFirmaId, catiFirmaCariEmail.id))
       .orderBy(sql`${gonderiGecmisi.gonderilmeTarihi} DESC`);
 
     let filtered = rows.filter(r => {

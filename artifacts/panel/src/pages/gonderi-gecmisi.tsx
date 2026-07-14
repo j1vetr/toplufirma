@@ -29,7 +29,7 @@ const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface GonderiSatiri {
   id: number;
-  kayitTipi: "teklif" | "fatura";
+  kayitTipi: "teklif" | "fatura" | "cari_email";
   kayitId: number;
   kayitNo: string | null;
   aliciEposta: string;
@@ -103,10 +103,11 @@ export default function GonderiGecmisi() {
   }
 
   function kayitLink(row: GonderiSatiri) {
-    const path = row.kayitTipi === "fatura"
-      ? `/faturalar/${row.kayitId}`
-      : `/teklifler?open=${row.kayitId}`;
-    navigate(path);
+    if (row.kayitTipi === "fatura") {
+      navigate(`/faturalar/${row.kayitId}`);
+    } else if (row.kayitTipi === "teklif") {
+      navigate(`/teklifler?open=${row.kayitId}`);
+    }
   }
 
   const aktifFiltreSayisi = [
@@ -167,9 +168,10 @@ export default function GonderiGecmisi() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tumu">Teklif & Fatura</SelectItem>
+                  <SelectItem value="tumu">Tümü</SelectItem>
                   <SelectItem value="teklif">Yalnız Teklifler</SelectItem>
                   <SelectItem value="fatura">Yalnız Faturalar</SelectItem>
+                  <SelectItem value="cari_email">Cari E-posta</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -244,9 +246,13 @@ export default function GonderiGecmisi() {
                       {formatTarih(row.gonderilmeTarihi)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={row.kayitTipi === "fatura" ? "default" : "outline"} className="text-xs">
-                        {row.kayitTipi === "fatura" ? "Fatura" : "Teklif"}
-                      </Badge>
+                      {row.kayitTipi === "fatura" ? (
+                        <Badge variant="default" className="text-xs">Fatura</Badge>
+                      ) : row.kayitTipi === "teklif" ? (
+                        <Badge variant="outline" className="text-xs">Teklif</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">Cari E-posta</Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       {row.kayitNo ? (
