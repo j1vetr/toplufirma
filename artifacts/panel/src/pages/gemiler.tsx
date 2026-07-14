@@ -164,7 +164,7 @@ export default function Gemiler() {
               <Input value={form.ad} onChange={e => setForm(f => ({...f, ad: e.target.value}))} data-testid="input-gemi-ad" />
             </div>
             <div className="space-y-1.5">
-              <Label>IMO Numarası</Label>
+              <Label>IMO Numarası <span className="text-destructive">*</span></Label>
               <Input value={form.imoNumarasi} onChange={e => setForm(f => ({...f, imoNumarasi: e.target.value}))} data-testid="input-gemi-imo" />
             </div>
             <div className="space-y-1.5">
@@ -178,7 +178,7 @@ export default function Gemiler() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={kapat}>İptal</Button>
-            <Button onClick={kaydet} disabled={!form.firmaId || !form.ad} data-testid="button-gemi-kaydet">Kaydet</Button>
+            <Button onClick={kaydet} disabled={!form.firmaId || !form.ad || !form.imoNumarasi} data-testid="button-gemi-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -58,7 +58,7 @@ router.get("/teklifler", async (req, res) => {
 router.post("/teklifler", requireYazma, async (req, res) => {
   try {
     const {
-      catiFirmaId, gemiId, tarih, gecerlilikTarihi,
+      catiFirmaId, gemiId, gemiAdManuel, tarih, gecerlilikTarihi,
       aliciAd, aliciAdres, aliciTelefon, paraBirimi,
       kurNotu, tanim, notlar, kosullar, kalemler,
     } = req.body;
@@ -90,6 +90,7 @@ router.post("/teklifler", requireYazma, async (req, res) => {
     const [teklif] = await db.insert(teklifler).values({
       catiFirmaId: Number(catiFirmaId),
       gemiId: gemiId ? Number(gemiId) : null,
+      gemiAdManuel: !gemiId && gemiAdManuel ? (gemiAdManuel as string) : null,
       teklifNo,
       tarih,
       gecerlilikTarihi: gecerlilikTarihi ?? null,
@@ -164,12 +165,13 @@ router.patch("/teklifler/:id", requireYazma, async (req, res) => {
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const {
-      gemiId, tarih, gecerlilikTarihi, aliciAd, aliciAdres, aliciTelefon,
+      gemiId, gemiAdManuel, tarih, gecerlilikTarihi, aliciAd, aliciAdres, aliciTelefon,
       paraBirimi, kurNotu, tanim, notlar, kosullar, kalemler,
     } = req.body;
 
     await db.update(teklifler).set({
       gemiId: gemiId !== undefined ? (gemiId ? Number(gemiId) : null) : existing.gemiId,
+      gemiAdManuel: gemiAdManuel !== undefined ? (gemiAdManuel || null) : existing.gemiAdManuel,
       tarih: tarih ?? existing.tarih,
       gecerlilikTarihi: gecerlilikTarihi !== undefined ? (gecerlilikTarihi || null) : existing.gecerlilikTarihi,
       aliciAd: aliciAd ?? existing.aliciAd,
@@ -298,7 +300,7 @@ router.post("/teklifler/:id/gonder", requireYazma, async (req, res) => {
       gecerlilikTarihi: row.t.gecerlilikTarihi,
       toplamTutar: row.t.toplamTutar ?? 0,
       paraBirimi: row.t.paraBirimi ?? "USD",
-      gemiAd: row.gemiAd,
+      gemiAd: row.gemiAd ?? row.t.gemiAdManuel,
       durum: row.t.durum,
     };
     const { subject: autoSubject, html, text } = await emailSablonuOlustur(
@@ -385,7 +387,7 @@ router.get("/teklifler/:id/email-onizleme", async (req, res) => {
       gecerlilikTarihi: row.t.gecerlilikTarihi,
       toplamTutar: row.t.toplamTutar ?? 0,
       paraBirimi: row.t.paraBirimi ?? "USD",
-      gemiAd: row.gemiAd,
+      gemiAd: row.gemiAd ?? row.t.gemiAdManuel,
       durum: row.t.durum,
     };
     const { subject, html } = await emailSablonuOlustur(
@@ -607,11 +609,11 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
                 ...(t.kurNotu ? [{ text: `Rate Note: ${t.kurNotu}`, color: "#555", fontSize: 9, marginTop: 2 }] : []),
               ],
             },
-            ...(row.gemiAd ? [{
+            ...((row.gemiAd ?? row.t.gemiAdManuel) ? [{
               width: "*",
               stack: [
                 { text: "VESSEL", style: "bolumBaslik" },
-                { text: [{ text: "Ship Name:", bold: true }, `  ${row.gemiAd}`], marginTop: 6 },
+                { text: [{ text: "Ship Name:", bold: true }, `  ${row.gemiAd ?? row.t.gemiAdManuel}`], marginTop: 6 },
                 ...(row.gemiImo ? [{ text: [{ text: "Ship IMO:", bold: true }, `  ${String(row.gemiImo)}`], marginTop: 3 }] : []),
               ],
               alignment: "right",
@@ -736,7 +738,7 @@ function formatTeklif(
 ) {
   return {
     id: t.id, catiFirmaId: t.catiFirmaId, catiFirmaAd: catiFirmaAd ?? null,
-    gemiId: t.gemiId, gemiAd: gemiAd ?? null,
+    gemiId: t.gemiId, gemiAd: gemiAd ?? null, gemiAdManuel: t.gemiAdManuel ?? null,
     teklifNo: t.teklifNo, tarih: t.tarih, gecerlilikTarihi: t.gecerlilikTarihi,
     aliciAd: t.aliciAd, aliciAdres: t.aliciAdres, aliciTelefon: t.aliciTelefon,
     paraBirimi: t.paraBirimi, kurNotu: t.kurNotu,

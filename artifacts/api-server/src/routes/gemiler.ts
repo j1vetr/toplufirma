@@ -56,7 +56,7 @@ router.get("/gemiler", async (req, res) => {
 router.post("/gemiler", requireYazma, async (req, res) => {
   try {
     const { firmaId, ad, imoNumarasi, bayrakDevleti, notlar, aktif } = req.body;
-    if (!firmaId || !ad) { res.status(400).json({ error: "firmaId ve ad zorunludur" }); return; }
+    if (!firmaId || !ad || !imoNumarasi) { res.status(400).json({ error: "firmaId, ad ve imoNumarasi zorunludur" }); return; }
 
     const [firma] = await db.select().from(firmalar).where(eq(firmalar.id, Number(firmaId)));
     if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
@@ -120,6 +120,7 @@ router.patch("/gemiler/:id", requireYazma, async (req, res) => {
     if (existing.ustFirmaId && !firmaYazmaDenetimi(existing.ustFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { ad, imoNumarasi, bayrakDevleti, notlar, aktif, firmaId } = req.body;
+    if (imoNumarasi !== undefined && !imoNumarasi) { res.status(400).json({ error: "imoNumarasi boş bırakılamaz" }); return; }
     if (firmaId !== undefined) {
       const [newFirma] = await db.select().from(firmalar).where(eq(firmalar.id, Number(firmaId)));
       if (!newFirma || newFirma.ustFirmaId !== existing.ustFirmaId) { res.status(400).json({ error: "Belirtilen firma bu çatı firmaya ait değil" }); return; }

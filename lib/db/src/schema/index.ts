@@ -250,6 +250,7 @@ export const teklifler = pgTable("teklifler", {
   id: serial("id").primaryKey(),
   catiFirmaId: integer("cati_firma_id").notNull().references(() => firmalar.id),
   gemiId: integer("gemi_id").references(() => gemiler.id),
+  gemiAdManuel: text("gemi_ad_manuel"),
   teklifNo: text("teklif_no").notNull(),
   tarih: date("tarih").notNull(),
   gecerlilikTarihi: date("gecerlilik_tarihi"),

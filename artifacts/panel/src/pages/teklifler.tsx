@@ -76,6 +76,7 @@ interface Teklif {
   catiFirmaAd: string | null;
   gemiId: number | null;
   gemiAd: string | null;
+  gemiAdManuel: string | null;
   teklifNo: string;
   tarih: string;
   gecerlilikTarihi: string | null;
@@ -174,10 +175,12 @@ export default function Teklifler() {
   const [onizlemeYukleniyor, setOnizlemeYukleniyor] = useState(false);
   const [kurYukleniyor, setKurYukleniyor] = useState(false);
   const [teklifBankaHesaplari, setTeklifBankaHesaplari] = useState<TeklifBankaHesabi[]>([]);
+  const [gemiMod, setGemiMod] = useState<"kayitli" | "manuel">("kayitli");
 
   const [form, setForm] = useState({
     catiFirmaId: "" as string | number,
     gemiId: "" as string | number,
+    gemiAdManuel: "",
     tarih: new Date().toISOString().split("T")[0],
     gecerlilikTarihi: "",
     aliciAd: "",
@@ -232,9 +235,12 @@ export default function Teklifler() {
     if (teklif) {
       setDuzenleId(teklif.id);
       apiFetch(`/teklifler/${teklif.id}`).then((d: Teklif & { kalemler: TeklifKalem[]; bankaHesaplari?: TeklifBankaHesabi[]; tanim?: string }) => {
+        const hasManuel = !!d.gemiAdManuel && !d.gemiId;
+        setGemiMod(hasManuel ? "manuel" : "kayitli");
         setForm({
           catiFirmaId: d.catiFirmaId,
           gemiId: d.gemiId ?? "",
+          gemiAdManuel: d.gemiAdManuel ?? "",
           tarih: d.tarih,
           gecerlilikTarihi: d.gecerlilikTarihi ?? "",
           aliciAd: d.aliciAd,
@@ -253,10 +259,12 @@ export default function Teklifler() {
     } else {
       setDuzenleId(null);
       setTeklifBankaHesaplari([]);
+      setGemiMod("kayitli");
       const aktifFirma = firmalar.find(f => f.id === aktifSirketId);
       setForm({
         catiFirmaId: aktifSirketId ?? (firmalar[0]?.id ?? ""),
         gemiId: "",
+        gemiAdManuel: "",
         tarih: new Date().toISOString().split("T")[0],
         gecerlilikTarihi: "",
         aliciAd: "",
@@ -277,7 +285,8 @@ export default function Teklifler() {
     mutationFn: async () => {
       const body = {
         catiFirmaId: Number(form.catiFirmaId),
-        gemiId: form.gemiId ? Number(form.gemiId) : null,
+        gemiId: gemiMod === "kayitli" && form.gemiId ? Number(form.gemiId) : null,
+        gemiAdManuel: gemiMod === "manuel" ? (form.gemiAdManuel || null) : null,
         tarih: form.tarih,
         gecerlilikTarihi: form.gecerlilikTarihi || null,
         aliciAd: form.aliciAd,
@@ -531,10 +540,10 @@ export default function Teklifler() {
                         <span className="truncate">{t.catiFirmaAd}</span>
                       </div>
                     )}
-                    {t.gemiAd && (
+                    {(t.gemiAd ?? t.gemiAdManuel) && (
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Ship className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{t.gemiAd}</span>
+                        <span className="truncate">{t.gemiAd ?? t.gemiAdManuel}</span>
                       </div>
                     )}
                   </div>
@@ -645,6 +654,51 @@ export default function Teklifler() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Gemi */}
+            <div className="space-y-1.5">
+              <Label>Gemi</Label>
+              <div className="flex gap-1 mb-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={gemiMod === "kayitli" ? "default" : "outline"}
+                  className="text-xs h-7 px-3"
+                  onClick={() => { setGemiMod("kayitli"); setForm(f => ({ ...f, gemiAdManuel: "" })); }}
+                >
+                  <Ship className="mr-1 h-3 w-3" /> Kayıtlı Gemi
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={gemiMod === "manuel" ? "default" : "outline"}
+                  className="text-xs h-7 px-3"
+                  onClick={() => { setGemiMod("manuel"); setForm(f => ({ ...f, gemiId: "" })); }}
+                >
+                  Manuel Giriş
+                </Button>
+              </div>
+              {gemiMod === "kayitli" ? (
+                <Select
+                  value={form.gemiId ? String(form.gemiId) : "__none__"}
+                  onValueChange={v => setForm(f => ({ ...f, gemiId: v === "__none__" ? "" : v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Gemi seçin (opsiyonel)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Gemi yok —</SelectItem>
+                    {firmaGemileri.map(g => (
+                      <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={form.gemiAdManuel}
+                  onChange={e => setForm(f => ({ ...f, gemiAdManuel: e.target.value }))}
+                  placeholder="Gemi adını yazın…"
+                />
+              )}
             </div>
 
             {/* Tarihler + Para Birimi */}
