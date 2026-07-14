@@ -153,12 +153,29 @@ export default function FaturaYeni() {
 
   function autoSelectSeri(catiFirmaIdVal: number | null) {
     const filtered = seriler.filter(s => !catiFirmaIdVal || s.catiFirmaId === catiFirmaIdVal);
-    if (filtered.length === 1) {
+    const varsayilan = filtered.find(s => s.varsayilan);
+    if (varsayilan) {
+      setSerisiId(String(varsayilan.id));
+    } else if (filtered.length === 1) {
       setSerisiId(String(filtered[0].id));
     } else {
       setSerisiId("");
     }
   }
+
+  useEffect(() => {
+    if (seriler.length === 0) return;
+    const catiFirmaIdNum = catiFirmaId ? Number(catiFirmaId) : null;
+    const filtered = seriler.filter(s => !catiFirmaIdNum || s.catiFirmaId === catiFirmaIdNum);
+    const current = filtered.find(s => String(s.id) === serisiId);
+    if (current) return;
+    const varsayilan = filtered.find(s => s.varsayilan);
+    if (varsayilan) {
+      setSerisiId(String(varsayilan.id));
+    } else if (filtered.length === 1) {
+      setSerisiId(String(filtered[0].id));
+    }
+  }, [catiFirmaId, seriler]);
 
   function onGemiChange(newGemiId: string, gemi: GemiSecenek | null) {
     setGemiId(newGemiId);
