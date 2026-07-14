@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 import { KalemAciklamaInput } from "@/components/kalem-aciklama-input";
+import { RichTextEditor } from "@/components/rich-text-editor";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -750,8 +751,8 @@ export default function Teklifler() {
                       <TableRow key={i}>
                         <TableCell><KalemAciklamaInput value={k.aciklama} onChange={v => kalemGuncelle(i, "aciklama", v)} onSablonSec={s => sablonUygulaTeklif(i, s)} catiFirmaId={form.catiFirmaId} placeholder="Açıklama" /></TableCell>
                         <TableCell><Input value={k.birim} onChange={e => kalemGuncelle(i, "birim", e.target.value)} placeholder="Adet" /></TableCell>
-                        <TableCell><Input type="number" min={0} step="any" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", Number(e.target.value))} /></TableCell>
-                        <TableCell><Input type="number" min={0} step="any" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", Number(e.target.value))} /></TableCell>
+                        <TableCell><Input type="number" min={0} step="any" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", Number(e.target.value))} onFocus={e => e.target.select()} /></TableCell>
+                        <TableCell><Input type="number" min={0} step="any" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", Number(e.target.value))} onFocus={e => e.target.select()} /></TableCell>
                         <TableCell className="text-right text-sm font-medium">{(k.miktar * k.birimFiyat).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell>
                           {form.kalemler.filter(x => !x.opsiyonel).length > 1 && (
@@ -799,8 +800,8 @@ export default function Teklifler() {
                           <TableRow key={i}>
                             <TableCell><KalemAciklamaInput value={k.aciklama} onChange={v => kalemGuncelle(i, "aciklama", v)} onSablonSec={s => sablonUygulaTeklif(i, s)} catiFirmaId={form.catiFirmaId} placeholder="Açıklama" /></TableCell>
                             <TableCell><Input value={k.birim} onChange={e => kalemGuncelle(i, "birim", e.target.value)} placeholder="Adet" /></TableCell>
-                            <TableCell><Input type="number" min={0} step="any" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", Number(e.target.value))} /></TableCell>
-                            <TableCell><Input type="number" min={0} step="any" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", Number(e.target.value))} /></TableCell>
+                            <TableCell><Input type="number" min={0} step="any" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", Number(e.target.value))} onFocus={e => e.target.select()} /></TableCell>
+                            <TableCell><Input type="number" min={0} step="any" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", Number(e.target.value))} onFocus={e => e.target.select()} /></TableCell>
                             <TableCell className="text-right text-sm font-medium text-muted-foreground">{(k.miktar * k.birimFiyat).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => kalemSil(i)}>
@@ -819,11 +820,11 @@ export default function Teklifler() {
               )}
             </div>
 
-            {/* Notlar + Koşullar */}
+            {/* Notes + Koşullar */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Notlar</Label>
-                <Textarea value={form.notlar} onChange={e => setForm(f => ({ ...f, notlar: e.target.value }))} rows={3} placeholder="Teklif notları…" />
+                <Label>Notes</Label>
+                <RichTextEditor value={form.notlar} onChange={v => setForm(f => ({ ...f, notlar: v }))} placeholder="Teklif notları…" minHeight={72} />
               </div>
               <div className="space-y-1.5">
                 <Label>Şartlar &amp; Koşullar</Label>

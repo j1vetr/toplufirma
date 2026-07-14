@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -377,7 +378,7 @@ export default function FaturaYeni() {
 
           <div className="space-y-1.5 col-span-2">
             <Label>Notlar</Label>
-            <Input value={notlar} onChange={e => setNotlar(e.target.value)} data-testid="input-fatura-notlar" />
+            <RichTextEditor value={notlar} onChange={setNotlar} placeholder="Fatura notu…" minHeight={80} data-testid="input-fatura-notlar" />
           </div>
 
           <div className="flex items-start gap-2.5 col-span-2 rounded-none border p-3 bg-muted/30">
@@ -452,8 +453,8 @@ export default function FaturaYeni() {
                     </SelectContent>
                   </Select>
                 )}
-                <Input className="col-span-1 text-sm h-9" type="number" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", e.target.value)} min="0.01" step="0.01" data-testid={`input-kalem-miktar-${i}`} />
-                <Input className="col-span-2 text-sm h-9" type="number" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", e.target.value)} min="0" step="0.01" data-testid={`input-kalem-fiyat-${i}`} />
+                <Input className="col-span-1 text-sm h-9" type="number" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", e.target.value)} onFocus={e => e.target.select()} min="0.01" step="0.01" data-testid={`input-kalem-miktar-${i}`} />
+                <Input className="col-span-2 text-sm h-9" type="number" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", e.target.value)} onFocus={e => e.target.select()} min="0" step="0.01" data-testid={`input-kalem-fiyat-${i}`} />
                 <Select value={String(k.kdvOrani)} onValueChange={v => kalemGuncelle(i, "kdvOrani", Number(v))}>
                   <SelectTrigger className="col-span-2 h-9 text-sm" data-testid={`select-kalem-kdv-${i}`}><SelectValue /></SelectTrigger>
                   <SelectContent>

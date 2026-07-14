@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
@@ -106,7 +107,10 @@ export default function FaturaDuzenle() {
     { tip: "grup" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "grup"] } },
   );
-  const { data: gemiler = [] } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
+  const { data: gemiler = [] } = useListGemiler(
+    fatura?.catiFirmaId ? { catiFirmaId: fatura.catiFirmaId } : undefined,
+    { query: { queryKey: [...getListGemilerQueryKey(), String(fatura?.catiFirmaId ?? "")] } },
+  );
   const { data: kdvOranlari = [] } = useListKdvOranlari(undefined, { query: { queryKey: getListKdvOranlariQueryKey() } });
 
   const gemiSecenekleri: GemiSecenek[] = gemiler.map(g => ({
@@ -307,9 +311,9 @@ export default function FaturaDuzenle() {
               <SelectContent>{["USD", "EUR", "TRY", "GBP"].map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 col-span-2">
             <Label>Notlar</Label>
-            <Input value={notlar} onChange={e => setNotlar(e.target.value)} />
+            <RichTextEditor value={notlar} onChange={setNotlar} placeholder="Fatura notu…" minHeight={80} />
           </div>
         </CardContent>
       </Card>
@@ -362,8 +366,8 @@ export default function FaturaDuzenle() {
                     </SelectContent>
                   </Select>
                 )}
-                <Input className="col-span-1 text-sm h-9" type="number" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", e.target.value)} min="0.01" step="0.01" />
-                <Input className="col-span-2 text-sm h-9" type="number" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", e.target.value)} min="0" step="0.01" />
+                <Input className="col-span-1 text-sm h-9" type="number" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", e.target.value)} onFocus={e => e.target.select()} min="0.01" step="0.01" />
+                <Input className="col-span-2 text-sm h-9" type="number" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", e.target.value)} onFocus={e => e.target.select()} min="0" step="0.01" />
                 <Select value={String(k.kdvOrani)} onValueChange={v => kalemGuncelle(i, "kdvOrani", Number(v))}>
                   <SelectTrigger className="col-span-2 h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>

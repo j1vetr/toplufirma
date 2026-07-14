@@ -308,7 +308,7 @@ export default function FaturaDetay() {
       {fatura.notlar && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Notlar</CardTitle></CardHeader>
-          <CardContent><p className="text-sm text-muted-foreground whitespace-pre-wrap">{fatura.notlar}</p></CardContent>
+          <CardContent><div className="text-sm text-muted-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_strong]:font-semibold [&_em]:italic" dangerouslySetInnerHTML={{ __html: fatura.notlar ?? "" }} /></CardContent>
         </Card>
       )}
 
