@@ -876,7 +876,7 @@ export default function Ayarlar() {
             </div>
             <div className="space-y-1.5">
               <Label>Fatura Seri Öneki</Label>
-              <Input value={firmaForm.seriOneki} onChange={e => setFirmaForm(f => ({ ...f, seriOneki: e.target.value.toUpperCase() }))} maxLength={6} placeholder="LAC" data-testid="input-firma-seri" />
+              <Input value={firmaForm.seriOneki} onChange={e => setFirmaForm(f => ({ ...f, seriOneki: e.target.value.toUpperCase() }))} placeholder="LAC" data-testid="input-firma-seri" />
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Logo <span className="text-xs text-muted-foreground">(faturada görünür)</span></Label>

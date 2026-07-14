@@ -234,7 +234,7 @@ export default function Tanimlar() {
             </div>
             <div className="space-y-1.5">
               <Label>Önek *</Label>
-              <Input value={seriForm.onek} onChange={e => setSeriForm(f => ({...f, onek: e.target.value.toUpperCase()}))} placeholder="LAC" maxLength={6} data-testid="input-seri-onek" />
+              <Input value={seriForm.onek} onChange={e => setSeriForm(f => ({...f, onek: e.target.value.toUpperCase()}))} placeholder="LAC" data-testid="input-seri-onek" />
             </div>
             <div className="space-y-1.5">
               <Label>Sonraki No</Label>
