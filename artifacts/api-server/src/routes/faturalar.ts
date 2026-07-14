@@ -60,7 +60,7 @@ router.get("/faturalar", async (req, res) => {
 
 router.post("/faturalar", requireYazma, async (req, res) => {
   try {
-    const { catiFirmaId, bagliFirmaId, grupFirmaId, gemiId, faturaSerisiId, faturaAdi, faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama, kalemler, tekrarlat } = req.body;
+    const { catiFirmaId, bagliFirmaId, grupFirmaId, gemiId, faturaSerisiId, faturaAdi, faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama, kalemler, tekrarlat, manuelFaturaNo, durumOverride } = req.body;
     req.log.info({ catiFirmaId, bagliFirmaId, grupFirmaId, gemiId, faturaTarihi, vadeTarihi, kalemSayisi: kalemler?.length }, "[fatura-yeni] body alındı");
     if (!catiFirmaId || !bagliFirmaId || !faturaTarihi || !vadeTarihi || !kalemler?.length) {
       req.log.warn({ catiFirmaId, bagliFirmaId, faturaTarihi, vadeTarihi, kalemSayisi: kalemler?.length }, "[fatura-yeni] zorunlu alan eksik");
@@ -93,8 +93,13 @@ router.post("/faturalar", requireYazma, async (req, res) => {
       }
     }
 
+    const GECERLI_DURUM = ["acik", "odendi", "kismi_odendi", "taslak", "iptal"] as const;
+    const faturaOlusturmaDurumu = GECERLI_DURUM.includes(durumOverride) ? durumOverride : "acik";
+
     let faturaNo = "";
-    if (faturaSerisiId) {
+    if (manuelFaturaNo?.trim()) {
+      faturaNo = manuelFaturaNo.trim();
+    } else if (faturaSerisiId) {
       const [seri] = await db.select().from(faturaSerileri).where(eq(faturaSerileri.id, faturaSerisiId));
       if (!seri || seri.catiFirmaId !== Number(catiFirmaId)) {
         req.log.warn({ faturaSerisiId, seriCatiFirmaId: seri?.catiFirmaId, catiFirmaId }, "[fatura-yeni] seri eşleşmedi");
@@ -123,7 +128,7 @@ router.post("/faturalar", requireYazma, async (req, res) => {
       catiFirmaId, bagliFirmaId, grupFirmaId: grupFirmaId ? Number(grupFirmaId) : null,
       gemiId: gemiId ?? null, faturaSerisiId: faturaSerisiId ?? null,
       faturaNo, faturaAdi: faturaAdi ?? null, faturaTarihi, vadeTarihi, paraBirimi: paraBirimi ?? "USD",
-      durum: "acik", toplamTutar: String(toplamTutar), kdvTutari: String(kdvTutari),
+      durum: faturaOlusturmaDurumu, toplamTutar: String(toplamTutar), kdvTutari: String(kdvTutari),
       genelToplam: String(toplamTutar + kdvTutari), notlar, aciklama,
     }).returning();
 

@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Clock } from "lucide-react";
 import { KalemAciklamaInput } from "@/components/kalem-aciklama-input";
 import { GemiSecici, GemiSecenek } from "@/components/gemi-secici";
 
@@ -89,6 +89,9 @@ export default function FaturaYeni() {
   const [notlar, setNotlar] = useState(DEFAULT_NOT);
   const [aciklama, setAciklama] = useState("");
   const [tekrarlat, setTekrarlat] = useState(false);
+  const [eskiMod, setEskiMod] = useState(false);
+  const [manuelFaturaNo, setManuelFaturaNo] = useState("");
+  const [manuelDurum, setManuelDurum] = useState("acik");
   const [kalemler, setKalemler] = useState<Kalem[]>([
     { aciklama: "", birim: "Pcs", miktar: 1, birimFiyat: 0, kdvOrani: 0 },
   ]);
@@ -210,11 +213,47 @@ export default function FaturaYeni() {
     return { toplamTutar: acc.toplamTutar + ara, kdvTutari: acc.kdvTutari + kdv };
   }, { toplamTutar: 0, kdvTutari: 0 });
 
-  function kaydet() {
+  async function kaydet() {
     if (!catiFirmaId || !bagliFirmaId || !faturaTarihi || !vadeTarihi || kalemler.some(k => !k.aciklama)) {
       toast({ title: "Hata", description: "Zorunlu alanları doldurun", variant: "destructive" });
       return;
     }
+    if (eskiMod && !manuelFaturaNo.trim()) {
+      toast({ title: "Hata", description: "Fatura numarası zorunludur", variant: "destructive" });
+      return;
+    }
+
+    if (eskiMod) {
+      try {
+        const token = localStorage.getItem("panel_token") ?? "";
+        const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+        const r = await fetch(`${base}/api/faturalar`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            catiFirmaId: Number(catiFirmaId),
+            bagliFirmaId: Number(bagliFirmaId),
+            ...(grupFirmaId && grupFirmaId !== "none" ? { grupFirmaId: Number(grupFirmaId) } : {}),
+            ...(faturaAdi ? { faturaAdi } : {}),
+            gemiId: gemiId ? Number(gemiId) : undefined,
+            faturaTarihi, vadeTarihi, paraBirimi, notlar, aciklama: aciklama || undefined,
+            tekrarlat: false,
+            manuelFaturaNo: manuelFaturaNo.trim(),
+            durumOverride: manuelDurum,
+            kalemler: kalemler.map(k => ({ aciklama: k.aciklama, birim: k.birim || "Pcs", miktar: k.miktar, birimFiyat: k.birimFiyat, kdvOrani: k.kdvOrani })),
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) { toast({ title: "Hata", description: data.error ?? "Fatura oluşturulamadı", variant: "destructive" }); return; }
+        qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() });
+        toast({ title: "Eski fatura kaydedildi" });
+        setLocation(`/faturalar/${data.id}`);
+      } catch {
+        toast({ title: "Hata", description: "Fatura oluşturulamadı", variant: "destructive" });
+      }
+      return;
+    }
+
     createFatura.mutate({
       data: {
         catiFirmaId: Number(catiFirmaId), bagliFirmaId: Number(bagliFirmaId),
@@ -239,10 +278,28 @@ export default function FaturaYeni() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Link href="/faturalar"><Button variant="ghost" size="icon" className="rounded-sm"><ArrowLeft className="h-4 w-4" /></Button></Link>
-        <h2 className="text-xl font-display font-semibold">Yeni Fatura</h2>
+        <h2 className="text-xl font-display font-semibold flex-1">Yeni Fatura</h2>
+        <Button
+          variant={eskiMod ? "default" : "outline"}
+          size="sm"
+          onClick={() => { setEskiMod(v => !v); setManuelFaturaNo(""); setManuelDurum("acik"); }}
+          className={eskiMod ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
+        >
+          <Clock className="mr-1.5 h-3.5 w-3.5" />
+          {eskiMod ? "Eski Fatura Modu Açık" : "Eski Fatura Gir"}
+        </Button>
       </div>
+
+      {eskiMod && (
+        <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 text-sm text-amber-800">
+          <Clock className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+          <span>
+            <strong>Eski Fatura Modu:</strong> Fatura numarası otomatik üretilmez, elle girdiğiniz numara kullanılır. Seri sayacı etkilenmez.
+          </span>
+        </div>
+      )}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Fatura Bilgileri</CardTitle></CardHeader>
@@ -358,16 +415,42 @@ export default function FaturaYeni() {
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Fatura Serisi</Label>
-            <Select value={serisiId || "none"} onValueChange={v => setSerisiId(v === "none" ? "" : v)}>
-              <SelectTrigger data-testid="select-fatura-seri"><SelectValue placeholder="Seri seçin (opsiyonel)" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Seçilmedi</SelectItem>
-                {filtrelenmisSeriler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad} ({s.onek})</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          {eskiMod ? (
+            <>
+              <div className="space-y-1.5">
+                <Label>Fatura No <span className="text-destructive">*</span></Label>
+                <Input
+                  value={manuelFaturaNo}
+                  onChange={e => setManuelFaturaNo(e.target.value.toUpperCase())}
+                  placeholder="Örn: FAT2023-001"
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Durum</Label>
+                <Select value={manuelDurum} onValueChange={setManuelDurum}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="acik">Açık</SelectItem>
+                    <SelectItem value="odendi">Ödendi</SelectItem>
+                    <SelectItem value="kismi_odendi">Kısmi Ödendi</SelectItem>
+                    <SelectItem value="iptal">İptal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-1.5">
+              <Label>Fatura Serisi</Label>
+              <Select value={serisiId || "none"} onValueChange={v => setSerisiId(v === "none" ? "" : v)}>
+                <SelectTrigger data-testid="select-fatura-seri"><SelectValue placeholder="Seri seçin (opsiyonel)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Seçilmedi</SelectItem>
+                  {filtrelenmisSeriler.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.ad} ({s.onek})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Para Birimi</Label>
             <Select value={paraBirimi} onValueChange={setParaBirimi}>
