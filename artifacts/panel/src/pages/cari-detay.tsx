@@ -104,6 +104,13 @@ export default function CariDetay() {
   const [gonderiyor, setGonderiyor] = useState(false);
   const [aktifPb, setAktifPb] = useState<string | null>(null);
 
+  const [emailModal, setEmailModal] = useState(false);
+  const [emailAlici, setEmailAlici] = useState("");
+  const [emailKonu, setEmailKonu] = useState("");
+  const [emailMesaj, setEmailMesaj] = useState("");
+  const [emailFaturaId, setEmailFaturaId] = useState("none");
+  const [emailGonderiyor, setEmailGonderiyor] = useState(false);
+
   const createOdeme = useCreateOdeme();
   const { data: bankaHesaplariGenel = [] } = useListBankaHesaplari(undefined, {
     query: { queryKey: getListBankaHesaplariQueryKey() },
@@ -235,6 +242,14 @@ export default function CariDetay() {
     setGonderiModal(true);
   }
 
+  function openEmailModal() {
+    setEmailAlici(detay?.firma.eposta ?? "");
+    setEmailKonu("");
+    setEmailMesaj("");
+    setEmailFaturaId("none");
+    setEmailModal(true);
+  }
+
   async function ekstreGonder() {
     if (!gonderiEposta.trim()) return;
     setGonderiyor(true);
@@ -262,6 +277,36 @@ export default function CariDetay() {
       });
     } finally {
       setGonderiyor(false);
+    }
+  }
+
+  async function cariEmailGonder() {
+    if (!emailAlici.trim() || !emailKonu.trim()) return;
+    setEmailGonderiyor(true);
+    try {
+      const token = localStorage.getItem("panel_token") ?? "";
+      const r = await fetch(`${apiBase()}/cariler/${id}/email`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          aliciEposta: emailAlici.trim(),
+          konu: emailKonu.trim(),
+          mesaj: emailMesaj.trim() || undefined,
+          faturaId: emailFaturaId !== "none" ? Number(emailFaturaId) : undefined,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Gönderilemedi");
+      toast({ title: "E-posta gönderildi", description: data.mesaj });
+      setEmailModal(false);
+    } catch (err: unknown) {
+      toast({
+        title: "Gönderim başarısız",
+        description: err instanceof Error ? err.message : "Beklenmedik hata",
+        variant: "destructive",
+      });
+    } finally {
+      setEmailGonderiyor(false);
     }
   }
 
@@ -332,6 +377,7 @@ export default function CariDetay() {
   const { firma, catiFirma, ozet, kalemler } = detay;
   const oncekiBakiye = detay.oncekiBakiye ?? null;
   const catiFirmaBankalar = bankaHesaplariGenel.filter(b => b.catiFirmaId === catiFirma?.id);
+  const faturaKalemleri = kalemler.filter(k => k.tip === "fatura" && k.faturaId !== null);
 
   const bakiyeRenk =
     ozet.bakiye > 0.01 ? "text-orange-600" : ozet.bakiye < -0.01 ? "text-red-600" : "text-green-600";
@@ -370,6 +416,11 @@ export default function CariDetay() {
           {canWrite && catiFirma && (
             <Button variant="outline" size="sm" onClick={openGonderiModal}>
               <Mail className="mr-1 h-4 w-4" /> E-posta
+            </Button>
+          )}
+          {canWrite && catiFirma && (
+            <Button variant="outline" size="sm" onClick={openEmailModal}>
+              <Send className="mr-1 h-4 w-4" /> E-posta Gönder
             </Button>
           )}
           {canWrite && catiFirma && (
@@ -815,6 +866,74 @@ export default function CariDetay() {
             </Button>
             <Button onClick={ekstreGonder} disabled={!gonderiEposta.trim() || gonderiyor}>
               {gonderiyor
+                ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Gönderiliyor…</>
+                : <><Send className="mr-1 h-4 w-4" />Gönder</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={emailModal} onOpenChange={open => { if (!open) setEmailModal(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-4 w-4" />
+              E-posta Gönder — {firma.ad}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-1 space-y-4">
+            <div className="space-y-1.5">
+              <Label>Alıcı E-posta <span className="text-destructive">*</span></Label>
+              <Input
+                type="email"
+                value={emailAlici}
+                onChange={e => setEmailAlici(e.target.value)}
+                placeholder="ornek@firma.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Konu <span className="text-destructive">*</span></Label>
+              <Input
+                value={emailKonu}
+                onChange={e => setEmailKonu(e.target.value)}
+                placeholder="E-posta konusu"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Mesaj <span className="text-muted-foreground text-xs">(opsiyonel)</span></Label>
+              <Textarea
+                value={emailMesaj}
+                onChange={e => setEmailMesaj(e.target.value)}
+                placeholder="E-posta içeriği..."
+                rows={5}
+              />
+            </div>
+            {faturaKalemleri.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Fatura Eki <span className="text-muted-foreground text-xs">(opsiyonel)</span></Label>
+                <Select value={emailFaturaId} onValueChange={setEmailFaturaId}>
+                  <SelectTrigger><SelectValue placeholder="Ek yok" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Ek yok</SelectItem>
+                    {faturaKalemleri.map(k => (
+                      <SelectItem key={k.faturaId} value={String(k.faturaId)}>
+                        {k.aciklama} — {fmt(k.borc)} {k.paraBirimi}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailModal(false)} disabled={emailGonderiyor}>
+              İptal
+            </Button>
+            <Button
+              onClick={cariEmailGonder}
+              disabled={!emailAlici.trim() || !emailKonu.trim() || emailGonderiyor}
+            >
+              {emailGonderiyor
                 ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Gönderiliyor…</>
                 : <><Send className="mr-1 h-4 w-4" />Gönder</>}
             </Button>

@@ -864,6 +864,126 @@ router.post("/cariler/:bagliFirmaId/send-ekstre", requireYazma, async (req, res)
   }
 });
 
+router.post("/cariler/:bagliFirmaId/email", requireYazma, async (req, res) => {
+  try {
+    const bagliFirmaId = Number(req.params.bagliFirmaId);
+    const { aliciEposta, konu, mesaj, faturaId } = req.body as {
+      aliciEposta: string;
+      konu: string;
+      mesaj?: string;
+      faturaId?: number;
+    };
+
+    if (!aliciEposta?.trim()) { res.status(400).json({ error: "Alıcı e-posta adresi gerekli" }); return; }
+    if (!konu?.trim()) { res.status(400).json({ error: "Konu gerekli" }); return; }
+
+    const [bagliFirma] = await db.select().from(firmalar).where(eq(firmalar.id, bagliFirmaId));
+    if (!bagliFirma || bagliFirma.tip !== "bagli") { res.status(404).json({ error: "Cari bulunamadı" }); return; }
+
+    const catiId = await resolveCatiFirmaId(bagliFirmaId, bagliFirma.ustFirmaId, req);
+    if (!catiId) { res.status(403).json({ error: "Bu cariye erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(catiId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
+
+    const [catiFirma, ayarlar] = await Promise.all([
+      db.select().from(firmalar).where(eq(firmalar.id, catiId)).then(r => r[0] ?? null),
+      db.select().from(firmaEpostaAyarlari).where(eq(firmaEpostaAyarlari.firmaId, catiId)).then(r => r[0] ?? null),
+    ]);
+
+    if (!ayarlar || !ayarlar.aktif || !ayarlar.smtpSifre) {
+      res.status(422).json({ error: "Bu firma için aktif SMTP ayarları yapılandırılmamış" }); return;
+    }
+
+    const attachments: { filename: string; content: Buffer; contentType: string }[] = [];
+    if (faturaId) {
+      const pdfUrl = `http://localhost:${process.env.PORT ?? 3001}/api/faturalar/${faturaId}/pdf`;
+      const pdfResp = await fetch(pdfUrl, { headers: { authorization: req.headers.authorization ?? "" } });
+      if (pdfResp.ok) {
+        const pdfBuffer = Buffer.from(await pdfResp.arrayBuffer());
+        attachments.push({ filename: `fatura-${faturaId}.pdf`, content: pdfBuffer, contentType: "application/pdf" });
+      }
+    }
+
+    const tarihStr = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+    const logDataUrl = (catiFirma?.logo && /^data:image\//.test(catiFirma.logo)) ? catiFirma.logo : null;
+    const bodyMesaj = (mesaj ?? "").replace(/\n/g, "<br>");
+
+    const html = `<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${konu}</title></head>
+<body style="margin:0;padding:0;background:#f0f0f0;font-family:Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr><td style="background:#000;padding:24px 32px 0 32px;text-align:center;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="border:3px solid #ffed00;background:#f8f8f5;margin:0 auto;">
+      <tr><td style="padding:12px 24px;">
+        ${logDataUrl
+          ? `<img src="${logDataUrl}" alt="${catiFirma?.ad ?? ""}" style="max-height:50px;max-width:180px;display:block;margin:0 auto;">`
+          : `<p style="margin:0;font-size:18px;font-weight:bold;color:#111;">${catiFirma?.ad ?? ""}</p>`}
+      </td></tr>
+    </table>
+  </td></tr>
+  <tr><td style="background:#ffed00;height:4px;font-size:4px;line-height:4px;">&nbsp;</td></tr>
+  <tr><td style="background:#fff;padding:32px;">
+    <p style="margin:0 0 20px;font-size:15px;color:#1a1a1a;line-height:1.6;">Sayın <strong>${bagliFirma.ad}</strong>,<br><br>${bodyMesaj}</p>
+    ${attachments.length > 0 ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fffde7;border:1px solid #ffed00;margin-bottom:28px;"><tr><td style="padding:14px 18px;font-size:13px;color:#5a4d00;">Fatura PDF dosyası bu e-postaya eklenmiştir.</td></tr></table>` : ""}
+    <p style="margin:24px 0 6px;font-size:14px;color:#1a1a1a;">Saygılarımızla,</p>
+    <p style="margin:0;font-size:14px;font-weight:bold;color:#1a1a1a;">${catiFirma?.ad ?? ""}</p>
+  </td></tr>
+  <tr><td style="background:#1a1a1a;padding:20px 32px;">
+    <p style="margin:0;font-size:12px;font-weight:bold;color:#fff;">${catiFirma?.ad ?? ""}</p>
+    ${catiFirma?.adres ? `<p style="margin:4px 0 0;font-size:11px;color:#999;">${catiFirma.adres}</p>` : ""}
+    ${catiFirma?.vergiNo ? `<p style="margin:4px 0 0;font-size:11px;color:#999;">Vergi No: ${catiFirma.vergiNo}</p>` : ""}
+    <p style="margin:4px 0 0;font-size:11px;color:#999;">${tarihStr}</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+    const text = [
+      `Sayın ${bagliFirma.ad},`,
+      "",
+      mesaj ?? "",
+      "",
+      "Saygılarımızla,",
+      catiFirma?.ad ?? "",
+    ].join("\n");
+
+    const guvenlik = ayarlar.smtpGuvenlik ?? "starttls";
+    const transporter = nodemailer.createTransport({
+      host:       ayarlar.smtpHost,
+      port:       ayarlar.smtpPort ?? 587,
+      secure:     guvenlik === "ssl",
+      requireTLS: guvenlik === "starttls",
+      auth: { user: ayarlar.smtpKullanici, pass: ayarlar.smtpSifre },
+    });
+
+    await transporter.sendMail({
+      from:        `"${ayarlar.gonderenAd}" <${ayarlar.gonderenAdres}>`,
+      to:          aliciEposta.trim(),
+      subject:     konu.trim(),
+      html,
+      text,
+      attachments,
+    });
+
+    await db.insert(gonderiGecmisi).values({
+      kayitTipi:           "cari_email",
+      kayitId:             bagliFirmaId,
+      aliciEposta:         aliciEposta.trim(),
+      gonderenKullaniciId: req.kullanici?.id ?? null,
+      gonderenAd:          req.kullanici?.ad ?? null,
+    });
+
+    res.json({ mesaj: `E-posta ${aliciEposta.trim()} adresine gönderildi` });
+  } catch (err) {
+    console.error("[cariler/email] error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "E-posta gönderilemedi" });
+  }
+});
+
 router.get("/cariler/:bagliFirmaId", async (req, res) => {
   try {
     const bagliFirmaId = Number(req.params.bagliFirmaId);
