@@ -200,9 +200,13 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
 
   const isYonetici = kullanici?.rol === "yonetici";
 
+  const baseNav = isYonetici
+    ? navigation
+    : navigation.filter(item => item.href !== "/firmalar");
+
   const allNav = isYonetici
-    ? [...navigation, { name: "Kullanıcılar", href: "/kullanicilar", icon: UserCog }, { name: "Ayarlar", href: "/ayarlar", icon: ShieldCheck }]
-    : navigation;
+    ? [...baseNav, { name: "Kullanıcılar", href: "/kullanicilar", icon: UserCog }, { name: "Ayarlar", href: "/ayarlar", icon: ShieldCheck }]
+    : baseNav;
 
   const currentPage =
     allNav.find(n => n.href === location || (location === "/" && n.href === "/dashboard"))?.name || "Panel";

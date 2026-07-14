@@ -29,6 +29,7 @@ import Cariler from "@/pages/cariler";
 import CariDetay from "@/pages/cari-detay";
 import NotFound from "@/pages/not-found";
 import Tani from "@/pages/tani";
+import FirmaSec from "@/pages/firma-sec";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,14 +70,36 @@ function AuthGuard({
   );
 }
 
+function AuthGuardSimple({
+  kullanici,
+  children,
+}: {
+  kullanici: KullaniciInfo | null;
+  children: React.ReactNode;
+}) {
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!kullanici) navigate("/login");
+  }, [kullanici]);
+
+  if (!kullanici) return null;
+  return <SirketProvider>{children}</SirketProvider>;
+}
+
 function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLogout: () => void }) {
   return (
     <Switch>
       <Route path="/login">
-        {kullanici ? <Redirect to="/dashboard" /> : null}
+        {kullanici ? <Redirect to="/firma-sec" /> : null}
       </Route>
       <Route path="/">
-        <Redirect to="/dashboard" />
+        <Redirect to="/firma-sec" />
+      </Route>
+      <Route path="/firma-sec">
+        <AuthGuardSimple kullanici={kullanici}>
+          {kullanici && <FirmaSec kullanici={kullanici} />}
+        </AuthGuardSimple>
       </Route>
       <Route path="/dashboard">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
