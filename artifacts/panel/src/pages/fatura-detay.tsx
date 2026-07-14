@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useRoute } from "wouter";
 import { Link } from "wouter";
-import DOMPurify from "dompurify";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   useGetFatura, getGetFaturaQueryKey,
@@ -309,7 +308,7 @@ export default function FaturaDetay() {
       {fatura.notlar && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Notlar</CardTitle></CardHeader>
-          <CardContent><div className="text-sm text-muted-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_strong]:font-semibold [&_em]:italic" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(fatura.notlar ?? "") }} /></CardContent>
+          <CardContent><p className="text-sm text-muted-foreground whitespace-pre-wrap">{fatura.notlar}</p></CardContent>
         </Card>
       )}
 

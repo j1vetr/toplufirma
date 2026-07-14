@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { RichTextEditor } from "@/components/rich-text-editor";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
@@ -45,7 +45,7 @@ const BIRIMLER: { tr: string; en: string }[] = [
   { tr: "Kilogram", en: "kg" },
 ];
 const BIRIM_EN_SET = new Set(BIRIMLER.map(b => b.en));
-const DEFAULT_NOT = "Kindly note that if payment is not received by the due date, the system will reduce your internet speed.";
+const DEFAULT_NOT = "";
 
 const fmt = (n: number) => new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n);
 
@@ -313,7 +313,7 @@ export default function FaturaDuzenle() {
           </div>
           <div className="space-y-1.5 col-span-2">
             <Label>Notlar</Label>
-            <RichTextEditor value={notlar} onChange={setNotlar} placeholder="Fatura notu…" minHeight={80} />
+            <Textarea value={notlar} onChange={e => setNotlar(e.target.value)} placeholder="Fatura notu…" className="min-h-[80px] resize-y text-sm" />
           </div>
         </CardContent>
       </Card>

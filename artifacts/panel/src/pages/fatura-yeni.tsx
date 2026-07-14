@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RichTextEditor } from "@/components/rich-text-editor";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -48,7 +47,7 @@ const BIRIMLER: { tr: string; en: string }[] = [
 ];
 const BIRIM_EN_SET = new Set(BIRIMLER.map(b => b.en));
 
-const DEFAULT_NOT = "Kindly note that if payment is not received by the due date, the system will reduce your internet speed.";
+const DEFAULT_NOT = "";
 
 const fmt = (n: number) => new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n);
 
@@ -461,7 +460,7 @@ export default function FaturaYeni() {
 
           <div className="space-y-1.5 col-span-2">
             <Label>Notlar</Label>
-            <RichTextEditor value={notlar} onChange={setNotlar} placeholder="Fatura notu…" minHeight={80} data-testid="input-fatura-notlar" />
+            <Textarea value={notlar} onChange={e => setNotlar(e.target.value)} placeholder="Fatura notu…" className="min-h-[80px] resize-y text-sm" data-testid="input-fatura-notlar" />
           </div>
 
           <div className="flex items-start gap-2.5 col-span-2 rounded-none border p-3 bg-muted/30">
