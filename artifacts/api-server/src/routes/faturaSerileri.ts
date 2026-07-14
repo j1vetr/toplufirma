@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { faturaSerileri } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { faturaSerileri, faturalar } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 
 const router = Router();
@@ -41,6 +41,13 @@ router.patch("/fatura-serileri/:id", requireYazma, async (req, res) => {
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { ad, onek, sonrakiNo, varsayilan } = req.body;
+    if (sonrakiNo !== undefined && Number(sonrakiNo) < existing.sonrakiNo) {
+      const [inv] = await db.select({ n: sql<number>`count(*)` })
+        .from(faturalar).where(eq(faturalar.faturaSerisiId, id));
+      if (Number(inv?.n ?? 0) > 0) {
+        res.status(400).json({ error: `Bu seriye ait ${inv?.n} fatura var; başlangıç numarasını mevcut değerin (${existing.sonrakiNo}) altına ayarlayamazsınız` }); return;
+      }
+    }
     const [row] = await db.update(faturaSerileri)
       .set({ ad, onek, sonrakiNo, varsayilan })
       .where(eq(faturaSerileri.id, id)).returning();

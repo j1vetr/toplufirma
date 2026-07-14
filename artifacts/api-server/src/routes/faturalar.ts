@@ -390,21 +390,30 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
             {
               width: "*",
               stack: [
-                { text: "BILL TO", style: "bolumBaslik" },
-                { text: bagliFirmaAd ?? "-", bold: true, marginTop: 4 },
-                ...(bagliFirmaAdres ? [{ text: bagliFirmaAdres, color: "#555", fontSize: 9, marginTop: 2 }] : []),
-                { text: `INVOICE : ${f.faturaNo}`, fontSize: 8, bold: true, color: "#0070d1", marginTop: 8, characterSpacing: 0.5 },
+                { text: "INVOICE DETAILS", style: "bolumBaslik" },
+                {
+                  table: {
+                    widths: [62, "*"],
+                    body: [
+                      [{ text: "Invoice No:", bold: true, fontSize: 9 }, { text: f.faturaNo, bold: true, color: "#0070d1", fontSize: 9 }],
+                      [{ text: "Date:", bold: true, fontSize: 9 }, { text: f.faturaTarihi, fontSize: 9 }],
+                      [{ text: "Due Date:", bold: true, fontSize: 9 }, { text: f.vadeTarihi, fontSize: 9 }],
+                      [{ text: "Currency:", bold: true, fontSize: 9 }, { text: f.paraBirimi, fontSize: 9 }],
+                      ...(gemiAd ? [[{ text: "Ship:", bold: true, fontSize: 9 }, { text: gemiAd, fontSize: 9 }]] : []),
+                      ...(gemiImo ? [[{ text: "Ship IMO:", bold: true, fontSize: 9 }, { text: String(gemiImo), fontSize: 9 }]] : []),
+                    ] as unknown as TableCell[][],
+                  },
+                  layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingTop: (i: number) => (i === 0 ? 5 : 2), paddingBottom: () => 2, paddingLeft: () => 0 },
+                  marginTop: 2,
+                },
               ],
             },
             {
               width: "*",
               stack: [
-                { text: "INVOICE DETAILS", style: "bolumBaslik" },
-                { text: [{ text: "Invoice Date:", bold: true }, `  ${f.faturaTarihi}`], marginTop: 6 },
-                ...(gemiAd ? [{ text: [{ text: "Ship Name:", bold: true }, `  ${gemiAd}`], marginTop: 3 }] : []),
-                ...(gemiImo ? [{ text: [{ text: "Ship IMO:", bold: true }, `  ${String(gemiImo)}`], marginTop: 3 }] : []),
-                { text: [{ text: "Due Date:", bold: true }, `  ${f.vadeTarihi}`], marginTop: 3 },
-                { text: [{ text: "Currency:", bold: true }, `  ${f.paraBirimi}`], marginTop: 3 },
+                { text: "BILL TO", style: "bolumBaslik" },
+                { text: bagliFirmaAd ?? "-", bold: true, marginTop: 4 },
+                ...(bagliFirmaAdres ? [{ text: bagliFirmaAdres, color: "#555", fontSize: 9, marginTop: 2 }] : []),
               ],
               alignment: "right",
             },
@@ -513,7 +522,7 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfStream: NodeJS.ReadableStream & { end(): void } = await _pdfmake.createPdf(docDefinition).getStream();
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `inline; filename="fatura-${f.faturaNo}.pdf"`);
+    res.setHeader("Content-Disposition", `inline; filename="invoice-${f.faturaNo}.pdf"`);
     res.setHeader("Cache-Control", "no-store, max-age=0");
     pdfStream.pipe(res);
     pdfStream.end();

@@ -56,7 +56,7 @@ async function pdfIndir(id: number, faturaNo: string) {
   const blob = await resp.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = `fatura-${faturaNo}.pdf`; a.click();
+  a.href = url; a.download = `invoice-${faturaNo}.pdf`; a.click();
   URL.revokeObjectURL(url);
 }
 

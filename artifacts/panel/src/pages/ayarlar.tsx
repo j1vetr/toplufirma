@@ -719,13 +719,6 @@ export default function Ayarlar() {
               </div>
             </TabsContent>
             <TabsContent value="seriler" className="mt-6">
-              {canWrite && (
-                <div className="flex justify-end mb-4">
-                  <Button onClick={() => seriAc()} data-testid="button-seri-ekle">
-                    <Plus className="mr-2 h-4 w-4" /> Seri Ekle
-                  </Button>
-                </div>
-              )}
               <div className="space-y-2">
                 {faturaSerileri.map(s => (
                   <Card key={s.id} data-testid={`card-seri-${s.id}`}>
@@ -736,12 +729,11 @@ export default function Ayarlar() {
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-right">
-                          <p className="font-mono font-bold">{s.onek}000001</p>
+                          <p className="font-mono font-bold">{s.onek}{String(s.sonrakiNo).padStart(6, "0")}</p>
                           <p className="text-xs text-muted-foreground">Sonraki: #{s.sonrakiNo}</p>
                         </div>
                         {s.varsayilan && <Badge>Varsayılan</Badge>}
                         {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => seriAc(s.id)}><Pencil className="h-4 w-4" /></Button>}
-                        {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSeriSilId(s.id)}><Trash2 className="h-4 w-4" /></Button>}
                       </div>
                     </CardContent>
                   </Card>
@@ -1146,39 +1138,31 @@ export default function Ayarlar() {
       </Dialog>
 
       <Dialog open={seriModal} onOpenChange={setSeriModal}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{seriDuzenleId ? "Seriyi Düzenle" : "Yeni Fatura Serisi"}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Başlangıç Numarasını Düzenle</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Çatı Firma *</Label>
-              <Select value={seriForm.catiFirmaId} onValueChange={v => setSeriForm(f => ({ ...f, catiFirmaId: v }))}>
-                <SelectTrigger data-testid="select-seri-sirket"><SelectValue placeholder="Firma seçin" /></SelectTrigger>
-                <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Ad *</Label>
-              <Input value={seriForm.ad} onChange={e => setSeriForm(f => ({ ...f, ad: e.target.value }))} placeholder="Ana Seri" data-testid="input-seri-ad" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Önek *</Label>
-              <Input value={seriForm.onek} onChange={e => setSeriForm(f => ({ ...f, onek: e.target.value.toUpperCase() }))} placeholder="LAC" maxLength={6} data-testid="input-seri-onek" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Sonraki No</Label>
-              <Input type="number" value={seriForm.sonrakiNo} onChange={e => setSeriForm(f => ({ ...f, sonrakiNo: e.target.value }))} min="1" data-testid="input-seri-no" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Varsayılan</Label>
-              <Select value={seriForm.varsayilan} onValueChange={v => setSeriForm(f => ({ ...f, varsayilan: v }))}>
-                <SelectTrigger data-testid="select-seri-varsayilan"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="false">Hayır</SelectItem><SelectItem value="true">Evet</SelectItem></SelectContent>
-              </Select>
+              <Label htmlFor="seri-baslangic-no">Başlangıç numarası</Label>
+              <Input
+                id="seri-baslangic-no"
+                type="number"
+                min="1"
+                value={seriForm.sonrakiNo}
+                onChange={e => setSeriForm(f => ({ ...f, sonrakiNo: e.target.value }))}
+                onFocus={e => e.target.select()}
+                data-testid="input-seri-no"
+              />
+              <p className="text-xs text-muted-foreground">
+                Sonraki oluşturulacak fatura bu numaradan başlar.
+                {seriDuzenleId && " Mevcut fatura varsa numarayı küçültemezsiniz."}
+              </p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSeriModal(false)}>İptal</Button>
-            <Button onClick={seriKaydet} disabled={!seriForm.catiFirmaId || !seriForm.ad || !seriForm.onek} data-testid="button-seri-kaydet">Kaydet</Button>
+            <Button onClick={seriKaydet} disabled={!seriForm.sonrakiNo || updateSeri.isPending} data-testid="button-seri-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
