@@ -336,14 +336,26 @@ router.get("/cariler/grup/:grupFirmaId", async (req, res) => {
       return { paraBirimi: pb, toplamBorc: fBorc + oBorc, toplamAlacak: oAlacak, bakiye: fBorc + oBorc - oAlacak };
     }).filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
 
-    let oncekiBakiye: number | null = null;
+    let oncekiBakiye: Record<string, number> | null = null;
     if (baslangic && bagliFirmaIds.length > 0) {
       const [prevF, prevO] = await Promise.all([
         db.select().from(faturalar).where(and(inArray(faturalar.bagliFirmaId, bagliFirmaIds), lt(faturalar.faturaTarihi, baslangic))),
         db.select().from(odemeler).where(and(or(eq(odemeler.bagliFirmaId, grupFirmaId), inArray(odemeler.bagliFirmaId, bagliFirmaIds)), lt(odemeler.tarih, baslangic))),
       ]);
-      const prevK = buildEntries(prevF, prevO);
-      oncekiBakiye = prevK.length > 0 ? prevK[prevK.length - 1].bakiye : 0;
+      const validPrevF = prevF.filter(f => !["taslak", "iptal"].includes(f.durum));
+      const allPrevPb = new Set([
+        ...validPrevF.map(f => f.paraBirimi ?? "USD"),
+        ...prevO.map(o => o.paraBirimi ?? "USD"),
+      ]);
+      if (allPrevPb.size > 0) {
+        oncekiBakiye = {};
+        for (const pb of allPrevPb) {
+          const fBorc = validPrevF.filter(f => (f.paraBirimi ?? "USD") === pb).reduce((s, f) => s + Number(f.genelToplam), 0);
+          const oBorc = prevO.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "odeme").reduce((s, o) => s + Number(o.tutar), 0);
+          const oAlacak = prevO.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+          oncekiBakiye[pb] = fBorc + oBorc - oAlacak;
+        }
+      }
     }
 
     res.json({

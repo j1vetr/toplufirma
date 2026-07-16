@@ -52,7 +52,7 @@ interface GrupCariDetay {
   bakiyeDetay: { paraBirimi: string; toplamBorc: number; toplamAlacak: number; bakiye: number }[];
   kalemler: CariKalem[];
   bankaHesaplari: { id: number; hesapAdi: string; bankaAdi: string | null; paraBirimi: string }[];
-  oncekiBakiye?: number | null;
+  oncekiBakiye?: Record<string, number> | null;
 }
 
 const apiBase = () => {
@@ -482,11 +482,11 @@ export default function GrupCariDetay() {
         </div>
       )}
 
-      {oncekiBakiye != null && oncekiBakiye !== 0 && (
+      {oncekiBakiye != null && aktifPb && oncekiBakiye[aktifPb] !== undefined && oncekiBakiye[aktifPb] !== 0 && (
         <div className="flex items-center justify-between p-3 bg-muted/50 border text-sm">
           <span className="text-muted-foreground font-medium">Dönem Öncesi Bakiye</span>
-          <span className={`font-bold ${oncekiBakiye > 0 ? "text-orange-600" : oncekiBakiye < 0 ? "text-red-600" : "text-green-600"}`}>
-            {fmt(Math.abs(oncekiBakiye))} {aktifPb}
+          <span className={`font-bold ${oncekiBakiye[aktifPb] > 0 ? "text-orange-600" : oncekiBakiye[aktifPb] < 0 ? "text-red-600" : "text-green-600"}`}>
+            {fmt(Math.abs(oncekiBakiye[aktifPb]))} {aktifPb}
           </span>
         </div>
       )}
@@ -532,7 +532,7 @@ export default function GrupCariDetay() {
               </thead>
               <tbody>
                 {filtrelenmisKalemler.map(kalem => {
-                  const kBakiye = (oncekiBakiye ?? 0) + kalem.bakiye;
+                  const kBakiye = (oncekiBakiye?.[kalem.paraBirimi] ?? 0) + kalem.bakiye;
                   const bakiyeRenk = kBakiye > 0.005 ? "text-orange-600" : kBakiye < -0.005 ? "text-red-600" : "text-green-600";
                   const isOdeme = kalem.tip !== "fatura";
                   return (
