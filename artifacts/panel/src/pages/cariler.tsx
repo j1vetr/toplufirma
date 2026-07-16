@@ -124,6 +124,7 @@ export default function Cariler() {
     }, {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: ["cariler"] });
+        qc.invalidateQueries({ queryKey: ["grup-cari-detay"] });
         setOdemeModal(null);
         toast({ title: "Ödeme kaydedildi" });
       },
