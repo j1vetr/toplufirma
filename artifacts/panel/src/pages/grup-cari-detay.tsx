@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  useCreateOdeme, useListBankaHesaplari, getListBankaHesaplariQueryKey,
+  useCreateOdeme, useDeleteOdeme, useListBankaHesaplari, getListBankaHesaplariQueryKey,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,12 +12,16 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import {
-  ArrowLeft, Download, Plus, Loader2, FileText,
+  ArrowLeft, Download, Plus, Loader2, FileText, Trash2,
   TrendingUp, TrendingDown, FileSpreadsheet, Building2, Users,
 } from "lucide-react";
 
@@ -101,8 +105,10 @@ export default function GrupCariDetay() {
   const [islemAciklama, setIslemAciklama] = useState("");
   const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
   const [excelIndiriyor, setExcelIndiriyor] = useState(false);
+  const [silId, setSilId] = useState<number | null>(null);
 
   const createOdeme = useCreateOdeme();
+  const deleteOdeme = useDeleteOdeme();
   const { data: bankaHesaplariGenel = [] } = useListBankaHesaplari(undefined, {
     query: { queryKey: getListBankaHesaplariQueryKey() },
   });
@@ -229,6 +235,37 @@ export default function GrupCariDetay() {
           toast({ title: "İşlem kaydedildi" });
         },
         onError: () => toast({ title: "İşlem kaydedilemedi", variant: "destructive" }),
+      },
+    );
+  }
+
+  function odemeIdFromKalem(kalem: CariKalem): number | null {
+    if (kalem.tip === "fatura") return null;
+    const raw = kalem.id.replace(/^o-/, "");
+    const n = Number(raw);
+    return isNaN(n) ? null : n;
+  }
+
+  function handleSil(kalem: CariKalem) {
+    const oid = odemeIdFromKalem(kalem);
+    if (oid) setSilId(oid);
+  }
+
+  function confirmSil() {
+    if (!silId) return;
+    deleteOdeme.mutate(
+      { id: silId },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ["grup-cari-detay", id] });
+          qc.invalidateQueries({ queryKey: ["cariler"] });
+          setSilId(null);
+          toast({ title: "İşlem silindi" });
+        },
+        onError: () => {
+          setSilId(null);
+          toast({ title: "Silinemedi", variant: "destructive" });
+        },
       },
     );
   }
@@ -446,14 +483,16 @@ export default function GrupCariDetay() {
                   <th className="text-right py-2.5 px-3 font-medium text-muted-foreground text-xs">Borç</th>
                   <th className="text-right py-2.5 px-3 font-medium text-muted-foreground text-xs">Alacak</th>
                   <th className="text-right py-2.5 px-3 font-medium text-muted-foreground text-xs">Bakiye</th>
+                  {canWrite && <th className="w-8" />}
                 </tr>
               </thead>
               <tbody>
                 {filtrelenmisKalemler.map(kalem => {
                   const kBakiye = (oncekiBakiye ?? 0) + kalem.bakiye;
                   const bakiyeRenk = kBakiye > 0.005 ? "text-orange-600" : kBakiye < -0.005 ? "text-red-600" : "text-green-600";
+                  const isOdeme = kalem.tip !== "fatura";
                   return (
-                    <tr key={kalem.id} className="border-b hover:bg-muted/30 transition-colors">
+                    <tr key={kalem.id} className="border-b hover:bg-muted/30 transition-colors group">
                       <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
                         {kalem.tarih ? new Date(kalem.tarih + "T00:00:00").toLocaleDateString("tr-TR") : ""}
                       </td>
@@ -490,6 +529,19 @@ export default function GrupCariDetay() {
                       <td className={`py-2.5 px-3 text-right tabular-nums font-bold ${bakiyeRenk}`}>
                         {fmt(Math.abs(kBakiye))}
                       </td>
+                      {canWrite && (
+                        <td className="py-2.5 px-1">
+                          {isOdeme && (
+                            <button
+                              onClick={() => handleSil(kalem)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-destructive"
+                              title="Sil"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -584,6 +636,23 @@ export default function GrupCariDetay() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={silId !== null} onOpenChange={open => { if (!open) setSilId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>İşlemi sil?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu ödeme / tahsilat kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSil} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

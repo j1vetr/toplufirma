@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { faturalar, firmalar, odemeler, bankaHesaplari, firmaEpostaAyarlari, gonderiGecmisi, gemiler } from "@workspace/db";
-import { eq, and, inArray, gte, lte, lt, isNull } from "drizzle-orm";
+import { eq, and, inArray, or, gte, lte, lt, isNull } from "drizzle-orm";
 import { sirketErisimKontrol, requireYazma, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 import { createRequire } from "node:module";
@@ -309,7 +309,7 @@ router.get("/cariler/grup/:grupFirmaId", async (req, res) => {
           ))
         : Promise.resolve([] as typeof faturalar.$inferSelect[]),
       db.select().from(odemeler).where(and(
-        eq(odemeler.bagliFirmaId, grupFirmaId),
+        bagliFirmaIds.length > 0 ? or(eq(odemeler.bagliFirmaId, grupFirmaId), inArray(odemeler.bagliFirmaId, bagliFirmaIds)) : eq(odemeler.bagliFirmaId, grupFirmaId),
         ...(baslangic ? [gte(odemeler.tarih, baslangic)] : []),
         ...(bitis ? [lte(odemeler.tarih, bitis)] : []),
       )),
@@ -339,7 +339,7 @@ router.get("/cariler/grup/:grupFirmaId", async (req, res) => {
     if (baslangic && bagliFirmaIds.length > 0) {
       const [prevF, prevO] = await Promise.all([
         db.select().from(faturalar).where(and(inArray(faturalar.bagliFirmaId, bagliFirmaIds), lt(faturalar.faturaTarihi, baslangic))),
-        db.select().from(odemeler).where(and(eq(odemeler.bagliFirmaId, grupFirmaId), lt(odemeler.tarih, baslangic))),
+        db.select().from(odemeler).where(and(or(eq(odemeler.bagliFirmaId, grupFirmaId), inArray(odemeler.bagliFirmaId, bagliFirmaIds)), lt(odemeler.tarih, baslangic))),
       ]);
       const prevK = buildEntries(prevF, prevO);
       oncekiBakiye = prevK.length > 0 ? prevK[prevK.length - 1].bakiye : 0;
@@ -396,7 +396,7 @@ router.get("/cariler/grup/:grupFirmaId/pdf", async (req, res) => {
           ))
         : Promise.resolve([] as typeof faturalar.$inferSelect[]),
       db.select().from(odemeler).where(and(
-        eq(odemeler.bagliFirmaId, grupFirmaId),
+        bagliFirmaIds.length > 0 ? or(eq(odemeler.bagliFirmaId, grupFirmaId), inArray(odemeler.bagliFirmaId, bagliFirmaIds)) : eq(odemeler.bagliFirmaId, grupFirmaId),
         ...(baslangic ? [gte(odemeler.tarih, baslangic)] : []),
         ...(bitis ? [lte(odemeler.tarih, bitis)] : []),
       )),
@@ -406,7 +406,7 @@ router.get("/cariler/grup/:grupFirmaId/pdf", async (req, res) => {
     if (baslangic && bagliFirmaIds.length > 0) {
       const [preF, preO] = await Promise.all([
         db.select().from(faturalar).where(and(inArray(faturalar.bagliFirmaId, bagliFirmaIds), lt(faturalar.faturaTarihi, baslangic))),
-        db.select().from(odemeler).where(and(eq(odemeler.bagliFirmaId, grupFirmaId), lt(odemeler.tarih, baslangic))),
+        db.select().from(odemeler).where(and(or(eq(odemeler.bagliFirmaId, grupFirmaId), inArray(odemeler.bagliFirmaId, bagliFirmaIds)), lt(odemeler.tarih, baslangic))),
       ]);
       const preE = buildEntries(preF, preO);
       acilisBakiyesi = preE.length > 0 ? preE[preE.length - 1].bakiye : 0;
@@ -598,7 +598,7 @@ router.get("/cariler/grup/:grupFirmaId/excel", async (req, res) => {
           ))
         : Promise.resolve([] as typeof faturalar.$inferSelect[]),
       db.select().from(odemeler).where(and(
-        eq(odemeler.bagliFirmaId, grupFirmaId),
+        bagliFirmaIds.length > 0 ? or(eq(odemeler.bagliFirmaId, grupFirmaId), inArray(odemeler.bagliFirmaId, bagliFirmaIds)) : eq(odemeler.bagliFirmaId, grupFirmaId),
         ...(baslangic ? [gte(odemeler.tarih, baslangic)] : []),
         ...(bitis ? [lte(odemeler.tarih, bitis)] : []),
       )),
@@ -608,7 +608,7 @@ router.get("/cariler/grup/:grupFirmaId/excel", async (req, res) => {
     if (baslangic && bagliFirmaIds.length > 0) {
       const [preF, preO] = await Promise.all([
         db.select().from(faturalar).where(and(inArray(faturalar.bagliFirmaId, bagliFirmaIds), lt(faturalar.faturaTarihi, baslangic))),
-        db.select().from(odemeler).where(and(eq(odemeler.bagliFirmaId, grupFirmaId), lt(odemeler.tarih, baslangic))),
+        db.select().from(odemeler).where(and(or(eq(odemeler.bagliFirmaId, grupFirmaId), inArray(odemeler.bagliFirmaId, bagliFirmaIds)), lt(odemeler.tarih, baslangic))),
       ]);
       const preE = buildEntries(preF, preO);
       acilisBakiyesi = preE.length > 0 ? preE[preE.length - 1].bakiye : 0;
