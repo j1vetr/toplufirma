@@ -33,8 +33,8 @@ interface CariOzet {
   bagliFirmaAd: string;
   catiFirmaId: number | null;
   catiFirmaAd: string | null;
-  ustMusteriId?: number | null;
-  ustMusteriAd?: string | null;
+  grupFirmaId?: number | null;
+  grupFirmaAd?: string | null;
   gemiAd?: string | null;
   toplamBorc: number;
   toplamAlacak: number;
@@ -170,16 +170,16 @@ export default function Cariler() {
 
   const gruplar = useMemo(() => {
     type GrupEntry = {
-      ustMusteriAd: string | null;
+      grupFirmaAd: string | null;
       cariler: CariOzet[];
       konsolide: BakiyeDetay[];
     };
     const map = new Map<number | string, GrupEntry>();
 
     for (const c of filtrelenmis) {
-      const key = c.ustMusteriId ?? "bagimsiz";
+      const key = c.grupFirmaId ?? "bagimsiz";
       if (!map.has(key)) {
-        map.set(key, { ustMusteriAd: c.ustMusteriAd ?? null, cariler: [], konsolide: [] });
+        map.set(key, { grupFirmaAd: c.grupFirmaAd ?? null, cariler: [], konsolide: [] });
       }
       map.get(key)!.cariler.push(c);
     }
@@ -208,7 +208,7 @@ export default function Cariler() {
     return [...map.entries()].sort(([keyA, a], [keyB, b]) => {
       if (keyA === "bagimsiz" && keyB !== "bagimsiz") return 1;
       if (keyA !== "bagimsiz" && keyB === "bagimsiz") return -1;
-      return (a.ustMusteriAd ?? "").localeCompare(b.ustMusteriAd ?? "", "tr");
+      return (a.grupFirmaAd ?? "").localeCompare(b.grupFirmaAd ?? "", "tr");
     });
   }, [filtrelenmis]);
 
@@ -362,9 +362,9 @@ export default function Cariler() {
           {gruplar.map(([grupKey, grup]) => (
             <div key={grupKey}>
               <div className="flex items-center gap-2 mb-3">
-                <Building2 className={`h-4 w-4 shrink-0 ${grup.ustMusteriAd ? "text-foreground" : "text-muted-foreground"}`} />
-                <span className={`text-sm font-bold uppercase tracking-wide ${grup.ustMusteriAd ? "text-foreground" : "text-muted-foreground"}`}>
-                  {grup.ustMusteriAd ?? "Bağımsız Müşteriler"}
+                <Building2 className={`h-4 w-4 shrink-0 ${grup.grupFirmaAd ? "text-foreground" : "text-muted-foreground"}`} />
+                <span className={`text-sm font-bold uppercase tracking-wide ${grup.grupFirmaAd ? "text-foreground" : "text-muted-foreground"}`}>
+                  {grup.grupFirmaAd ?? "Bağımsız Müşteriler"}
                 </span>
                 <div className="flex-1 h-px bg-border" />
                 {grup.konsolide.length > 0 && (

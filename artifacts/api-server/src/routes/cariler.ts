@@ -165,20 +165,20 @@ router.get("/cariler", async (req, res) => {
     const bagliFirmaIdleri = erisilen.map(f => f.id);
     const catiFirmaIdleri = [...new Set([...catiMap.values()])];
 
-    // Collect unique ustFirmaId values from bağlı firmalar (customer parent hierarchy)
-    const ustFirmaIdleri = [...new Set(erisilen.map(f => f.ustFirmaId).filter((id): id is number => id != null))];
+    // grupFirmaId üzerinden müşteri grup firması (SEBA, BARLA, VARAN) tespiti
+    const grupFirmaIdleri = [...new Set(erisilen.map(f => f.grupFirmaId).filter((id): id is number => id != null))];
 
-    const [catiFirmalar, faturaRows, odemeRows, ustFirmaRows] = await Promise.all([
+    const [catiFirmalar, faturaRows, odemeRows, grupFirmaRows] = await Promise.all([
       db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(inArray(firmalar.id, catiFirmaIdleri)),
       db.select().from(faturalar).where(inArray(faturalar.bagliFirmaId, bagliFirmaIdleri)),
       db.select().from(odemeler).where(inArray(odemeler.bagliFirmaId, bagliFirmaIdleri)),
-      ustFirmaIdleri.length > 0
-        ? db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(inArray(firmalar.id, ustFirmaIdleri))
+      grupFirmaIdleri.length > 0
+        ? db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(inArray(firmalar.id, grupFirmaIdleri))
         : Promise.resolve([] as { id: number; ad: string }[]),
     ]);
 
-    const ustFirmaMap = new Map<number, string>();
-    for (const f of ustFirmaRows) ustFirmaMap.set(f.id, f.ad);
+    const grupFirmaMap = new Map<number, string>();
+    for (const f of grupFirmaRows) grupFirmaMap.set(f.id, f.ad);
 
     const gemiIdleri = [...new Set(faturaRows.map(f => f.gemiId).filter((g): g is number => g != null))];
     const gemiMap = new Map<number, string>();
@@ -187,15 +187,9 @@ router.get("/cariler", async (req, res) => {
       for (const g of gemiRows) gemiMap.set(g.id, g.ad);
     }
 
-    const gecerliFirmaIdSet = new Set(gecerliFirmaIdleri);
-
     const result = erisilen.map(bf => {
       const effectiveCati = catiMap.get(bf.id);
       const catiFirma = catiFirmalar.find(c => c.id === effectiveCati);
-      // ustMusteriId = müşteri tarafındaki çatı firma; kendi firmamız ise null
-      const ustMusteriIdValue = (bf.ustFirmaId != null && !gecerliFirmaIdSet.has(bf.ustFirmaId))
-        ? bf.ustFirmaId
-        : null;
       const bFaturalar = faturaRows.filter(f => f.bagliFirmaId === bf.id);
       const bOdemeler = odemeRows.filter(o => o.bagliFirmaId === bf.id);
       const validF = bFaturalar.filter(f => !["taslak", "iptal"].includes(f.durum));
@@ -242,8 +236,8 @@ router.get("/cariler", async (req, res) => {
         bagliFirmaAd: bf.ad,
         catiFirmaId: effectiveCati ?? null,
         catiFirmaAd: catiFirma?.ad ?? null,
-        ustMusteriId: ustMusteriIdValue,
-        ustMusteriAd: ustMusteriIdValue ? (ustFirmaMap.get(ustMusteriIdValue) ?? null) : null,
+        grupFirmaId: bf.grupFirmaId ?? null,
+        grupFirmaAd: bf.grupFirmaId ? (grupFirmaMap.get(bf.grupFirmaId) ?? null) : null,
         gemiAd,
         toplamBorc,
         toplamAlacak,
