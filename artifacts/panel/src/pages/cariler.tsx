@@ -33,6 +33,8 @@ interface CariOzet {
   bagliFirmaAd: string;
   catiFirmaId: number | null;
   catiFirmaAd: string | null;
+  ustMusteriId?: number | null;
+  ustMusteriAd?: string | null;
   gemiAd?: string | null;
   toplamBorc: number;
   toplamAlacak: number;
@@ -167,17 +169,47 @@ export default function Cariler() {
   }, [cariler, arama, bakiyeFiltre, siralama]);
 
   const gruplar = useMemo(() => {
-    const map = new Map<number | string, { catiFirmaAd: string | null; cariler: CariOzet[] }>();
+    type GrupEntry = {
+      ustMusteriAd: string | null;
+      cariler: CariOzet[];
+      konsolide: BakiyeDetay[];
+    };
+    const map = new Map<number | string, GrupEntry>();
+
     for (const c of filtrelenmis) {
-      const key = c.catiFirmaId ?? "yok";
+      const key = c.ustMusteriId ?? "bagimsiz";
       if (!map.has(key)) {
-        map.set(key, { catiFirmaAd: c.catiFirmaAd ?? null, cariler: [] });
+        map.set(key, { ustMusteriAd: c.ustMusteriAd ?? null, cariler: [], konsolide: [] });
       }
       map.get(key)!.cariler.push(c);
     }
-    return [...map.entries()].sort(([, a], [, b]) =>
-      (a.catiFirmaAd ?? "").localeCompare(b.catiFirmaAd ?? "", "tr")
-    );
+
+    for (const [, grup] of map) {
+      const pbMap = new Map<string, { toplamBorc: number; toplamAlacak: number; bakiye: number }>();
+      for (const c of grup.cariler) {
+        const items =
+          c.bakiyeDetay && c.bakiyeDetay.length > 0
+            ? c.bakiyeDetay
+            : [{ paraBirimi: c.paraBirimi || "USD", toplamBorc: c.toplamBorc, toplamAlacak: c.toplamAlacak, bakiye: c.bakiye }];
+        for (const d of items) {
+          const cur = pbMap.get(d.paraBirimi) ?? { toplamBorc: 0, toplamAlacak: 0, bakiye: 0 };
+          cur.toplamBorc += d.toplamBorc;
+          cur.toplamAlacak += d.toplamAlacak;
+          cur.bakiye += d.bakiye;
+          pbMap.set(d.paraBirimi, cur);
+        }
+      }
+      grup.konsolide = [...pbMap.entries()]
+        .map(([pb, v]) => ({ paraBirimi: pb, ...v }))
+        .filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005)
+        .sort((a, b) => b.bakiye - a.bakiye);
+    }
+
+    return [...map.entries()].sort(([keyA, a], [keyB, b]) => {
+      if (keyA === "bagimsiz" && keyB !== "bagimsiz") return 1;
+      if (keyA !== "bagimsiz" && keyB === "bagimsiz") return -1;
+      return (a.ustMusteriAd ?? "").localeCompare(b.ustMusteriAd ?? "", "tr");
+    });
   }, [filtrelenmis]);
 
   const ozet = useMemo(() => {
@@ -329,18 +361,29 @@ export default function Cariler() {
         <div className="space-y-6">
           {gruplar.map(([grupKey, grup]) => (
             <div key={grupKey}>
-              {grup.catiFirmaAd && (
-                <div className="flex items-center gap-2 mb-3">
-                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    {grup.catiFirmaAd}
-                  </span>
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {grup.cariler.length} müşteri
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 className={`h-4 w-4 shrink-0 ${grup.ustMusteriAd ? "text-foreground" : "text-muted-foreground"}`} />
+                <span className={`text-sm font-bold uppercase tracking-wide ${grup.ustMusteriAd ? "text-foreground" : "text-muted-foreground"}`}>
+                  {grup.ustMusteriAd ?? "Bağımsız Müşteriler"}
+                </span>
+                <div className="flex-1 h-px bg-border" />
+                {grup.konsolide.length > 0 && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    {grup.konsolide.map(d => {
+                      const renk = d.bakiye > 0.01 ? "text-orange-600" : d.bakiye < -0.01 ? "text-red-600" : "text-green-600";
+                      return (
+                        <span key={d.paraBirimi} className={`text-xs font-bold tabular-nums ${renk}`}>
+                          {fmt(Math.abs(d.bakiye))} {d.paraBirimi}
+                        </span>
+                      );
+                    })}
+                    <span className="text-xs text-muted-foreground">•</span>
+                  </div>
+                )}
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {grup.cariler.length} hesap
+                </span>
+              </div>
               <div className="space-y-2">
                 {grup.cariler.map(c => {
                   const bakiyeRenk =

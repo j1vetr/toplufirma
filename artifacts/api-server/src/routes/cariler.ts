@@ -162,11 +162,20 @@ router.get("/cariler", async (req, res) => {
     const bagliFirmaIdleri = erisilen.map(f => f.id);
     const catiFirmaIdleri = [...new Set([...catiMap.values()])];
 
-    const [catiFirmalar, faturaRows, odemeRows] = await Promise.all([
+    // Collect unique ustFirmaId values from bağlı firmalar (customer parent hierarchy)
+    const ustFirmaIdleri = [...new Set(erisilen.map(f => f.ustFirmaId).filter((id): id is number => id != null))];
+
+    const [catiFirmalar, faturaRows, odemeRows, ustFirmaRows] = await Promise.all([
       db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(inArray(firmalar.id, catiFirmaIdleri)),
       db.select().from(faturalar).where(inArray(faturalar.bagliFirmaId, bagliFirmaIdleri)),
       db.select().from(odemeler).where(inArray(odemeler.bagliFirmaId, bagliFirmaIdleri)),
+      ustFirmaIdleri.length > 0
+        ? db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(inArray(firmalar.id, ustFirmaIdleri))
+        : Promise.resolve([] as { id: number; ad: string }[]),
     ]);
+
+    const ustFirmaMap = new Map<number, string>();
+    for (const f of ustFirmaRows) ustFirmaMap.set(f.id, f.ad);
 
     const gemiIdleri = [...new Set(faturaRows.map(f => f.gemiId).filter((g): g is number => g != null))];
     const gemiMap = new Map<number, string>();
@@ -224,6 +233,8 @@ router.get("/cariler", async (req, res) => {
         bagliFirmaAd: bf.ad,
         catiFirmaId: effectiveCati ?? null,
         catiFirmaAd: catiFirma?.ad ?? null,
+        ustMusteriId: bf.ustFirmaId ?? null,
+        ustMusteriAd: bf.ustFirmaId ? (ustFirmaMap.get(bf.ustFirmaId) ?? null) : null,
         gemiAd,
         toplamBorc,
         toplamAlacak,
