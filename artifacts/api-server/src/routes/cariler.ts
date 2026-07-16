@@ -184,9 +184,15 @@ router.get("/cariler", async (req, res) => {
       for (const g of gemiRows) gemiMap.set(g.id, g.ad);
     }
 
+    const gecerliFirmaIdSet = new Set(gecerliFirmaIdleri);
+
     const result = erisilen.map(bf => {
       const effectiveCati = catiMap.get(bf.id);
       const catiFirma = catiFirmalar.find(c => c.id === effectiveCati);
+      // ustMusteriId = müşteri tarafındaki çatı firma; kendi firmamız ise null
+      const ustMusteriIdValue = (bf.ustFirmaId != null && !gecerliFirmaIdSet.has(bf.ustFirmaId))
+        ? bf.ustFirmaId
+        : null;
       const bFaturalar = faturaRows.filter(f => f.bagliFirmaId === bf.id);
       const bOdemeler = odemeRows.filter(o => o.bagliFirmaId === bf.id);
       const validF = bFaturalar.filter(f => !["taslak", "iptal"].includes(f.durum));
@@ -233,8 +239,8 @@ router.get("/cariler", async (req, res) => {
         bagliFirmaAd: bf.ad,
         catiFirmaId: effectiveCati ?? null,
         catiFirmaAd: catiFirma?.ad ?? null,
-        ustMusteriId: bf.ustFirmaId ?? null,
-        ustMusteriAd: bf.ustFirmaId ? (ustFirmaMap.get(bf.ustFirmaId) ?? null) : null,
+        ustMusteriId: ustMusteriIdValue,
+        ustMusteriAd: ustMusteriIdValue ? (ustFirmaMap.get(ustMusteriIdValue) ?? null) : null,
         gemiAd,
         toplamBorc,
         toplamAlacak,
