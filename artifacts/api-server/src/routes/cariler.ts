@@ -116,8 +116,6 @@ router.get("/cariler", async (req, res) => {
     }
 
     const isYonetici = req.kullanici?.rol === "yonetici";
-    // Kendi firmamız = kök çatı firmalar (ustFirmaId IS NULL).
-    // Müşteri çatı firmalar (SEBA, BARLA...) ustFirmaId dolu olur; bunlar gecerliFirmaIdleri'ne girmemeli.
     const gecerliFirmaIdleri = catiFirmaId
       ? [Number(catiFirmaId)]
       : isYonetici
@@ -126,134 +124,606 @@ router.get("/cariler", async (req, res) => {
         : izinliSirketler;
     if (gecerliFirmaIdleri.length === 0) { res.json([]); return; }
 
-    const allBagli = await db.select().from(firmalar).where(eq(firmalar.tip, "bagli"));
-
-    const catiMap = new Map<number, number>();
-
-    // gorunurBagliFirmaIds correctly handles both ustFirmaId and grupFirmaId chains
+    // ─── 1. Erişilen bağlı firma ID'lerini bul ────────────────────────────
+    const catiMap = new Map<number, number>(); // bagliFirmaId → catiFirmaId
     for (const cId of gecerliFirmaIdleri) {
-      const bagliFirmaIds = await gorunurBagliFirmaIds(cId);
-      for (const bId of bagliFirmaIds) {
-        if (!catiMap.has(bId)) catiMap.set(bId, cId);
-      }
+      const ids = await gorunurBagliFirmaIds(cId);
+      for (const bId of ids) { if (!catiMap.has(bId)) catiMap.set(bId, cId); }
     }
-
-    // Also discover via existing invoices (edge case: invoices linked to firms not in the chain)
     const faturaDiscover = await db
       .select({ bagliFirmaId: faturalar.bagliFirmaId, catiFirmaId: faturalar.catiFirmaId })
-      .from(faturalar)
-      .where(inArray(faturalar.catiFirmaId, gecerliFirmaIdleri));
+      .from(faturalar).where(inArray(faturalar.catiFirmaId, gecerliFirmaIdleri));
     for (const p of faturaDiscover) {
-      if (!catiMap.has(p.bagliFirmaId)) {
-        catiMap.set(p.bagliFirmaId, p.catiFirmaId);
+      if (!catiMap.has(p.bagliFirmaId)) catiMap.set(p.bagliFirmaId, p.catiFirmaId);
+    }
+    if (catiMap.size === 0) { res.json([]); return; }
+
+    const erisilenBagliIds = [...catiMap.keys()];
+    const allBagliRows = await db.select().from(firmalar).where(inArray(firmalar.id, erisilenBagliIds));
+
+    // ─── 2. Grup firmalar vs bağımsız bağlı firmalar ──────────────────────
+    const grupMap = new Map<number, { catiFirmaId: number; bagliFirmaIds: number[] }>();
+    const bagimsizIds: number[] = [];
+    for (const bf of allBagliRows) {
+      if (bf.grupFirmaId) {
+        if (!grupMap.has(bf.grupFirmaId)) {
+          grupMap.set(bf.grupFirmaId, { catiFirmaId: catiMap.get(bf.id) ?? gecerliFirmaIdleri[0], bagliFirmaIds: [] });
+        }
+        grupMap.get(bf.grupFirmaId)!.bagliFirmaIds.push(bf.id);
+      } else {
+        bagimsizIds.push(bf.id);
       }
     }
 
-    if (catiMap.size === 0) { res.json([]); return; }
-
-    const erisilenIdleri = [...catiMap.keys()];
-
-    const erisilenFirmalar = allBagli.filter(f => erisilenIdleri.includes(f.id));
-    const missingIds = erisilenIdleri.filter(id => !allBagli.some(f => f.id === id));
-    const missingFirmalar = missingIds.length > 0
-      ? await db.select().from(firmalar).where(inArray(firmalar.id, missingIds))
-      : [];
-
-    const erisilen = [...erisilenFirmalar, ...missingFirmalar];
-    if (erisilen.length === 0) { res.json([]); return; }
-
-    const bagliFirmaIdleri = erisilen.map(f => f.id);
+    // ─── 3. Toplu veri çek ────────────────────────────────────────────────
     const catiFirmaIdleri = [...new Set([...catiMap.values()])];
+    const grupFirmaIds = [...grupMap.keys()];
 
-    // grupFirmaId üzerinden müşteri grup firması (SEBA, BARLA, VARAN) tespiti
-    const grupFirmaIdleri = [...new Set(erisilen.map(f => f.grupFirmaId).filter((id): id is number => id != null))];
-
-    const [catiFirmalar, faturaRows, odemeRows, grupFirmaRows] = await Promise.all([
-      db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(inArray(firmalar.id, catiFirmaIdleri)),
-      db.select().from(faturalar).where(inArray(faturalar.bagliFirmaId, bagliFirmaIdleri)),
-      db.select().from(odemeler).where(inArray(odemeler.bagliFirmaId, bagliFirmaIdleri)),
-      grupFirmaIdleri.length > 0
-        ? db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(inArray(firmalar.id, grupFirmaIdleri))
+    const [catiFirmalar, grupFirmaRows, allFaturalar, grupOdemeRows, bagimsizOdemeRows] = await Promise.all([
+      catiFirmaIdleri.length > 0
+        ? db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(inArray(firmalar.id, catiFirmaIdleri))
         : Promise.resolve([] as { id: number; ad: string }[]),
+      grupFirmaIds.length > 0
+        ? db.select().from(firmalar).where(inArray(firmalar.id, grupFirmaIds))
+        : Promise.resolve([] as typeof firmalar.$inferSelect[]),
+      erisilenBagliIds.length > 0
+        ? db.select().from(faturalar).where(inArray(faturalar.bagliFirmaId, erisilenBagliIds))
+        : Promise.resolve([] as typeof faturalar.$inferSelect[]),
+      // Grup firma ödemeleri: bagliFirmaId = grupFirmaId (doğrudan grup firmaya yapılan ödemeler)
+      grupFirmaIds.length > 0
+        ? db.select().from(odemeler).where(inArray(odemeler.bagliFirmaId, grupFirmaIds))
+        : Promise.resolve([] as typeof odemeler.$inferSelect[]),
+      bagimsizIds.length > 0
+        ? db.select().from(odemeler).where(inArray(odemeler.bagliFirmaId, bagimsizIds))
+        : Promise.resolve([] as typeof odemeler.$inferSelect[]),
     ]);
 
-    const grupFirmaMap = new Map<number, string>();
-    for (const f of grupFirmaRows) grupFirmaMap.set(f.id, f.ad);
+    const catiFirmaMap = new Map(catiFirmalar.map(f => [f.id, f.ad]));
+    const grupFirmaRowMap = new Map(grupFirmaRows.map(f => [f.id, f]));
 
-    const gemiIdleri = [...new Set(faturaRows.map(f => f.gemiId).filter((g): g is number => g != null))];
+    const gemiIdleri = [...new Set(allFaturalar.map(f => f.gemiId).filter((g): g is number => g != null))];
     const gemiMap = new Map<number, string>();
     if (gemiIdleri.length > 0) {
-      const gemiRows = await db.select({ id: gemiler.id, ad: gemiler.ad }).from(gemiler).where(inArray(gemiler.id, gemiIdleri));
-      for (const g of gemiRows) gemiMap.set(g.id, g.ad);
+      const gs = await db.select({ id: gemiler.id, ad: gemiler.ad }).from(gemiler).where(inArray(gemiler.id, gemiIdleri));
+      for (const g of gs) gemiMap.set(g.id, g.ad);
     }
 
-    const result = erisilen.map(bf => {
-      const effectiveCati = catiMap.get(bf.id);
-      const catiFirma = catiFirmalar.find(c => c.id === effectiveCati);
-      const bFaturalar = faturaRows.filter(f => f.bagliFirmaId === bf.id);
-      const bOdemeler = odemeRows.filter(o => o.bagliFirmaId === bf.id);
-      const validF = bFaturalar.filter(f => !["taslak", "iptal"].includes(f.durum));
+    // ─── 4. Bakiye detayı yardımcısı ─────────────────────────────────────
+    function buildBakiyeDetay(
+      validF: typeof faturalar.$inferSelect[],
+      ods: typeof odemeler.$inferSelect[],
+    ) {
+      const allPb = new Set([...validF.map(f => f.paraBirimi ?? "USD"), ...ods.map(o => o.paraBirimi ?? "USD")]);
+      return [...allPb].map(pb => {
+        const fBorc = validF.filter(f => (f.paraBirimi ?? "USD") === pb).reduce((s, f) => s + Number(f.genelToplam), 0);
+        const oBorc = ods.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "odeme").reduce((s, o) => s + Number(o.tutar), 0);
+        const oAlacak = ods.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+        return { paraBirimi: pb, toplamBorc: fBorc + oBorc, toplamAlacak: oAlacak, bakiye: fBorc + oBorc - oAlacak };
+      }).filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
+    }
 
-      const toplamBorc =
-        validF.reduce((s, f) => s + Number(f.genelToplam), 0) +
-        bOdemeler.filter(o => o.tip === "odeme").reduce((s, o) => s + Number(o.tutar), 0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any[] = [];
+
+    // ─── 4a. Grup firmalar (konsolide) ────────────────────────────────────
+    for (const [grupId, grupInfo] of grupMap) {
+      const gfRow = grupFirmaRowMap.get(grupId);
+      const grupFaturaRows = allFaturalar.filter(f => grupInfo.bagliFirmaIds.includes(f.bagliFirmaId));
+      const grupOds = grupOdemeRows.filter(o => o.bagliFirmaId === grupId);
+      const validF = grupFaturaRows.filter(f => !["taslak", "iptal"].includes(f.durum));
+
+      const toplamBorc = validF.reduce((s, f) => s + Number(f.genelToplam), 0)
+        + grupOds.filter(o => o.tip === "odeme").reduce((s, o) => s + Number(o.tutar), 0);
+      const toplamAlacak = grupOds.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+      const bakiye = toplamBorc - toplamAlacak;
+      const acikFaturaAdedi = grupFaturaRows.filter(f => ["acik", "kismi_odendi"].includes(f.durum)).length;
+      const tumTarihler = [
+        ...grupFaturaRows.map(f => f.faturaTarihi as string),
+        ...grupOds.map(o => o.tarih as string),
+      ].filter(Boolean).sort();
+
+      result.push({
+        id: grupId, tip: "grup", ad: gfRow?.ad ?? `Grup #${grupId}`,
+        catiFirmaId: grupInfo.catiFirmaId, catiFirmaAd: catiFirmaMap.get(grupInfo.catiFirmaId) ?? null,
+        bagliFirmaAdedi: grupInfo.bagliFirmaIds.length,
+        toplamBorc, toplamAlacak, bakiye, acikFaturaAdedi,
+        paraBirimi: gfRow?.paraBirimi || "USD",
+        sonIslemTarihi: tumTarihler.length > 0 ? tumTarihler[tumTarihler.length - 1] : null,
+        bakiyeDetay: buildBakiyeDetay(validF, grupOds),
+      });
+    }
+
+    // ─── 4b. Bağımsız bağlı firmalar ─────────────────────────────────────
+    for (const bf of allBagliRows.filter(f => bagimsizIds.includes(f.id))) {
+      const bFaturalar = allFaturalar.filter(f => f.bagliFirmaId === bf.id);
+      const bOdemeler = bagimsizOdemeRows.filter(o => o.bagliFirmaId === bf.id);
+      const validF = bFaturalar.filter(f => !["taslak", "iptal"].includes(f.durum));
+      const catiFirmaId = catiMap.get(bf.id) ?? null;
+
+      const toplamBorc = validF.reduce((s, f) => s + Number(f.genelToplam), 0)
+        + bOdemeler.filter(o => o.tip === "odeme").reduce((s, o) => s + Number(o.tutar), 0);
       const toplamAlacak = bOdemeler.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
       const bakiye = toplamBorc - toplamAlacak;
       const acikFaturaAdedi = bFaturalar.filter(f => ["acik", "kismi_odendi"].includes(f.durum)).length;
-
       const tumTarihler = [
         ...bFaturalar.map(f => f.faturaTarihi as string),
         ...bOdemeler.map(o => o.tarih as string),
       ].filter(Boolean).sort();
-      const sonIslemTarihi = tumTarihler.length > 0 ? tumTarihler[tumTarihler.length - 1] : null;
-
-      const allPb = new Set([
-        ...validF.map(f => f.paraBirimi ?? "USD"),
-        ...bOdemeler.map(o => o.paraBirimi ?? "USD"),
-      ]);
-      const bakiyeDetay = [...allPb].map(pb => {
-        const fBorc = validF
-          .filter(f => (f.paraBirimi ?? "USD") === pb)
-          .reduce((s, f) => s + Number(f.genelToplam), 0);
-        const oBorc = bOdemeler
-          .filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "odeme")
-          .reduce((s, o) => s + Number(o.tutar), 0);
-        const oAlacak = bOdemeler
-          .filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "tahsilat")
-          .reduce((s, o) => s + Number(o.tutar), 0);
-        const pbBorc = fBorc + oBorc;
-        const pbAlacak = oAlacak;
-        return { paraBirimi: pb, toplamBorc: pbBorc, toplamAlacak: pbAlacak, bakiye: pbBorc - pbAlacak };
-      }).filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
-
-      const gemiIcinFaturalar = bFaturalar
-        .filter(f => f.gemiId != null)
+      const gemiIcinFaturalar = bFaturalar.filter(f => f.gemiId != null)
         .sort((a, b) => new Date(b.faturaTarihi as string).getTime() - new Date(a.faturaTarihi as string).getTime());
       const gemiAd = gemiIcinFaturalar.length > 0 ? (gemiMap.get(gemiIcinFaturalar[0].gemiId!) ?? null) : null;
 
-      return {
-        bagliFirmaId: bf.id,
-        bagliFirmaAd: bf.ad,
-        catiFirmaId: effectiveCati ?? null,
-        catiFirmaAd: catiFirma?.ad ?? null,
-        grupFirmaId: bf.grupFirmaId ?? null,
-        grupFirmaAd: bf.grupFirmaId ? (grupFirmaMap.get(bf.grupFirmaId) ?? null) : null,
-        gemiAd,
-        toplamBorc,
-        toplamAlacak,
-        bakiye,
-        acikFaturaAdedi,
+      result.push({
+        id: bf.id, tip: "bagli", ad: bf.ad,
+        catiFirmaId, catiFirmaAd: catiFirmaId ? (catiFirmaMap.get(catiFirmaId) ?? null) : null,
+        gemiAd, toplamBorc, toplamAlacak, bakiye, acikFaturaAdedi,
         paraBirimi: bf.paraBirimi || "USD",
-        sonIslemTarihi,
-        bakiyeDetay,
-      };
-    });
+        sonIslemTarihi: tumTarihler.length > 0 ? tumTarihler[tumTarihler.length - 1] : null,
+        bakiyeDetay: buildBakiyeDetay(validF, bOdemeler),
+      });
+    }
 
     result.sort((a, b) => b.bakiye - a.bakiye);
     res.json(result);
   } catch (err) {
     console.error("[cariler] list error:", err);
     res.status(500).json({ error: "Cariler listelenemedi" });
+  }
+});
+
+// ─── Grup firma endpoints (MUST come before /:bagliFirmaId routes) ───────────
+
+router.get("/cariler/grup/:grupFirmaId", async (req, res) => {
+  try {
+    const grupFirmaId = Number(req.params.grupFirmaId);
+    const { baslangic, bitis } = req.query as Record<string, string>;
+
+    const [grupFirma] = await db.select().from(firmalar).where(eq(firmalar.id, grupFirmaId));
+    if (!grupFirma || grupFirma.tip !== "grup") { res.status(404).json({ error: "Grup firma bulunamadı" }); return; }
+
+    const bagliFirmalar = await db.select().from(firmalar).where(eq(firmalar.grupFirmaId, grupFirmaId));
+    const bagliFirmaIds = bagliFirmalar.map(f => f.id);
+
+    let catiFirmaId: number | null = null;
+    if (bagliFirmaIds.length > 0) {
+      const rows = await db.select({ catiFirmaId: faturalar.catiFirmaId })
+        .from(faturalar).where(inArray(faturalar.bagliFirmaId, bagliFirmaIds)).limit(1);
+      catiFirmaId = rows[0]?.catiFirmaId ?? null;
+    }
+    if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) {
+      res.status(403).json({ error: "Bu gruba erişim izniniz yok" }); return;
+    }
+
+    const [catiFirmaRow, faturaRows, odemeRows, bankaRows] = await Promise.all([
+      catiFirmaId
+        ? db.select().from(firmalar).where(eq(firmalar.id, catiFirmaId)).then(r => r[0] ?? null)
+        : Promise.resolve(null),
+      bagliFirmaIds.length > 0
+        ? db.select().from(faturalar).where(and(
+            inArray(faturalar.bagliFirmaId, bagliFirmaIds),
+            ...(baslangic ? [gte(faturalar.faturaTarihi, baslangic)] : []),
+            ...(bitis ? [lte(faturalar.faturaTarihi, bitis)] : []),
+          ))
+        : Promise.resolve([] as typeof faturalar.$inferSelect[]),
+      db.select().from(odemeler).where(and(
+        eq(odemeler.bagliFirmaId, grupFirmaId),
+        ...(baslangic ? [gte(odemeler.tarih, baslangic)] : []),
+        ...(bitis ? [lte(odemeler.tarih, bitis)] : []),
+      )),
+      catiFirmaId
+        ? db.select({ id: bankaHesaplari.id, hesapAdi: bankaHesaplari.hesapAdi, bankaAdi: bankaHesaplari.bankaAdi, paraBirimi: bankaHesaplari.paraBirimi })
+            .from(bankaHesaplari).where(eq(bankaHesaplari.catiFirmaId, catiFirmaId))
+        : Promise.resolve([] as { id: number; hesapAdi: string; bankaAdi: string | null; paraBirimi: string }[]),
+    ]);
+
+    const kalemler = buildEntries(faturaRows, odemeRows);
+    const toplamBorc = kalemler.reduce((s, e) => s + e.borc, 0);
+    const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
+
+    const validDetayF = faturaRows.filter(f => !["taslak", "iptal"].includes(f.durum));
+    const allDetayPb = new Set([
+      ...validDetayF.map(f => f.paraBirimi ?? "USD"),
+      ...odemeRows.map(o => o.paraBirimi ?? "USD"),
+    ]);
+    const bakiyeDetay = [...allDetayPb].map(pb => {
+      const fBorc = validDetayF.filter(f => (f.paraBirimi ?? "USD") === pb).reduce((s, f) => s + Number(f.genelToplam), 0);
+      const oBorc = odemeRows.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "odeme").reduce((s, o) => s + Number(o.tutar), 0);
+      const oAlacak = odemeRows.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+      return { paraBirimi: pb, toplamBorc: fBorc + oBorc, toplamAlacak: oAlacak, bakiye: fBorc + oBorc - oAlacak };
+    }).filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
+
+    let oncekiBakiye: number | null = null;
+    if (baslangic && bagliFirmaIds.length > 0) {
+      const [prevF, prevO] = await Promise.all([
+        db.select().from(faturalar).where(and(inArray(faturalar.bagliFirmaId, bagliFirmaIds), lt(faturalar.faturaTarihi, baslangic))),
+        db.select().from(odemeler).where(and(eq(odemeler.bagliFirmaId, grupFirmaId), lt(odemeler.tarih, baslangic))),
+      ]);
+      const prevK = buildEntries(prevF, prevO);
+      oncekiBakiye = prevK.length > 0 ? prevK[prevK.length - 1].bakiye : 0;
+    }
+
+    res.json({
+      firma: {
+        id: grupFirma.id, ad: grupFirma.ad, adres: grupFirma.adres,
+        vergiNo: grupFirma.vergiNo, telefon: grupFirma.telefon, eposta: grupFirma.eposta,
+        paraBirimi: grupFirma.paraBirimi, tip: "grup",
+        bagliFirmalar: bagliFirmalar.map(f => ({ id: f.id, ad: f.ad })),
+      },
+      catiFirma: catiFirmaRow ? { id: catiFirmaRow.id, ad: catiFirmaRow.ad, adres: catiFirmaRow.adres, vergiNo: catiFirmaRow.vergiNo, logo: catiFirmaRow.logo } : null,
+      ozet: { toplamBorc, toplamAlacak, bakiye: toplamBorc - toplamAlacak, paraBirimi: grupFirma.paraBirimi || "USD" },
+      bakiyeDetay, kalemler, bankaHesaplari: bankaRows, oncekiBakiye,
+    });
+  } catch (err) {
+    console.error("[cariler/grup/detay] error:", err);
+    res.status(500).json({ error: "Grup cari getirilemedi" });
+  }
+});
+
+router.get("/cariler/grup/:grupFirmaId/pdf", async (req, res) => {
+  try {
+    const grupFirmaId = Number(req.params.grupFirmaId);
+    const { baslangic, bitis } = req.query as Record<string, string>;
+
+    const [grupFirma] = await db.select().from(firmalar).where(eq(firmalar.id, grupFirmaId));
+    if (!grupFirma || grupFirma.tip !== "grup") { res.status(404).json({ error: "Grup firma bulunamadı" }); return; }
+
+    const bagliFirmalar = await db.select().from(firmalar).where(eq(firmalar.grupFirmaId, grupFirmaId));
+    const bagliFirmaIds = bagliFirmalar.map(f => f.id);
+
+    let catiFirmaId: number | null = null;
+    if (bagliFirmaIds.length > 0) {
+      const rows = await db.select({ catiFirmaId: faturalar.catiFirmaId })
+        .from(faturalar).where(inArray(faturalar.bagliFirmaId, bagliFirmaIds)).limit(1);
+      catiFirmaId = rows[0]?.catiFirmaId ?? null;
+    }
+    if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) {
+      res.status(403).json({ error: "Bu gruba erişim izniniz yok" }); return;
+    }
+
+    const [catiFirma, faturaRows, odemeRows] = await Promise.all([
+      catiFirmaId ? db.select().from(firmalar).where(eq(firmalar.id, catiFirmaId)).then(r => r[0] ?? null) : Promise.resolve(null),
+      bagliFirmaIds.length > 0
+        ? db.select().from(faturalar).where(and(
+            inArray(faturalar.bagliFirmaId, bagliFirmaIds),
+            ...(baslangic ? [gte(faturalar.faturaTarihi, baslangic)] : []),
+            ...(bitis ? [lte(faturalar.faturaTarihi, bitis)] : []),
+          ))
+        : Promise.resolve([] as typeof faturalar.$inferSelect[]),
+      db.select().from(odemeler).where(and(
+        eq(odemeler.bagliFirmaId, grupFirmaId),
+        ...(baslangic ? [gte(odemeler.tarih, baslangic)] : []),
+        ...(bitis ? [lte(odemeler.tarih, bitis)] : []),
+      )),
+    ]);
+
+    let acilisBakiyesi = 0;
+    if (baslangic && bagliFirmaIds.length > 0) {
+      const [preF, preO] = await Promise.all([
+        db.select().from(faturalar).where(and(inArray(faturalar.bagliFirmaId, bagliFirmaIds), lt(faturalar.faturaTarihi, baslangic))),
+        db.select().from(odemeler).where(and(eq(odemeler.bagliFirmaId, grupFirmaId), lt(odemeler.tarih, baslangic))),
+      ]);
+      const preE = buildEntries(preF, preO);
+      acilisBakiyesi = preE.length > 0 ? preE[preE.length - 1].bakiye : 0;
+    }
+
+    const kalemler = buildEntries(faturaRows, odemeRows);
+    const toplamBorc = kalemler.reduce((s, e) => s + e.borc, 0);
+    const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
+    const paraBirimi = grupFirma.paraBirimi || "USD";
+    const kapanisBakiyesi = acilisBakiyesi + toplamBorc - toplamAlacak;
+
+    const pbSummaryMap = new Map<string, { toplamBorc: number; toplamAlacak: number }>();
+    for (const e of kalemler) {
+      const pb = e.paraBirimi ?? "USD";
+      const cur = pbSummaryMap.get(pb) ?? { toplamBorc: 0, toplamAlacak: 0 };
+      cur.toplamBorc += e.borc; cur.toplamAlacak += e.alacak;
+      pbSummaryMap.set(pb, cur);
+    }
+    const pbSummaries = [...pbSummaryMap.entries()]
+      .map(([pb, { toplamBorc: pB, toplamAlacak: pA }]) => ({ paraBirimi: pb, toplamBorc: pB, toplamAlacak: pA, bakiye: pB - pA }))
+      .filter(s => s.toplamBorc > 0.005 || s.toplamAlacak > 0.005);
+    const isMultiCurrency = pbSummaries.length > 1;
+
+    const fmt = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    const donemStr = baslangic || bitis
+      ? `${baslangic ? fmtTarih(baslangic) : "Başlangıç"} - ${bitis ? fmtTarih(bitis) : "Bugün"}`
+      : "Tüm Dönem";
+    const tarihStr = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+    const DURUM_C: Record<string, string> = { acik: "#d97706", odendi: "#16a34a", kismi_odendi: "#2563eb", tahsilat: "#16a34a", odeme: "#6366f1" };
+
+    const dataRows = kalemler.map(e => {
+      const kBakiye = acilisBakiyesi + e.bakiye;
+      const bakiyeRenk = kBakiye > 0.005 ? "#d97706" : kBakiye < -0.005 ? "#dc2626" : "#16a34a";
+      return [
+        { text: fmtTarih(e.tarih), fontSize: 7.5, color: "#374151" },
+        { text: e.belgeNo ?? "", fontSize: 7.5, color: "#1d4ed8" },
+        { text: e.aciklama, fontSize: 8 },
+        { text: fmtTarih(e.vadeTarihi), fontSize: 7.5, color: "#6b7280" },
+        { text: e.borc > 0 ? fmt(e.borc) : "", alignment: "right", fontSize: 8 },
+        { text: e.alacak > 0 ? fmt(e.alacak) : "", alignment: "right", fontSize: 8, color: "#16a34a" },
+        { text: fmt(Math.abs(kBakiye)), alignment: "right", fontSize: 8, bold: true, color: bakiyeRenk },
+      ];
+    });
+
+    const nb: [boolean, boolean, boolean, boolean] = [false, false, false, false];
+    const bt: [boolean, boolean, boolean, boolean] = [false, true, false, false];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const summaryBody: any[][] = isMultiCurrency
+      ? [
+          [{ text: "ÖZET", colSpan: 2, bold: true, fontSize: 7, color: "#6b7280", characterSpacing: 1, fillColor: "#f3f4f6", border: nb, marginTop: 3, marginBottom: 3 }, {}],
+          ...pbSummaries.flatMap(s => [
+            [{ text: s.paraBirimi, bold: true, fontSize: 8, color: "#111827", colSpan: 2, border: nb, marginTop: 4 }, {}],
+            [{ text: "Toplam Borç", fontSize: 8, border: nb }, { text: fmt(s.toplamBorc), alignment: "right", fontSize: 8, bold: true, border: nb }],
+            [{ text: "Toplam Alacak", fontSize: 8, color: "#16a34a", border: nb }, { text: fmt(s.toplamAlacak), alignment: "right", fontSize: 8, bold: true, color: "#16a34a", border: nb }],
+            [{ text: "Kapanış Bakiyesi", fontSize: 8, bold: true, color: s.bakiye > 0.005 ? "#d97706" : "#16a34a", border: bt }, { text: `${fmt(Math.abs(s.bakiye))} ${s.paraBirimi}`, alignment: "right", fontSize: 8, bold: true, color: s.bakiye > 0.005 ? "#d97706" : "#16a34a", border: bt }],
+          ]),
+        ]
+      : [
+          [{ text: "ÖZET", colSpan: 2, bold: true, fontSize: 7, color: "#6b7280", characterSpacing: 1, fillColor: "#f3f4f6", border: nb, marginTop: 3, marginBottom: 3 }, {}],
+          [{ text: "Açılış Bakiyesi", fontSize: 8, border: nb }, { text: `${fmt(acilisBakiyesi)} ${paraBirimi}`, alignment: "right", fontSize: 8, bold: true, border: nb }],
+          [{ text: "Toplam Borç", fontSize: 8, border: nb }, { text: `${fmt(toplamBorc)} ${paraBirimi}`, alignment: "right", fontSize: 8, bold: true, border: nb }],
+          [{ text: "Toplam Alacak", fontSize: 8, color: "#16a34a", border: nb }, { text: `${fmt(toplamAlacak)} ${paraBirimi}`, alignment: "right", fontSize: 8, bold: true, color: "#16a34a", border: nb }],
+          [{ text: "Kapanış Bakiyesi", fontSize: 8, bold: true, color: kapanisBakiyesi > 0.005 ? "#d97706" : "#16a34a", border: bt }, { text: `${fmt(Math.abs(kapanisBakiyesi))} ${paraBirimi}`, alignment: "right", fontSize: 8, bold: true, color: kapanisBakiyesi > 0.005 ? "#d97706" : "#16a34a", border: bt }],
+        ];
+
+    const docDefinition: TDocumentDefinitions = {
+      defaultStyle: { font: "Roboto", fontSize: 9 },
+      pageMargins: [36, 50, 36, 50],
+      content: [
+        {
+          table: {
+            widths: [130, "*"],
+            body: [[
+              catiFirma?.logo
+                ? { image: catiFirma.logo, width: 110, alignment: "center" as const, fillColor: "#ffffff", border: [false, false, true, false] as [boolean, boolean, boolean, boolean], margin: [8, 6, 8, 6] }
+                : { text: catiFirma?.ad ?? "", fontSize: 11, bold: true, color: "#ffffff", fillColor: "#111827", border: [false, false, false, false] as [boolean, boolean, boolean, boolean], margin: [10, 13, 0, 0] },
+              { text: "CARİ HESAP EKSTRESİ", fontSize: 13, bold: true, color: "#facc15", fillColor: "#111827", border: [false, false, false, false] as [boolean, boolean, boolean, boolean], alignment: "right" as const, margin: [0, 13, 10, 0] },
+            ]],
+          },
+          layout: { hLineWidth: () => 0, vLineWidth: (i: number) => (i === 1 ? 2 : 0), vLineColor: () => "#1c3c6e", paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 },
+          marginBottom: 16,
+        },
+        {
+          stack: [
+            { text: "MÜŞTERİ GRUBU", fontSize: 7, bold: true, color: "#6b7280", characterSpacing: 1, marginBottom: 5 },
+            { text: grupFirma.ad, bold: true, fontSize: 12, color: "#111827", marginBottom: 2 },
+            ...(grupFirma.adres ? [{ text: grupFirma.adres, color: "#6b7280", fontSize: 7.5, marginBottom: 1.5 }] : []),
+            { canvas: [{ type: "line", x1: 0, y1: 0, x2: 260, y2: 0, lineWidth: 0.5, lineColor: "#e5e7eb" }], marginTop: 7, marginBottom: 7 },
+            { text: `Ekstre Tarihi: ${tarihStr}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
+            { text: `Dönem: ${donemStr}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
+            { text: `Para Birimi: ${isMultiCurrency ? "Çoklu Para Birimi" : paraBirimi}`, color: "#374151", fontSize: 7.5, marginBottom: 2 },
+            { text: `Hazırlayan: ${catiFirma?.ad ?? ""}`, color: "#111827", fontSize: 7.5, bold: true },
+          ],
+          marginBottom: 16,
+        },
+        kalemler.length > 0
+          ? {
+              table: {
+                headerRows: 1,
+                widths: [40, 54, "*", 48, 48, 48, 56],
+                body: [
+                  [
+                    { text: "TARİH", style: "thStyle" },
+                    { text: "BELGE NO", style: "thStyle" },
+                    { text: "AÇIKLAMA", style: "thStyle" },
+                    { text: "VADE", style: "thStyle", alignment: "center" },
+                    { text: "BORÇ", style: "thStyle", alignment: "right" },
+                    { text: "ALACAK", style: "thStyle", alignment: "right" },
+                    { text: "BAKİYE", style: "thStyle", alignment: "right" },
+                  ],
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  ...dataRows as any,
+                ],
+              },
+              layout: {
+                hLineWidth: (i: number, node: { table: { body: unknown[] } }) => i === 0 || i === 1 || i === node.table.body.length ? 1 : 0.5,
+                vLineWidth: () => 0,
+                hLineColor: (i: number) => (i === 0 || i === 1 ? "#111827" : "#e5e7eb"),
+                fillColor: (i: number) => (i === 0 ? "#111827" : i % 2 === 0 ? "#f9fafb" : null),
+                paddingTop: () => 5, paddingBottom: () => 5, paddingLeft: () => 6, paddingRight: () => 6,
+              },
+            } as unknown as import("pdfmake/interfaces").Content
+          : { text: "Bu dönemde kayıt bulunamadı.", color: "#888", italics: true, marginTop: 8 } as import("pdfmake/interfaces").Content,
+        {
+          columns: [
+            { width: "*", text: "" },
+            {
+              width: 205,
+              table: { widths: ["*", "auto"], body: summaryBody },
+              layout: { hLineWidth: () => 0, vLineWidth: () => 0, hLineColor: () => "#e5e7eb", paddingLeft: () => 8, paddingRight: () => 8, paddingTop: () => 5, paddingBottom: () => 5 },
+              marginTop: 10,
+            },
+          ],
+        } as unknown as import("pdfmake/interfaces").Content,
+      ],
+      footer: (currentPage: number, pageCount: number) => ({
+        columns: [
+          { text: `Bu ekstre ${tarihStr} tarihinde ${catiFirma?.ad ?? ""} tarafından düzenlenmiştir.`, fontSize: 7, color: "#9ca3af", italics: true },
+          { text: `${currentPage} / ${pageCount}`, alignment: "right", fontSize: 7, color: "#9ca3af" },
+        ],
+        margin: [36, 8, 36, 0],
+      }),
+      styles: { thStyle: { bold: true, color: "#ffffff", fontSize: 7.5, characterSpacing: 0.3 } },
+    };
+
+    const pdfStream: NodeJS.ReadableStream & { end(): void } = await _pdfmake.createPdf(docDefinition).getStream();
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="cari-grup-${grupFirma.ad.replace(/\s+/g, "-")}.pdf"`);
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    pdfStream.pipe(res);
+    pdfStream.end();
+  } catch (err) {
+    console.error("[cariler/grup/pdf] error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "PDF oluşturulamadı" });
+  }
+});
+
+router.get("/cariler/grup/:grupFirmaId/excel", async (req, res) => {
+  try {
+    const grupFirmaId = Number(req.params.grupFirmaId);
+    const { baslangic, bitis } = req.query as Record<string, string | undefined>;
+
+    const [grupFirma] = await db.select().from(firmalar).where(eq(firmalar.id, grupFirmaId));
+    if (!grupFirma || grupFirma.tip !== "grup") { res.status(404).json({ error: "Grup firma bulunamadı" }); return; }
+
+    const bagliFirmalar = await db.select().from(firmalar).where(eq(firmalar.grupFirmaId, grupFirmaId));
+    const bagliFirmaIds = bagliFirmalar.map(f => f.id);
+
+    let catiFirmaId: number | null = null;
+    if (bagliFirmaIds.length > 0) {
+      const rows = await db.select({ catiFirmaId: faturalar.catiFirmaId })
+        .from(faturalar).where(inArray(faturalar.bagliFirmaId, bagliFirmaIds)).limit(1);
+      catiFirmaId = rows[0]?.catiFirmaId ?? null;
+    }
+    if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) {
+      res.status(403).json({ error: "Bu gruba erişim izniniz yok" }); return;
+    }
+
+    const [catiFirma, faturaRows, odemeRows] = await Promise.all([
+      catiFirmaId ? db.select().from(firmalar).where(eq(firmalar.id, catiFirmaId)).then(r => r[0] ?? null) : Promise.resolve(null),
+      bagliFirmaIds.length > 0
+        ? db.select().from(faturalar).where(and(
+            inArray(faturalar.bagliFirmaId, bagliFirmaIds),
+            ...(baslangic ? [gte(faturalar.faturaTarihi, baslangic)] : []),
+            ...(bitis ? [lte(faturalar.faturaTarihi, bitis)] : []),
+          ))
+        : Promise.resolve([] as typeof faturalar.$inferSelect[]),
+      db.select().from(odemeler).where(and(
+        eq(odemeler.bagliFirmaId, grupFirmaId),
+        ...(baslangic ? [gte(odemeler.tarih, baslangic)] : []),
+        ...(bitis ? [lte(odemeler.tarih, bitis)] : []),
+      )),
+    ]);
+
+    let acilisBakiyesi = 0;
+    if (baslangic && bagliFirmaIds.length > 0) {
+      const [preF, preO] = await Promise.all([
+        db.select().from(faturalar).where(and(inArray(faturalar.bagliFirmaId, bagliFirmaIds), lt(faturalar.faturaTarihi, baslangic))),
+        db.select().from(odemeler).where(and(eq(odemeler.bagliFirmaId, grupFirmaId), lt(odemeler.tarih, baslangic))),
+      ]);
+      const preE = buildEntries(preF, preO);
+      acilisBakiyesi = preE.length > 0 ? preE[preE.length - 1].bakiye : 0;
+    }
+
+    const kalemler = buildEntries(faturaRows, odemeRows);
+    const toplamBorc = kalemler.reduce((s, e) => s + e.borc, 0);
+    const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
+    const kapanisBakiyesi = acilisBakiyesi + toplamBorc - toplamAlacak;
+    const paraBirimi = grupFirma.paraBirimi ?? "USD";
+    const donemStr = baslangic || bitis
+      ? `${baslangic ? fmtTarih(baslangic) : "Başlangıç"} / ${bitis ? fmtTarih(bitis) : "Bugün"}`
+      : "Tüm Dönem";
+    const fmt = (n: number) => n.toFixed(2);
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "TOOV";
+    workbook.created = new Date();
+    const ws = workbook.addWorksheet("Ekstre");
+    ws.columns = [
+      { key: "tarih", width: 24 }, { key: "belgeNo", width: 18 }, { key: "aciklama", width: 68 },
+      { key: "vadeTarihi", width: 13 }, { key: "borc", width: 14 }, { key: "alacak", width: 14 }, { key: "bakiye", width: 15 },
+    ];
+
+    const NAVY = "FF1C3C6E";
+    const WHITE = "FFFFFFFF";
+    const LIGHT_BLUE = "FFBDD7EE";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const solidFill = (argb: string): any => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+
+    ws.mergeCells("A1:G1");
+    ws.getRow(1).height = 30;
+    const titleCell = ws.getCell("A1");
+    titleCell.value = "CARİ HESAP EKSTRESİ";
+    titleCell.font = { bold: true, color: { argb: WHITE }, size: 14 };
+    titleCell.fill = solidFill(NAVY);
+    titleCell.alignment = { vertical: "middle", horizontal: "center" };
+
+    ws.getRow(2).height = 8;
+    ws.getRow(3).height = 18;
+    const setLabel = (addr: string, text: string) => { const c = ws.getCell(addr); c.value = text; c.font = { bold: true }; };
+    setLabel("A3", "Firma / Müşteri (Grup)");
+    ws.getCell("B3").value = grupFirma.ad;
+    ws.getRow(4).height = 16;
+    setLabel("A4", "Ekstre Tarih Aralığı");
+    ws.getCell("B4").value = donemStr;
+    ws.getRow(5).height = 16;
+    setLabel("A5", "Para Birimi");
+    ws.getCell("B5").value = paraBirimi;
+    ws.getRow(6).height = 16;
+    setLabel("A6", "Hazırlayan");
+    ws.getCell("B6").value = catiFirma?.ad ?? "";
+    ws.getRow(7).height = 16;
+    ws.getRow(8).height = 10;
+
+    const hdrRow = ws.getRow(9);
+    hdrRow.height = 22;
+    for (let c = 1; c <= 7; c++) {
+      const cell = hdrRow.getCell(c);
+      cell.value = ["Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye"][c - 1];
+      cell.font = { bold: true, color: { argb: WHITE }, size: 10 };
+      cell.fill = solidFill(NAVY);
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+    }
+
+    ws.pageSetup = { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.5, right: 0.5, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 } };
+    ws.headerFooter = { oddFooter: "&R&8Sayfa &P / &N" };
+    ws.views = [{ state: "frozen", ySplit: 9 }];
+
+    for (let i = 0; i < kalemler.length; i++) {
+      const e = kalemler[i];
+      const row = ws.getRow(10 + i);
+      row.height = 16;
+      row.getCell(1).value = fmtTarih(e.tarih);
+      row.getCell(2).value = e.belgeNo ?? "";
+      row.getCell(3).value = e.aciklama;
+      row.getCell(4).value = fmtTarih(e.vadeTarihi);
+      row.getCell(5).value = e.borc > 0.005 ? e.borc : null;
+      row.getCell(6).value = e.alacak > 0.005 ? e.alacak : null;
+      row.getCell(7).value = e.bakiye;
+      [5, 6, 7].forEach(col => { const cell = row.getCell(col); if (cell.value !== null && cell.value !== undefined) cell.numFmt = "#,##0.00"; });
+      const bv = Number(e.bakiye);
+      const bakiyeArgb = bv > 0.005 ? "FFCA8A04" : bv < -0.005 ? "FFDC2626" : "FF16A34A";
+      row.getCell(7).font = { bold: true, color: { argb: bakiyeArgb } };
+      if (i % 2 === 0) {
+        for (let c = 1; c <= 7; c++) row.getCell(c).fill = solidFill(LIGHT_BLUE);
+        row.getCell(7).font = { bold: true, color: { argb: bakiyeArgb } };
+      }
+    }
+
+    const ozetStartRow = 10 + kalemler.length + 1;
+    ws.getRow(ozetStartRow - 1).height = 8;
+    ws.mergeCells(`F${ozetStartRow}:G${ozetStartRow}`);
+    const ozetHdr = ws.getCell(`F${ozetStartRow}`);
+    ozetHdr.value = "ÖZET";
+    ozetHdr.font = { bold: true, color: { argb: WHITE }, size: 10 };
+    ozetHdr.fill = solidFill(NAVY);
+    ozetHdr.alignment = { vertical: "middle", horizontal: "center" };
+    ws.getRow(ozetStartRow).height = 18;
+
+    const ozetRows: [string, number, boolean][] = [
+      ["Açılış Bakiyesi", acilisBakiyesi, false],
+      ["Toplam Borç", toplamBorc, false],
+      ["Toplam Alacak", toplamAlacak, false],
+      ["Kapanış Bakiyesi", kapanisBakiyesi, true],
+    ];
+    ozetRows.forEach(([label, value, isBold], idx) => {
+      const r = ozetStartRow + 1 + idx;
+      ws.getRow(r).height = 16;
+      const lc = ws.getCell(`F${r}`);
+      lc.value = label; lc.font = { bold: isBold };
+      const vc = ws.getCell(`G${r}`);
+      vc.value = value; vc.numFmt = "#,##0.00"; vc.alignment = { horizontal: "right" }; vc.font = { bold: isBold };
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const safeName = grupFirma.ad.replace(/[\\/:*?"<>|]/g, "-");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(`ekstre-grup-${safeName}.xlsx`)}"`);
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error("[cariler/grup/excel] error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Excel oluşturulamadı" });
   }
 });
 

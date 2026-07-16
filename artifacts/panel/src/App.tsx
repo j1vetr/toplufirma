@@ -27,6 +27,7 @@ import BagliFirmaDetay from "@/pages/bagli-firma-detay";
 import Servis from "@/pages/servis";
 import Cariler from "@/pages/cariler";
 import CariDetay from "@/pages/cari-detay";
+import GrupCariDetay from "@/pages/grup-cari-detay";
 import NotFound from "@/pages/not-found";
 import Tani from "@/pages/tani";
 import FirmaSec from "@/pages/firma-sec";
@@ -157,6 +158,11 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
       <Route path="/odemeler">
         <AuthGuard kullanici={kullanici} onLogout={onLogout}>
           <Odemeler />
+        </AuthGuard>
+      </Route>
+      <Route path="/cariler/grup/:id">
+        <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+          <GrupCariDetay />
         </AuthGuard>
       </Route>
       <Route path="/cariler/:id">

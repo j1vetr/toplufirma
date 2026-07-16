@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useSirket } from "@/contexts/sirket-context";
-import { BookOpen, Search, TrendingDown, ChevronRight, AlertCircle, Plus, CreditCard, Building2 } from "lucide-react";
+import { BookOpen, Search, TrendingDown, ChevronRight, AlertCircle, Plus, CreditCard, Users, Building2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -29,12 +29,12 @@ interface BakiyeDetay {
 }
 
 interface CariOzet {
-  bagliFirmaId: number;
-  bagliFirmaAd: string;
+  id: number;
+  tip: "grup" | "bagli";
+  ad: string;
   catiFirmaId: number | null;
   catiFirmaAd: string | null;
-  grupFirmaId?: number | null;
-  grupFirmaAd?: string | null;
+  bagliFirmaAdedi?: number;
   gemiAd?: string | null;
   toplamBorc: number;
   toplamAlacak: number;
@@ -112,7 +112,7 @@ export default function Cariler() {
     createOdeme.mutate({
       data: {
         catiFirmaId: odemeModal.catiFirmaId,
-        bagliFirmaId: odemeModal.bagliFirmaId,
+        bagliFirmaId: odemeModal.id,
         tip: "tahsilat",
         tarih: odTarih,
         tutar: Number(odTutar),
@@ -147,7 +147,7 @@ export default function Cariler() {
 
   const filtrelenmis = useMemo(() => {
     const filtered = cariler.filter(c => {
-      const aramaUyum = !arama || c.bagliFirmaAd.toLowerCase().includes(arama.toLowerCase());
+      const aramaUyum = !arama || c.ad.toLowerCase().includes(arama.toLowerCase());
       const bakiyeUyum =
         bakiyeFiltre === "tumu" ||
         (bakiyeFiltre === "bakiyeli" && c.bakiye > 0.01) ||
@@ -156,8 +156,8 @@ export default function Cariler() {
     });
 
     return [...filtered].sort((a, b) => {
-      if (siralama === "ad_asc") return a.bagliFirmaAd.localeCompare(b.bagliFirmaAd, "tr");
-      if (siralama === "ad_desc") return b.bagliFirmaAd.localeCompare(a.bagliFirmaAd, "tr");
+      if (siralama === "ad_asc") return a.ad.localeCompare(b.ad, "tr");
+      if (siralama === "ad_desc") return b.ad.localeCompare(a.ad, "tr");
       if (siralama === "bakiye_asc") return a.bakiye - b.bakiye;
       if (siralama === "sonIslem_desc") {
         const aT = a.sonIslemTarihi ?? "";
@@ -167,50 +167,6 @@ export default function Cariler() {
       return b.bakiye - a.bakiye;
     });
   }, [cariler, arama, bakiyeFiltre, siralama]);
-
-  const gruplar = useMemo(() => {
-    type GrupEntry = {
-      grupFirmaAd: string | null;
-      cariler: CariOzet[];
-      konsolide: BakiyeDetay[];
-    };
-    const map = new Map<number | string, GrupEntry>();
-
-    for (const c of filtrelenmis) {
-      const key = c.grupFirmaId ?? "bagimsiz";
-      if (!map.has(key)) {
-        map.set(key, { grupFirmaAd: c.grupFirmaAd ?? null, cariler: [], konsolide: [] });
-      }
-      map.get(key)!.cariler.push(c);
-    }
-
-    for (const [, grup] of map) {
-      const pbMap = new Map<string, { toplamBorc: number; toplamAlacak: number; bakiye: number }>();
-      for (const c of grup.cariler) {
-        const items =
-          c.bakiyeDetay && c.bakiyeDetay.length > 0
-            ? c.bakiyeDetay
-            : [{ paraBirimi: c.paraBirimi || "USD", toplamBorc: c.toplamBorc, toplamAlacak: c.toplamAlacak, bakiye: c.bakiye }];
-        for (const d of items) {
-          const cur = pbMap.get(d.paraBirimi) ?? { toplamBorc: 0, toplamAlacak: 0, bakiye: 0 };
-          cur.toplamBorc += d.toplamBorc;
-          cur.toplamAlacak += d.toplamAlacak;
-          cur.bakiye += d.bakiye;
-          pbMap.set(d.paraBirimi, cur);
-        }
-      }
-      grup.konsolide = [...pbMap.entries()]
-        .map(([pb, v]) => ({ paraBirimi: pb, ...v }))
-        .filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005)
-        .sort((a, b) => b.bakiye - a.bakiye);
-    }
-
-    return [...map.entries()].sort(([keyA, a], [keyB, b]) => {
-      if (keyA === "bagimsiz" && keyB !== "bagimsiz") return 1;
-      if (keyA !== "bagimsiz" && keyB === "bagimsiz") return -1;
-      return (a.grupFirmaAd ?? "").localeCompare(b.grupFirmaAd ?? "", "tr");
-    });
-  }, [filtrelenmis]);
 
   const ozet = useMemo(() => {
     const map: Record<string, { alacakBakiye: number; tahsilat: number }> = {};
@@ -245,7 +201,7 @@ export default function Cariler() {
         <div>
           <h1 className="text-2xl font-display font-bold">Cariler</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {cariler.length} müşteri - toplam {filtrelenmis.filter(c => c.acikFaturaAdedi > 0).length} aktif hesap
+            {filtrelenmis.length} müşteri &bull; {filtrelenmis.filter(c => c.acikFaturaAdedi > 0).length} aktif hesap
           </p>
         </div>
         <Link href="/firmalar?yeni=bagli">
@@ -358,162 +314,143 @@ export default function Cariler() {
           <p className="text-sm mt-1">Filtre kriterlerini değiştirin ya da müşteri kaydı ekleyin.</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {gruplar.map(([grupKey, grup]) => (
-            <div key={grupKey}>
-              <div className="flex items-center gap-2 mb-3">
-                <Building2 className={`h-4 w-4 shrink-0 ${grup.grupFirmaAd ? "text-foreground" : "text-muted-foreground"}`} />
-                <span className={`text-sm font-bold uppercase tracking-wide ${grup.grupFirmaAd ? "text-foreground" : "text-muted-foreground"}`}>
-                  {grup.grupFirmaAd ?? "Bağımsız Müşteriler"}
-                </span>
-                <div className="flex-1 h-px bg-border" />
-                {grup.konsolide.length > 0 && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    {grup.konsolide.map(d => {
-                      const renk = d.bakiye > 0.01 ? "text-orange-600" : d.bakiye < -0.01 ? "text-red-600" : "text-green-600";
-                      return (
-                        <span key={d.paraBirimi} className={`text-xs font-bold tabular-nums ${renk}`}>
-                          {fmt(Math.abs(d.bakiye))} {d.paraBirimi}
-                        </span>
-                      );
-                    })}
-                    <span className="text-xs text-muted-foreground">•</span>
-                  </div>
-                )}
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {grup.cariler.length} hesap
-                </span>
-              </div>
-              <div className="space-y-2">
-                {grup.cariler.map(c => {
-                  const bakiyeRenk =
-                    c.bakiye > 0.01
-                      ? "text-orange-600"
-                      : c.bakiye < -0.01
-                      ? "text-red-600"
-                      : "text-green-600";
-                  const bakiyeBg =
-                    c.bakiye > 0.01
-                      ? "bg-orange-50 border-orange-200"
-                      : c.bakiye < -0.01
-                      ? "bg-red-50 border-red-200"
-                      : "bg-green-50 border-green-100";
-                  const kalintiYuzde = c.toplamBorc > 0
-                    ? Math.min(100, (c.toplamAlacak / c.toplamBorc) * 100)
-                    : 100;
+        <div className="space-y-2">
+          {filtrelenmis.map(c => {
+            const bakiyeRenk =
+              c.bakiye > 0.01 ? "text-orange-600"
+              : c.bakiye < -0.01 ? "text-red-600"
+              : "text-green-600";
+            const bakiyeBg =
+              c.bakiye > 0.01 ? "bg-orange-50 border-orange-200"
+              : c.bakiye < -0.01 ? "bg-red-50 border-red-200"
+              : "bg-green-50 border-green-100";
+            const kalintiYuzde = c.toplamBorc > 0
+              ? Math.min(100, (c.toplamAlacak / c.toplamBorc) * 100)
+              : 100;
+            const href = c.tip === "grup"
+              ? `/cariler/grup/${c.id}`
+              : `/cariler/${c.id}`;
 
-                  return (
-                    <Link key={c.bagliFirmaId} href={`/cariler/${c.bagliFirmaId}`}>
-                      <Card className="cursor-pointer hover:shadow-md transition-shadow border">
-                        <CardContent className="p-0">
-                          <div className="flex items-stretch">
-                            <div className="flex-1 p-4 min-w-0">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <p className="font-semibold text-base leading-tight truncate">
-                                    {c.bagliFirmaAd}
-                                    {c.gemiAd && (
-                                      <span className="font-normal text-sm text-muted-foreground ml-1">
-                                        ({c.gemiAd})
-                                      </span>
-                                    )}
-                                  </p>
-                                </div>
-                                {c.acikFaturaAdedi > 0 && (
-                                  <span className="shrink-0 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                                    <AlertCircle className="h-3 w-3" />
-                                    {c.acikFaturaAdedi} açık
-                                  </span>
-                                )}
-                              </div>
-
-                              {c.bakiyeDetay && c.bakiyeDetay.length > 1 ? (
-                                <div className="mt-3 space-y-1.5">
-                                  <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground font-medium mb-0.5">
-                                    <span>Para Birimi</span>
-                                    <span className="text-right">Fatura</span>
-                                    <span className="text-right">Bakiye</span>
-                                  </div>
-                                  {c.bakiyeDetay.map(d => {
-                                    const dRenk = d.bakiye > 0.01 ? "text-orange-600" : d.bakiye < -0.01 ? "text-red-600" : "text-green-600";
-                                    return (
-                                      <div key={d.paraBirimi} className="grid grid-cols-3 gap-1 text-xs">
-                                        <span className="font-semibold text-muted-foreground">{d.paraBirimi}</span>
-                                        <span className="text-right tabular-nums">{fmt(d.toplamBorc)}</span>
-                                        <span className={`text-right tabular-nums font-bold ${dRenk}`}>{fmt(Math.abs(d.bakiye))}</span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">Toplam Fatura</p>
-                                    <p className="font-medium">{fmt(c.toplamBorc)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">Tahsilat</p>
-                                    <p className="font-medium text-green-700">{fmt(c.toplamAlacak)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground">Bakiye</p>
-                                    <p className={`font-bold ${bakiyeRenk}`}>{fmt(Math.abs(c.bakiye))}</p>
-                                  </div>
-                                </div>
+            return (
+              <Link key={`${c.tip}-${c.id}`} href={href}>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow border">
+                  <CardContent className="p-0">
+                    <div className="flex items-stretch">
+                      <div className="flex-1 p-4 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex items-center gap-2">
+                            {c.tip === "grup" ? (
+                              <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                            ) : (
+                              <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                            <p className="font-semibold text-base leading-tight truncate">
+                              {c.ad}
+                              {c.tip === "bagli" && c.gemiAd && (
+                                <span className="font-normal text-sm text-muted-foreground ml-1">
+                                  ({c.gemiAd})
+                                </span>
                               )}
+                            </p>
+                            {c.tip === "grup" && c.bagliFirmaAdedi != null && (
+                              <span className="shrink-0 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                                {c.bagliFirmaAdedi} firma
+                              </span>
+                            )}
+                          </div>
+                          {c.acikFaturaAdedi > 0 && (
+                            <span className="shrink-0 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              {c.acikFaturaAdedi} açık
+                            </span>
+                          )}
+                        </div>
 
-                              {c.toplamBorc > 0 && (
-                                <div className="mt-3">
-                                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                                    <div
-                                      className="h-full rounded-full bg-green-500 transition-all"
-                                      style={{ width: `${kalintiYuzde}%` }}
-                                    />
-                                  </div>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    %{kalintiYuzde.toFixed(0)} tahsil edildi
-                                    {c.bakiyeDetay && c.bakiyeDetay.length <= 1 && <> &bull; {c.paraBirimi}</>}
-                                    {c.sonIslemTarihi && (
-                                      <> &bull; Son işlem: {sonIslemYaz(c.sonIslemTarihi)}</>
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-
-                              {!c.toplamBorc && c.sonIslemTarihi && (
-                                <p className="text-xs text-muted-foreground mt-2">
-                                  Son işlem: {sonIslemYaz(c.sonIslemTarihi)}
-                                </p>
-                              )}
+                        {c.bakiyeDetay && c.bakiyeDetay.length > 1 ? (
+                          <div className="mt-3 space-y-1.5">
+                            <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground font-medium mb-0.5">
+                              <span>Para Birimi</span>
+                              <span className="text-right">Fatura</span>
+                              <span className="text-right">Bakiye</span>
                             </div>
-
-                            <div className={`flex items-center gap-1 px-3 border-l ${bakiyeBg}`}>
-                              {c.catiFirmaId && (
-                                <button
-                                  title="Ödeme Kaydet"
-                                  onClick={(e) => odemeAc(c, e)}
-                                  className="p-1.5 rounded-none hover:bg-black/5 transition-colors"
-                                >
-                                  <CreditCard className={`h-4 w-4 ${bakiyeRenk} opacity-70`} />
-                                </button>
-                              )}
-                              <ChevronRight className={`h-5 w-5 ${bakiyeRenk}`} />
+                            {c.bakiyeDetay.map(d => {
+                              const dRenk = d.bakiye > 0.01 ? "text-orange-600" : d.bakiye < -0.01 ? "text-red-600" : "text-green-600";
+                              return (
+                                <div key={d.paraBirimi} className="grid grid-cols-3 gap-1 text-xs">
+                                  <span className="font-semibold text-muted-foreground">{d.paraBirimi}</span>
+                                  <span className="text-right tabular-nums">{fmt(d.toplamBorc)}</span>
+                                  <span className={`text-right tabular-nums font-bold ${dRenk}`}>{fmt(Math.abs(d.bakiye))}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Toplam Fatura</p>
+                              <p className="font-medium">{fmt(c.toplamBorc)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Tahsilat</p>
+                              <p className="font-medium text-green-700">{fmt(c.toplamAlacak)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Bakiye</p>
+                              <p className={`font-bold ${bakiyeRenk}`}>{fmt(Math.abs(c.bakiye))}</p>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+                        )}
+
+                        {c.toplamBorc > 0 && (
+                          <div className="mt-3">
+                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-green-500 transition-all"
+                                style={{ width: `${kalintiYuzde}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              %{kalintiYuzde.toFixed(0)} tahsil edildi
+                              {c.bakiyeDetay && c.bakiyeDetay.length <= 1 && <> &bull; {c.paraBirimi}</>}
+                              {c.sonIslemTarihi && (
+                                <> &bull; Son işlem: {sonIslemYaz(c.sonIslemTarihi)}</>
+                              )}
+                            </p>
+                          </div>
+                        )}
+
+                        {!c.toplamBorc && c.sonIslemTarihi && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Son işlem: {sonIslemYaz(c.sonIslemTarihi)}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className={`flex items-center gap-1 px-3 border-l ${bakiyeBg}`}>
+                        {c.catiFirmaId && (
+                          <button
+                            title="Ödeme Kaydet"
+                            onClick={(e) => odemeAc(c, e)}
+                            className="p-1.5 rounded-none hover:bg-black/5 transition-colors"
+                          >
+                            <CreditCard className={`h-4 w-4 ${bakiyeRenk} opacity-70`} />
+                          </button>
+                        )}
+                        <ChevronRight className={`h-5 w-5 ${bakiyeRenk}`} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       )}
+
       <Dialog open={!!odemeModal} onOpenChange={open => { if (!open) setOdemeModal(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Ödeme Kaydet - {odemeModal?.bagliFirmaAd}</DialogTitle>
+            <DialogTitle>Ödeme Kaydet — {odemeModal?.ad}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex gap-3">
