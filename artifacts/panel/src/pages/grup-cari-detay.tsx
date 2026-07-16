@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  useCreateOdeme, useDeleteOdeme, useListBankaHesaplari, getListBankaHesaplariQueryKey,
+  useCreateOdeme, useDeleteOdeme, useUpdateOdeme, useListBankaHesaplari, getListBankaHesaplariQueryKey,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +21,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import {
-  ArrowLeft, Download, Plus, Loader2, FileText, Trash2,
+  ArrowLeft, Download, Plus, Loader2, FileText, Trash2, Pencil,
   TrendingUp, TrendingDown, FileSpreadsheet, Building2, Users,
 } from "lucide-react";
 
@@ -37,6 +37,7 @@ interface CariKalem {
   faturaId: number | null;
   durum: string | null;
   belgeNo?: string | null;
+  odemeYontemi?: string | null;
 }
 
 interface GrupCariDetay {
@@ -107,8 +108,16 @@ export default function GrupCariDetay() {
   const [excelIndiriyor, setExcelIndiriyor] = useState(false);
   const [silId, setSilId] = useState<number | null>(null);
 
+  const [duzenleModal, setDuzenleModal] = useState(false);
+  const [duzenleId, setDuzenleId] = useState<number | null>(null);
+  const [duzenleTutar, setDuzenleTutar] = useState("");
+  const [duzenleTarih, setDuzenleTarih] = useState("");
+  const [duzenleAciklama, setDuzenleAciklama] = useState("");
+  const [duzenleYontem, setDuzenleYontem] = useState("banka_havalesi");
+
   const createOdeme = useCreateOdeme();
   const deleteOdeme = useDeleteOdeme();
+  const updateOdeme = useUpdateOdeme();
   const { data: bankaHesaplariGenel = [] } = useListBankaHesaplari(undefined, {
     query: { queryKey: getListBankaHesaplariQueryKey() },
   });
@@ -249,6 +258,41 @@ export default function GrupCariDetay() {
   function handleSil(kalem: CariKalem) {
     const oid = odemeIdFromKalem(kalem);
     if (oid) setSilId(oid);
+  }
+
+  function openDuzenleModal(kalem: CariKalem) {
+    const oid = odemeIdFromKalem(kalem);
+    if (!oid) return;
+    setDuzenleId(oid);
+    setDuzenleTutar(String(kalem.borc > 0 ? kalem.borc : kalem.alacak));
+    setDuzenleTarih(kalem.tarih);
+    setDuzenleAciklama(kalem.aciklama ?? "");
+    setDuzenleYontem(kalem.odemeYontemi ?? "banka_havalesi");
+    setDuzenleModal(true);
+  }
+
+  function duzenleKaydet() {
+    if (!duzenleId || !duzenleTutar || !duzenleTarih) return;
+    updateOdeme.mutate(
+      {
+        id: duzenleId,
+        data: {
+          tarih: duzenleTarih,
+          tutar: Number(duzenleTutar),
+          aciklama: duzenleAciklama || undefined,
+          odemeYontemi: duzenleYontem,
+        },
+      },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ["grup-cari-detay", id] });
+          qc.invalidateQueries({ queryKey: ["cariler"] });
+          setDuzenleModal(false);
+          toast({ title: "İşlem güncellendi" });
+        },
+        onError: () => toast({ title: "Güncelleme başarısız", variant: "destructive" }),
+      }
+    );
   }
 
   function confirmSil() {
@@ -483,7 +527,7 @@ export default function GrupCariDetay() {
                   <th className="text-right py-2.5 px-3 font-medium text-muted-foreground text-xs">Borç</th>
                   <th className="text-right py-2.5 px-3 font-medium text-muted-foreground text-xs">Alacak</th>
                   <th className="text-right py-2.5 px-3 font-medium text-muted-foreground text-xs">Bakiye</th>
-                  {canWrite && <th className="w-8" />}
+                  {canWrite && <th className="w-16" />}
                 </tr>
               </thead>
               <tbody>
@@ -530,15 +574,24 @@ export default function GrupCariDetay() {
                         {fmt(Math.abs(kBakiye))}
                       </td>
                       {canWrite && (
-                        <td className="py-2.5 px-1">
+                        <td className="py-2.5 px-1 w-16">
                           {isOdeme && (
-                            <button
-                              onClick={() => handleSil(kalem)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-destructive"
-                              title="Sil"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                            <span className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => openDuzenleModal(kalem)}
+                                className="p-1 text-muted-foreground hover:text-primary"
+                                title="Düzenle"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleSil(kalem)}
+                                className="p-1 text-muted-foreground hover:text-destructive"
+                                title="Sil"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </span>
                           )}
                         </td>
                       )}
@@ -632,6 +685,65 @@ export default function GrupCariDetay() {
             <Button onClick={islemKaydet} disabled={!islemTutar || !islemTarih || createOdeme.isPending}>
               {createOdeme.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
               Kaydet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={duzenleModal} onOpenChange={open => { if (!open) setDuzenleModal(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4" />
+              İşlemi Düzenle
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Tutar <span className="text-destructive">*</span></Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={duzenleTutar}
+                onChange={e => setDuzenleTutar(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tarih <span className="text-destructive">*</span></Label>
+              <Input
+                type="date"
+                value={duzenleTarih}
+                onChange={e => setDuzenleTarih(e.target.value)}
+              />
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>Yöntem</Label>
+              <Select value={duzenleYontem} onValueChange={setDuzenleYontem}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(YONTEM_ETIKET).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>Açıklama</Label>
+              <Input
+                value={duzenleAciklama}
+                onChange={e => setDuzenleAciklama(e.target.value)}
+                placeholder="İşlem açıklaması (opsiyonel)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuzenleModal(false)}>İptal</Button>
+            <Button
+              onClick={duzenleKaydet}
+              disabled={!duzenleTutar || !duzenleTarih || updateOdeme.isPending}
+            >
+              {updateOdeme.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-1" />Kaydediliyor…</> : "Kaydet"}
             </Button>
           </DialogFooter>
         </DialogContent>

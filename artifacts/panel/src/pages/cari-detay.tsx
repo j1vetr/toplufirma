@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  useCreateOdeme, useListBankaHesaplari, getListBankaHesaplariQueryKey,
+  useCreateOdeme, useUpdateOdeme, useListBankaHesaplari, getListBankaHesaplariQueryKey,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import {
   ArrowLeft, Download, Plus, Loader2, FileText,
-  TrendingUp, TrendingDown, TriangleAlert, Trash2,
+  TrendingUp, TrendingDown, TriangleAlert, Trash2, Pencil,
   FileSpreadsheet, Mail, Send, CreditCard,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +34,7 @@ interface CariKalem {
   paraBirimi: string;
   faturaId: number | null;
   durum: string | null;
+  odemeYontemi?: string | null;
 }
 interface CariDetay {
   firma: { id: number; ad: string; adres?: string | null; vergiNo?: string | null; telefon?: string | null; eposta?: string | null; paraBirimi: string };
@@ -98,6 +99,13 @@ export default function CariDetay() {
   const [silmeOnay, setSilmeOnay] = useState<string | null>(null);
   const [siliniyor, setSiliniyor] = useState(false);
 
+  const [duzenleModal, setDuzenleModal] = useState(false);
+  const [duzenleId, setDuzenleId] = useState<number | null>(null);
+  const [duzenleTutar, setDuzenleTutar] = useState("");
+  const [duzenleTarih, setDuzenleTarih] = useState("");
+  const [duzenleAciklama, setDuzenleAciklama] = useState("");
+  const [duzenleYontem, setDuzenleYontem] = useState("banka_havalesi");
+
   const [gonderiModal, setGonderiModal] = useState(false);
   const [gonderiEposta, setGonderiEposta] = useState("");
   const [gonderiMesaj, setGonderiMesaj] = useState("");
@@ -112,6 +120,7 @@ export default function CariDetay() {
   const [emailGonderiyor, setEmailGonderiyor] = useState(false);
 
   const createOdeme = useCreateOdeme();
+  const updateOdeme = useUpdateOdeme();
   const { data: bankaHesaplariGenel = [] } = useListBankaHesaplari(undefined, {
     query: { queryKey: getListBankaHesaplariQueryKey() },
   });
@@ -308,6 +317,41 @@ export default function CariDetay() {
     } finally {
       setEmailGonderiyor(false);
     }
+  }
+
+  function openDuzenleModal(k: CariKalem) {
+    const oid = Number(k.id.replace(/^o-/, ""));
+    if (!oid) return;
+    setDuzenleId(oid);
+    setDuzenleTutar(String(k.borc > 0 ? k.borc : k.alacak));
+    setDuzenleTarih(k.tarih);
+    setDuzenleAciklama(k.aciklama ?? "");
+    setDuzenleYontem(k.odemeYontemi ?? "banka_havalesi");
+    setDuzenleModal(true);
+  }
+
+  function duzenleKaydet() {
+    if (!duzenleId || !duzenleTutar || !duzenleTarih) return;
+    updateOdeme.mutate(
+      {
+        id: duzenleId,
+        data: {
+          tarih: duzenleTarih,
+          tutar: Number(duzenleTutar),
+          aciklama: duzenleAciklama || undefined,
+          odemeYontemi: duzenleYontem,
+        },
+      },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ["cari-detay", id] });
+          qc.invalidateQueries({ queryKey: ["cariler"] });
+          setDuzenleModal(false);
+          toast({ title: "İşlem güncellendi" });
+        },
+        onError: () => toast({ title: "Güncelleme başarısız", variant: "destructive" }),
+      }
+    );
   }
 
   async function islemSil(kalemId: string) {
@@ -577,7 +621,7 @@ export default function CariDetay() {
                   <th className="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">BORÇ</th>
                   <th className="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">ALACAK</th>
                   <th className="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground whitespace-nowrap">BAKİYE</th>
-                  {canWrite && <th className="w-8" />}
+                  {canWrite && <th className="w-16" />}
                 </tr>
               </thead>
               <tbody>
@@ -634,15 +678,24 @@ export default function CariDetay() {
                         {fmt(Math.abs(k.bakiye))}
                       </td>
                       {canWrite && (
-                        <td className="px-2 py-2.5 text-center w-8">
+                        <td className="px-2 py-2.5 text-center w-16">
                           {isTahsilatOdeme && (
-                            <button
-                              onClick={() => setSilmeOnay(k.id)}
-                              className="text-muted-foreground hover:text-destructive transition-colors"
-                              title="Sil"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                            <span className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => openDuzenleModal(k)}
+                                className="text-muted-foreground hover:text-primary transition-colors"
+                                title="Düzenle"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setSilmeOnay(k.id)}
+                                className="text-muted-foreground hover:text-destructive transition-colors"
+                                title="Sil"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </span>
                           )}
                         </td>
                       )}
@@ -776,6 +829,65 @@ export default function CariDetay() {
               disabled={!islemTutar || createOdeme.isPending}
             >
               {createOdeme.isPending ? "Kaydediliyor..." : "Kaydet"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={duzenleModal} onOpenChange={open => { if (!open) setDuzenleModal(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4" />
+              İşlemi Düzenle
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Tutar <span className="text-destructive">*</span></Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={duzenleTutar}
+                onChange={e => setDuzenleTutar(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tarih <span className="text-destructive">*</span></Label>
+              <Input
+                type="date"
+                value={duzenleTarih}
+                onChange={e => setDuzenleTarih(e.target.value)}
+              />
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>Yöntem</Label>
+              <Select value={duzenleYontem} onValueChange={setDuzenleYontem}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(YONTEM_ETIKET).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>Açıklama</Label>
+              <Input
+                value={duzenleAciklama}
+                onChange={e => setDuzenleAciklama(e.target.value)}
+                placeholder="Ödeme açıklaması (opsiyonel)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuzenleModal(false)}>İptal</Button>
+            <Button
+              onClick={duzenleKaydet}
+              disabled={!duzenleTutar || !duzenleTarih || updateOdeme.isPending}
+            >
+              {updateOdeme.isPending ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" />Kaydediliyor…</> : "Kaydet"}
             </Button>
           </DialogFooter>
         </DialogContent>

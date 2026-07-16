@@ -68,6 +68,7 @@ function buildEntries(faturaRows: typeof faturalar.$inferSelect[], odemeRows: ty
     faturaId: o.faturaId ?? null,
     durum: null,
     durumEtiket: "-",
+    odemeYontemi: o.odemeYontemi ?? null,
   }));
   const sorted = [...fEntries, ...oEntries].sort((a, b) => {
     const d = new Date(a.tarih).getTime() - new Date(b.tarih).getTime();
