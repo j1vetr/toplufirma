@@ -290,7 +290,10 @@ router.get("/cariler/grup/:grupFirmaId", async (req, res) => {
         .from(faturalar).where(inArray(faturalar.bagliFirmaId, bagliFirmaIds)).limit(1);
       catiFirmaId = rows[0]?.catiFirmaId ?? null;
     }
-    if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) {
+    if (!catiFirmaId && grupFirma.ustFirmaId) catiFirmaId = grupFirma.ustFirmaId;
+    if (catiFirmaId) {
+      if (!sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu gruba erişim izniniz yok" }); return; }
+    } else if (req.kullanici?.rol !== "yonetici") {
       res.status(403).json({ error: "Bu gruba erişim izniniz yok" }); return;
     }
 
@@ -376,7 +379,10 @@ router.get("/cariler/grup/:grupFirmaId/pdf", async (req, res) => {
         .from(faturalar).where(inArray(faturalar.bagliFirmaId, bagliFirmaIds)).limit(1);
       catiFirmaId = rows[0]?.catiFirmaId ?? null;
     }
-    if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) {
+    if (!catiFirmaId && grupFirma.ustFirmaId) catiFirmaId = grupFirma.ustFirmaId;
+    if (catiFirmaId) {
+      if (!sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu gruba erişim izniniz yok" }); return; }
+    } else if (req.kullanici?.rol !== "yonetici") {
       res.status(403).json({ error: "Bu gruba erişim izniniz yok" }); return;
     }
 
@@ -575,7 +581,10 @@ router.get("/cariler/grup/:grupFirmaId/excel", async (req, res) => {
         .from(faturalar).where(inArray(faturalar.bagliFirmaId, bagliFirmaIds)).limit(1);
       catiFirmaId = rows[0]?.catiFirmaId ?? null;
     }
-    if (catiFirmaId && !sirketErisimKontrol(catiFirmaId, req)) {
+    if (!catiFirmaId && grupFirma.ustFirmaId) catiFirmaId = grupFirma.ustFirmaId;
+    if (catiFirmaId) {
+      if (!sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu gruba erişim izniniz yok" }); return; }
+    } else if (req.kullanici?.rol !== "yonetici") {
       res.status(403).json({ error: "Bu gruba erişim izniniz yok" }); return;
     }
 

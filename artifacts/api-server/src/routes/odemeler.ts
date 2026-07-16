@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { odemeler, firmalar, gemiler, bankaHesaplari, faturalar } from "@workspace/db";
+import { odemeler, firmalar, gemiler, bankaHesaplari, faturalar, firmaSirketGorunurluk } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
@@ -43,9 +43,17 @@ router.post("/odemeler", requireYazma, async (req, res) => {
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
     if (bagliFirmaId) {
-      const gorIds = await gorunurBagliFirmaIds(Number(catiFirmaId));
-      if (!gorIds.includes(Number(bagliFirmaId))) {
-        res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return;
+      const [targetFirma] = await db.select({ tip: firmalar.tip }).from(firmalar).where(eq(firmalar.id, Number(bagliFirmaId)));
+      if (!targetFirma) { res.status(400).json({ error: "Belirtilen firma bulunamadı" }); return; }
+      if (targetFirma.tip === "grup") {
+        const gorunurlukRows = await db.select().from(firmaSirketGorunurluk).where(eq(firmaSirketGorunurluk.firmaId, Number(bagliFirmaId)));
+        const isVisible = gorunurlukRows.length === 0 || gorunurlukRows.some(g => g.catiFirmaId === Number(catiFirmaId));
+        if (!isVisible) { res.status(400).json({ error: "Belirtilen grup firma bu çatı firmaya ait değil" }); return; }
+      } else if (targetFirma.tip === "bagli") {
+        const gorIds = await gorunurBagliFirmaIds(Number(catiFirmaId));
+        if (!gorIds.includes(Number(bagliFirmaId))) { res.status(400).json({ error: "Belirtilen bağlı firma bu çatı firmaya ait değil" }); return; }
+      } else {
+        res.status(400).json({ error: "Belirtilen firma ödeme için geçersiz tipte" }); return;
       }
     }
     if (faturaId) {
