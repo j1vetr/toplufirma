@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { faturalar, firmalar, odemeler, bankaHesaplari, firmaEpostaAyarlari, gonderiGecmisi, gemiler } from "@workspace/db";
-import { eq, and, inArray, gte, lte, lt } from "drizzle-orm";
+import { eq, and, inArray, gte, lte, lt, isNull } from "drizzle-orm";
 import { sirketErisimKontrol, requireYazma, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 import { createRequire } from "node:module";
@@ -116,10 +116,13 @@ router.get("/cariler", async (req, res) => {
     }
 
     const isYonetici = req.kullanici?.rol === "yonetici";
+    // Kendi firmamız = kök çatı firmalar (ustFirmaId IS NULL).
+    // Müşteri çatı firmalar (SEBA, BARLA...) ustFirmaId dolu olur; bunlar gecerliFirmaIdleri'ne girmemeli.
     const gecerliFirmaIdleri = catiFirmaId
       ? [Number(catiFirmaId)]
       : isYonetici
-        ? (await db.select({ id: firmalar.id }).from(firmalar).where(eq(firmalar.tip, "cati"))).map(f => f.id)
+        ? (await db.select({ id: firmalar.id }).from(firmalar)
+            .where(and(eq(firmalar.tip, "cati"), isNull(firmalar.ustFirmaId)))).map(f => f.id)
         : izinliSirketler;
     if (gecerliFirmaIdleri.length === 0) { res.json([]); return; }
 
