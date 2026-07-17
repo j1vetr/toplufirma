@@ -57,6 +57,17 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/") || id.includes("node_modules/scheduler/")) return "vendor-react";
+          if (id.includes("node_modules/@tanstack/")) return "vendor-tanstack";
+          if (id.includes("node_modules/@radix-ui/")) return "vendor-radix";
+          if (id.includes("node_modules/lucide-react/")) return "vendor-lucide";
+          if (id.includes("node_modules/")) return "vendor-misc";
+        },
+      },
+    },
   },
   server: {
     port,
