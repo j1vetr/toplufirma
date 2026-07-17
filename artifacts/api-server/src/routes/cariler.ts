@@ -38,6 +38,17 @@ function fmtTarih(s: string | null | undefined): string {
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 }
 
+function toSafeFilename(name: string): string {
+  return name
+    .replace(/İ/g, "I").replace(/ı/g, "i")
+    .replace(/Ş/g, "S").replace(/ş/g, "s")
+    .replace(/Ğ/g, "G").replace(/ğ/g, "g")
+    .replace(/Ü/g, "U").replace(/ü/g, "u")
+    .replace(/Ö/g, "O").replace(/ö/g, "o")
+    .replace(/Ç/g, "C").replace(/ç/g, "c")
+    .replace(/[^a-zA-Z0-9._-]/g, "-");
+}
+
 function buildEntries(faturaRows: typeof faturalar.$inferSelect[], odemeRows: typeof odemeler.$inferSelect[]) {
   const validFaturalar = faturaRows.filter(f => !["taslak", "iptal"].includes(f.durum));
   const fEntries = validFaturalar.map(f => ({
@@ -567,7 +578,7 @@ router.get("/cariler/grup/:grupFirmaId/pdf", async (req, res) => {
 
     const pdfStream: NodeJS.ReadableStream & { end(): void } = await _pdfmake.createPdf(docDefinition).getStream();
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="cari-grup-${grupFirma.ad.replace(/\s+/g, "-")}.pdf"`);
+    res.setHeader("Content-Disposition", `attachment; filename="cari-grup-${toSafeFilename(grupFirma.ad)}.pdf"`);
     res.setHeader("Cache-Control", "no-store, max-age=0");
     pdfStream.pipe(res);
     pdfStream.end();
@@ -738,9 +749,9 @@ router.get("/cariler/grup/:grupFirmaId/excel", async (req, res) => {
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
-    const safeName = grupFirma.ad.replace(/[\\/:*?"<>|]/g, "-");
+    const safeName = toSafeFilename(grupFirma.ad);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(`ekstre-grup-${safeName}.xlsx`)}"`);
+    res.setHeader("Content-Disposition", `attachment; filename="ekstre-grup-${safeName}.xlsx"`);
     res.setHeader("Cache-Control", "no-store, max-age=0");
     res.send(Buffer.from(buffer));
   } catch (err) {
@@ -993,7 +1004,7 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
 
     const pdfStream: NodeJS.ReadableStream & { end(): void } = await _pdfmake.createPdf(docDefinition).getStream();
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="cari-${bagliFirma.ad.replace(/\s+/g, "-")}.pdf"`);
+    res.setHeader("Content-Disposition", `attachment; filename="cari-${toSafeFilename(bagliFirma.ad)}.pdf"`);
     res.setHeader("Cache-Control", "no-store, max-age=0");
     pdfStream.pipe(res);
     pdfStream.end();
@@ -1217,11 +1228,11 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
-    const safeName = bagliFirma.ad.replace(/[\\/:*?"<>|]/g, "-");
+    const safeName = toSafeFilename(bagliFirma.ad);
     const dosyaAdi = `ekstre-${safeName}.xlsx`;
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(dosyaAdi)}"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${dosyaAdi}"`);
     res.setHeader("Cache-Control", "no-store, max-age=0");
     res.send(Buffer.from(buffer));
   } catch (err) {
