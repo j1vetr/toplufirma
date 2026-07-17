@@ -77,6 +77,8 @@ interface Teklif {
   gemiId: number | null;
   gemiAd: string | null;
   gemiAdManuel: string | null;
+  aliciFirmaId: number | null;
+  aliciFirmaAd: string | null;
   teklifNo: string;
   tarih: string;
   gecerlilikTarihi: string | null;
@@ -110,12 +112,6 @@ interface TeklifBankaHesabi {
   ibanlar: Record<string, string>;
 }
 
-interface Gemi {
-  id: number;
-  firmaId: number;
-  catiFirmaId: number | null;
-  ad: string;
-}
 
 const DURUM_ETIKET: Record<string, string> = {
   taslak: "Taslak",
@@ -175,12 +171,10 @@ export default function Teklifler() {
   const [onizlemeYukleniyor, setOnizlemeYukleniyor] = useState(false);
   const [kurYukleniyor, setKurYukleniyor] = useState(false);
   const [teklifBankaHesaplari, setTeklifBankaHesaplari] = useState<TeklifBankaHesabi[]>([]);
-  const [gemiMod, setGemiMod] = useState<"kayitli" | "manuel">("kayitli");
 
   const [form, setForm] = useState({
     catiFirmaId: "" as string | number,
-    gemiId: "" as string | number,
-    gemiAdManuel: "",
+    aliciFirmaId: "" as string | number,
     tarih: new Date().toISOString().split("T")[0],
     gecerlilikTarihi: "",
     aliciAd: "",
@@ -215,13 +209,17 @@ export default function Teklifler() {
     },
   );
 
-  const { data: gemiler = [] } = useQuery<Gemi[]>({
-    queryKey: ["gemiler", form.catiFirmaId],
-    queryFn: () => apiFetch(`/gemiler${form.catiFirmaId ? `?catiFirmaId=${form.catiFirmaId}` : ""}`),
-  });
+  const { data: bagliFirmalar = [] } = useListFirmalar(
+    { tip: "bagli", catiFirmaId: Number(form.catiFirmaId) },
+    {
+      query: {
+        queryKey: [...getListFirmalarQueryKey(), "bagli-teklif", form.catiFirmaId],
+        enabled: !!form.catiFirmaId,
+      },
+    },
+  );
 
   const filtrelenmis = durumFiltre === "tumu" ? teklifListesi : teklifListesi.filter(t => t.durum === durumFiltre);
-  const firmaGemileri = gemiler;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -235,12 +233,9 @@ export default function Teklifler() {
     if (teklif) {
       setDuzenleId(teklif.id);
       apiFetch(`/teklifler/${teklif.id}`).then((d: Teklif & { kalemler: TeklifKalem[]; bankaHesaplari?: TeklifBankaHesabi[]; tanim?: string }) => {
-        const hasManuel = !!d.gemiAdManuel && !d.gemiId;
-        setGemiMod(hasManuel ? "manuel" : "kayitli");
         setForm({
           catiFirmaId: d.catiFirmaId,
-          gemiId: d.gemiId ?? "",
-          gemiAdManuel: d.gemiAdManuel ?? "",
+          aliciFirmaId: d.aliciFirmaId ?? "",
           tarih: d.tarih,
           gecerlilikTarihi: d.gecerlilikTarihi ?? "",
           aliciAd: d.aliciAd,
@@ -259,12 +254,10 @@ export default function Teklifler() {
     } else {
       setDuzenleId(null);
       setTeklifBankaHesaplari([]);
-      setGemiMod("kayitli");
       const aktifFirma = firmalar.find(f => f.id === aktifSirketId);
       setForm({
         catiFirmaId: aktifSirketId ?? (firmalar[0]?.id ?? ""),
-        gemiId: "",
-        gemiAdManuel: "",
+        aliciFirmaId: "",
         tarih: new Date().toISOString().split("T")[0],
         gecerlilikTarihi: "",
         aliciAd: "",
@@ -285,8 +278,9 @@ export default function Teklifler() {
     mutationFn: async () => {
       const body = {
         catiFirmaId: Number(form.catiFirmaId),
-        gemiId: gemiMod === "kayitli" && form.gemiId ? Number(form.gemiId) : null,
-        gemiAdManuel: gemiMod === "manuel" ? (form.gemiAdManuel || null) : null,
+        gemiId: null,
+        gemiAdManuel: null,
+        aliciFirmaId: form.aliciFirmaId ? Number(form.aliciFirmaId) : null,
         tarih: form.tarih,
         gecerlilikTarihi: form.gecerlilikTarihi || null,
         aliciAd: form.aliciAd,
@@ -656,49 +650,31 @@ export default function Teklifler() {
               </Select>
             </div>
 
-            {/* Gemi */}
+            {/* Alıcı Firma */}
             <div className="space-y-1.5">
-              <Label>Gemi</Label>
-              <div className="flex gap-1 mb-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={gemiMod === "kayitli" ? "default" : "outline"}
-                  className="text-xs h-7 px-3"
-                  onClick={() => { setGemiMod("kayitli"); setForm(f => ({ ...f, gemiAdManuel: "" })); }}
-                >
-                  <Ship className="mr-1 h-3 w-3" /> Kayıtlı Gemi
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={gemiMod === "manuel" ? "default" : "outline"}
-                  className="text-xs h-7 px-3"
-                  onClick={() => { setGemiMod("manuel"); setForm(f => ({ ...f, gemiId: "" })); }}
-                >
-                  Manuel Giriş
-                </Button>
-              </div>
-              {gemiMod === "kayitli" ? (
-                <Select
-                  value={form.gemiId ? String(form.gemiId) : "__none__"}
-                  onValueChange={v => setForm(f => ({ ...f, gemiId: v === "__none__" ? "" : v }))}
-                >
-                  <SelectTrigger><SelectValue placeholder="Gemi seçin (opsiyonel)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">— Gemi yok —</SelectItem>
-                    {firmaGemileri.map(g => (
-                      <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  value={form.gemiAdManuel}
-                  onChange={e => setForm(f => ({ ...f, gemiAdManuel: e.target.value }))}
-                  placeholder="Gemi adını yazın…"
-                />
-              )}
+              <Label>Alıcı Firma</Label>
+              <Select
+                value={form.aliciFirmaId ? String(form.aliciFirmaId) : "__none__"}
+                onValueChange={v => {
+                  const firmaId = v === "__none__" ? "" : v;
+                  const secilen = bagliFirmalar.find(f => String(f.id) === firmaId);
+                  setForm(f => ({
+                    ...f,
+                    aliciFirmaId: firmaId,
+                    aliciAd: secilen ? secilen.ad : f.aliciAd,
+                    aliciAdres: secilen ? ((secilen as unknown as { adres?: string }).adres ?? f.aliciAdres) : f.aliciAdres,
+                    aliciTelefon: secilen ? ((secilen as unknown as { telefon?: string }).telefon ?? f.aliciTelefon) : f.aliciTelefon,
+                  }));
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Firma seçin (opsiyonel)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Firma seçmeyin —</SelectItem>
+                  {bagliFirmalar.map(f => (
+                    <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Tarihler + Para Birimi */}

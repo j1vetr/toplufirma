@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRoute, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   useGetFirma, getGetFirmaQueryKey,
   useListFaturalar, getListFaturalarQueryKey,
@@ -11,8 +12,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, Building2, Plus, FileText, ChevronRight, AlertCircle,
-  CreditCard, Ship, TrendingDown, TrendingUp, Wallet,
+  CreditCard, Ship, TrendingDown, TrendingUp, Wallet, Receipt,
 } from "lucide-react";
+
+const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+async function apiFetch(path: string) {
+  const token = localStorage.getItem("panel_token") ?? "";
+  const r = await fetch(`${API_BASE}/api${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error("İstek başarısız");
+  return r.json();
+}
 
 const DURUM_RENK: Record<string, string> = {
   taslak: "bg-slate-500/10 text-slate-500",
@@ -24,6 +36,12 @@ const DURUM_RENK: Record<string, string> = {
 const DURUM_ETIKET: Record<string, string> = {
   taslak: "Taslak", acik: "Açık", kismi_odendi: "Kısmi Ödendi", odendi: "Ödendi", iptal: "İptal",
 };
+const TEKLIF_DURUM_RENK: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+  taslak: "secondary", gonderildi: "outline", onaylandi: "default", reddedildi: "destructive",
+};
+const TEKLIF_DURUM_ETIKET: Record<string, string> = {
+  taslak: "Taslak", gonderildi: "Gönderildi", onaylandi: "Onaylandı", reddedildi: "Reddedildi",
+};
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
   kredi_karti: "Kredi Kartı", wise: "Wise", paypal: "PayPal", diger: "Diğer",
@@ -32,7 +50,17 @@ const YONTEM_ETIKET: Record<string, string> = {
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
 
-type Sekme = "faturalar" | "odemeler" | "gemiler";
+type Sekme = "faturalar" | "odemeler" | "gemiler" | "teklifler";
+
+interface TeklifOzet {
+  id: number;
+  teklifNo: string;
+  tarih: string;
+  gecerlilikTarihi: string | null;
+  aliciAd: string;
+  paraBirimi: string;
+  durum: string;
+}
 
 export default function BagliFirmaDetay() {
   const [, params] = useRoute("/firmalar/bagli/:id");
@@ -57,6 +85,12 @@ export default function BagliFirmaDetay() {
     { firmaId: id },
     { query: { enabled: !!id, queryKey: [...getListGemilerQueryKey(), "bagli-detay", id] } },
   );
+
+  const { data: teklifler = [], isLoading: tekliflerYukleniyor } = useQuery<TeklifOzet[]>({
+    queryKey: ["teklifler-bagli", id],
+    queryFn: () => apiFetch(`/teklifler?aliciFirmaId=${id}`),
+    enabled: !!id,
+  });
 
   const bugun = new Date().toISOString().split("T")[0];
 
@@ -105,6 +139,7 @@ export default function BagliFirmaDetay() {
     { key: "faturalar", label: "Faturalar", sayac: faturalar.length },
     { key: "odemeler", label: "Ödemeler", sayac: odemeler.length },
     { key: "gemiler", label: "Gemiler", sayac: gemiler.length },
+    { key: "teklifler", label: "Teklifler", sayac: teklifler.length },
   ];
 
   return (
@@ -335,6 +370,49 @@ export default function BagliFirmaDetay() {
                   </div>
                 </div>
                 <Link href={`/gemiler/${g.id}`}>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {aktifSekme === "teklifler" && (
+          <div className="space-y-2">
+            {tekliflerYukleniyor && (
+              <div className="animate-pulse space-y-2">
+                {[1, 2].map(i => <div key={i} className="h-14 bg-muted rounded-none" />)}
+              </div>
+            )}
+            {!tekliflerYukleniyor && teklifler.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                <Receipt className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p>Bu firmaya iletilmiş teklif bulunamadı.</p>
+              </div>
+            )}
+            {teklifler.map(t => (
+              <div key={t.id} className="flex items-center justify-between p-4 border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-sm bg-violet-500/10 shrink-0">
+                    <Receipt className="h-4 w-4 text-violet-500" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-sm font-semibold">{t.teklifNo}</p>
+                      <Badge variant={TEKLIF_DURUM_RENK[t.durum]} className="text-[10px] h-4 px-1.5">
+                        {TEKLIF_DURUM_ETIKET[t.durum]}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t.tarih}
+                      {t.gecerlilikTarihi ? ` → ${t.gecerlilikTarihi}` : ""}
+                      {" · "}{t.paraBirimi}
+                    </p>
+                  </div>
+                </div>
+                <Link href={`/teklifler?open=${t.id}`}>
                   <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0">
                     <ChevronRight className="h-4 w-4" />
                   </Button>

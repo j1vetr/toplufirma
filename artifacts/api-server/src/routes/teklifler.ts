@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { teklifler, teklifKalemleri, firmalar, gemiler, bankaHesaplari, faturalar, faturaKalemleri, faturaSerileri, firmaEpostaAyarlari, gonderiGecmisi } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import nodemailer from "nodemailer";
 import { emailSablonuOlustur } from "../lib/emailSablonu";
@@ -28,7 +28,7 @@ const router = Router();
 // ── LIST ─────────────────────────────────────────────────────────────────
 router.get("/teklifler", async (req, res) => {
   try {
-    const { catiFirmaId, gemiId, durum, paraBirimi } = req.query as Record<string, string>;
+    const { catiFirmaId, gemiId, durum, paraBirimi, aliciFirmaId } = req.query as Record<string, string>;
 
     let rows = await db
       .select({ t: teklifler, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
@@ -47,8 +47,17 @@ router.get("/teklifler", async (req, res) => {
     if (gemiId) rows = rows.filter(r => r.t.gemiId === Number(gemiId));
     if (durum) rows = rows.filter(r => r.t.durum === durum);
     if (paraBirimi) rows = rows.filter(r => r.t.paraBirimi === paraBirimi);
+    if (aliciFirmaId) rows = rows.filter(r => r.t.aliciFirmaId === Number(aliciFirmaId));
 
-    res.json(rows.map(r => formatTeklif(r.t, r.catiFirmaAd, r.gemiAd)));
+    // Alıcı firma adlarını toplu çek
+    const aliciFirmaIds = [...new Set(rows.map(r => r.t.aliciFirmaId).filter((x): x is number => x != null))];
+    const aliciFirmaMap = new Map<number, string>();
+    if (aliciFirmaIds.length > 0) {
+      const af = await db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(inArray(firmalar.id, aliciFirmaIds));
+      for (const f of af) aliciFirmaMap.set(f.id, f.ad);
+    }
+
+    res.json(rows.map(r => formatTeklif(r.t, r.catiFirmaAd, r.gemiAd, r.t.aliciFirmaId ? aliciFirmaMap.get(r.t.aliciFirmaId) : null)));
   } catch {
     res.status(500).json({ error: "Teklifler listelenemedi" });
   }
@@ -58,7 +67,7 @@ router.get("/teklifler", async (req, res) => {
 router.post("/teklifler", requireYazma, async (req, res) => {
   try {
     const {
-      catiFirmaId, gemiId, gemiAdManuel, tarih, gecerlilikTarihi,
+      catiFirmaId, gemiId, gemiAdManuel, aliciFirmaId, tarih, gecerlilikTarihi,
       aliciAd, aliciAdres, aliciTelefon, paraBirimi,
       kurNotu, tanim, notlar, kosullar, kalemler,
     } = req.body;
@@ -91,6 +100,7 @@ router.post("/teklifler", requireYazma, async (req, res) => {
       catiFirmaId: Number(catiFirmaId),
       gemiId: gemiId ? Number(gemiId) : null,
       gemiAdManuel: !gemiId && gemiAdManuel ? (gemiAdManuel as string) : null,
+      aliciFirmaId: aliciFirmaId ? Number(aliciFirmaId) : null,
       teklifNo,
       tarih,
       gecerlilikTarihi: gecerlilikTarihi ?? null,
@@ -139,8 +149,14 @@ router.get("/teklifler/:id", async (req, res) => {
 
     const kalemler = await db.select().from(teklifKalemleri).where(eq(teklifKalemleri.teklifId, id)).orderBy(teklifKalemleri.sira);
 
+    let aliciFirmaAd: string | null = null;
+    if (row.t.aliciFirmaId) {
+      const [af] = await db.select({ ad: firmalar.ad }).from(firmalar).where(eq(firmalar.id, row.t.aliciFirmaId));
+      aliciFirmaAd = af?.ad ?? null;
+    }
+
     res.json({
-      ...formatTeklif(row.t, row.catiFirmaAd, row.gemiAd),
+      ...formatTeklif(row.t, row.catiFirmaAd, row.gemiAd, aliciFirmaAd),
       catiFirmaLogo: row.catiFirmaLogo ?? null,
       gemiImo: row.gemiImo ?? null,
       kalemler: kalemler.map(k => ({
@@ -165,13 +181,14 @@ router.patch("/teklifler/:id", requireYazma, async (req, res) => {
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const {
-      gemiId, gemiAdManuel, tarih, gecerlilikTarihi, aliciAd, aliciAdres, aliciTelefon,
+      gemiId, gemiAdManuel, aliciFirmaId, tarih, gecerlilikTarihi, aliciAd, aliciAdres, aliciTelefon,
       paraBirimi, kurNotu, tanim, notlar, kosullar, kalemler,
     } = req.body;
 
     await db.update(teklifler).set({
       gemiId: gemiId !== undefined ? (gemiId ? Number(gemiId) : null) : existing.gemiId,
       gemiAdManuel: gemiAdManuel !== undefined ? (gemiAdManuel || null) : existing.gemiAdManuel,
+      aliciFirmaId: aliciFirmaId !== undefined ? (aliciFirmaId ? Number(aliciFirmaId) : null) : existing.aliciFirmaId,
       tarih: tarih ?? existing.tarih,
       gecerlilikTarihi: gecerlilikTarihi !== undefined ? (gecerlilikTarihi || null) : existing.gecerlilikTarihi,
       aliciAd: aliciAd ?? existing.aliciAd,
@@ -735,10 +752,12 @@ function formatTeklif(
   t: typeof teklifler.$inferSelect,
   catiFirmaAd: string | null | undefined,
   gemiAd: string | null | undefined,
+  aliciFirmaAd?: string | null,
 ) {
   return {
     id: t.id, catiFirmaId: t.catiFirmaId, catiFirmaAd: catiFirmaAd ?? null,
     gemiId: t.gemiId, gemiAd: gemiAd ?? null, gemiAdManuel: t.gemiAdManuel ?? null,
+    aliciFirmaId: t.aliciFirmaId ?? null, aliciFirmaAd: aliciFirmaAd ?? null,
     teklifNo: t.teklifNo, tarih: t.tarih, gecerlilikTarihi: t.gecerlilikTarihi,
     aliciAd: t.aliciAd, aliciAdres: t.aliciAdres, aliciTelefon: t.aliciTelefon,
     paraBirimi: t.paraBirimi, kurNotu: t.kurNotu,
