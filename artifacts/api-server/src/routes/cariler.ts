@@ -170,6 +170,9 @@ router.get("/cariler", async (req, res) => {
     // ─── 3. Toplu veri çek ────────────────────────────────────────────────
     const catiFirmaIdleri = [...new Set([...catiMap.values()])];
     const grupFirmaIds = [...grupMap.keys()];
+    // Grup altındaki bağlı firma ID'leri (eski ödemelerde bagliFirmaId bu ID'lere yazılmış olabilir)
+    const allGrupBagliFirmaIds = [...grupMap.values()].flatMap(g => g.bagliFirmaIds);
+    const grupOdemeAramaIds = [...new Set([...grupFirmaIds, ...allGrupBagliFirmaIds])];
 
     const [catiFirmalar, grupFirmaRows, allFaturalar, grupOdemeRows, bagimsizOdemeRows] = await Promise.all([
       catiFirmaIdleri.length > 0
@@ -181,9 +184,9 @@ router.get("/cariler", async (req, res) => {
       erisilenBagliIds.length > 0
         ? db.select().from(faturalar).where(inArray(faturalar.bagliFirmaId, erisilenBagliIds))
         : Promise.resolve([] as typeof faturalar.$inferSelect[]),
-      // Grup firma ödemeleri: bagliFirmaId = grupFirmaId (doğrudan grup firmaya yapılan ödemeler)
-      grupFirmaIds.length > 0
-        ? db.select().from(odemeler).where(inArray(odemeler.bagliFirmaId, grupFirmaIds))
+      // Grup ödemeleri: hem grup ID'sine hem bağlı firma ID'lerine yazılmış ödemeleri dahil et
+      grupOdemeAramaIds.length > 0
+        ? db.select().from(odemeler).where(inArray(odemeler.bagliFirmaId, grupOdemeAramaIds))
         : Promise.resolve([] as typeof odemeler.$inferSelect[]),
       bagimsizIds.length > 0
         ? db.select().from(odemeler).where(inArray(odemeler.bagliFirmaId, bagimsizIds))
@@ -221,7 +224,7 @@ router.get("/cariler", async (req, res) => {
     for (const [grupId, grupInfo] of grupMap) {
       const gfRow = grupFirmaRowMap.get(grupId);
       const grupFaturaRows = allFaturalar.filter(f => grupInfo.bagliFirmaIds.includes(f.bagliFirmaId));
-      const grupOds = grupOdemeRows.filter(o => o.bagliFirmaId === grupId);
+      const grupOds = grupOdemeRows.filter(o => o.bagliFirmaId === grupId || grupInfo.bagliFirmaIds.includes(o.bagliFirmaId));
       const validF = grupFaturaRows.filter(f => !["taslak", "iptal"].includes(f.durum));
 
       const toplamBorc = validF.reduce((s, f) => s + Number(f.genelToplam), 0)
