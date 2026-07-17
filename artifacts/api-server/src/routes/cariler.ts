@@ -533,7 +533,7 @@ router.get("/cariler/grup/:grupFirmaId/pdf", async (req, res) => {
           ? {
               table: {
                 headerRows: 1,
-                widths: [40, 54, "*", 48, 48, 48, 56],
+                widths: [40, 76, "*", 48, 48, 48, 56],
                 body: [
                   [
                     { text: "TARİH", style: "thStyle" },
@@ -938,7 +938,7 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
           ? {
               table: {
                 headerRows: 1,
-                widths: [40, 54, "*", 48, 48, 48, 56],
+                widths: [40, 76, "*", 48, 48, 48, 56],
                 body: [
                   [
                     { text: "TARİH", style: "thStyle" },
