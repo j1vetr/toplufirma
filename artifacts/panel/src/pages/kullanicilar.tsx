@@ -316,41 +316,50 @@ export default function Kullanicilar({ kullanici }: Props) {
 
             <div className="space-y-1.5">
               <Label>Şirket Erişimi</Label>
-              <p className="text-xs text-muted-foreground">Her şirket için ayrı erişim seviyesi belirleyin.</p>
-              <div className="space-y-2 rounded-none border p-3 max-h-48 overflow-y-auto">
-                {(sirketler as Array<{ id: number; ad: string }>).map((s) => {
-                  const atama = form.sirketler.find(x => x.sirketId === s.id);
-                  const checked = !!atama;
-                  return (
-                    <div key={s.id} className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={e => sirketToggle(s.id, e.target.checked)}
-                        className="rounded border-gray-300 h-4 w-4 cursor-pointer"
-                      />
-                      <span className="flex-1 text-sm">{s.ad}</span>
-                      {checked && (
-                        <Select
-                          value={atama!.rol}
-                          onValueChange={rol => sirketRolGuncelle(s.id, rol)}
-                        >
-                          <SelectTrigger className="w-36 h-7 text-xs rounded-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="muhasebeci">Muhasebeci</SelectItem>
-                            <SelectItem value="salt_okunur">Salt Okunur</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
-                  );
-                })}
-                {sirketler.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-2">Henüz şirket eklenmemiş.</p>
-                )}
-              </div>
+              {form.rol === "yonetici" ? (
+                <p className="text-xs text-muted-foreground bg-primary/5 border border-primary/20 px-3 py-2">
+                  Global yönetici tüm şirketlere tam erişime sahiptir — ayrıca şirket ataması gerekmez.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">Her şirket için ayrı erişim seviyesi belirleyin.</p>
+                  <div className="space-y-2 rounded-none border p-3 max-h-48 overflow-y-auto">
+                    {(sirketler as Array<{ id: number; ad: string }>).map((s) => {
+                      const atama = form.sirketler.find(x => x.sirketId === s.id);
+                      const checked = !!atama;
+                      return (
+                        <div key={s.id} className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={e => sirketToggle(s.id, e.target.checked)}
+                            className="rounded border-gray-300 h-4 w-4 cursor-pointer"
+                          />
+                          <span className="flex-1 text-sm">{s.ad}</span>
+                          {checked && (
+                            <Select
+                              value={atama!.rol}
+                              onValueChange={rol => sirketRolGuncelle(s.id, rol)}
+                            >
+                              <SelectTrigger className="w-36 h-7 text-xs rounded-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="yonetici">Yönetici</SelectItem>
+                                <SelectItem value="muhasebeci">Muhasebeci</SelectItem>
+                                <SelectItem value="salt_okunur">Salt Okunur</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {sirketler.length === 0 && (
+                      <p className="text-xs text-muted-foreground py-2">Henüz şirket eklenmemiş.</p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <DialogFooter>
