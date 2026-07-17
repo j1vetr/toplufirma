@@ -47,7 +47,7 @@ const BIRIMLER: { tr: string; en: string }[] = [
 ];
 const BIRIM_EN_SET = new Set(BIRIMLER.map(b => b.en));
 
-const DEFAULT_NOT = "";
+const DEFAULT_NOT = "Kindly note that if payment is not received by the due date, the system will reduce your internet speed.";
 
 const fmt = (n: number) => new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n);
 
@@ -487,18 +487,6 @@ export default function FaturaYeni() {
               <p className="text-xs text-muted-foreground">Bu faturadaki tüm kalemleri kopyalayan aylık tekrarlayan tanım oluşturulur. Otomatik üretilen faturalar taslak olarak kaydedilir.</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle className="text-base">Tanım</CardTitle></CardHeader>
-        <CardContent>
-          <Textarea
-            value={aciklama}
-            onChange={e => setAciklama(e.target.value)}
-            rows={3}
-            placeholder="Fatura konusu / genel açıklama (opsiyonel, PDF'te kalemlerden önce görünür)…"
-          />
         </CardContent>
       </Card>
 
