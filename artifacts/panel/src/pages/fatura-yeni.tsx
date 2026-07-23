@@ -47,7 +47,7 @@ const BIRIMLER: { tr: string; en: string }[] = [
 ];
 const BIRIM_EN_SET = new Set(BIRIMLER.map(b => b.en));
 
-const DEFAULT_NOT = "Kindly note that if payment is not received by the due date, the system will reduce your internet speed.";
+const DEFAULT_NOT = "Kindly note that if payment is not received by the due date, the system will reduce your internet speed.\nBank Charges: To be borne by the Customer.\nAny short payment will be shown as an outstanding.";
 
 const fmt = (n: number) => new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n);
 
