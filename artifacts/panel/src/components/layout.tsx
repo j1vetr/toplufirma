@@ -21,6 +21,7 @@ import {
   ClipboardList,
   BookOpen,
   Stethoscope,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSirket } from "@/contexts/sirket-context";
@@ -46,6 +47,7 @@ const navigation = [
   { name: "Gemiler", href: "/gemiler", icon: Ship },
   { name: "Faturalar", href: "/faturalar", icon: FileText },
   { name: "Teklifler", href: "/teklifler", icon: FileText },
+  { name: "Ürünler", href: "/urunler", icon: Package },
   { name: "Cariler", href: "/cariler", icon: BookOpen },
   { name: "Ekipmanlar", href: "/ekipmanlar", icon: HardDrive },
   { name: "Servis & Sözleşme", href: "/servis", icon: ClipboardList },

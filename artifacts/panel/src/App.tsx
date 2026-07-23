@@ -29,6 +29,7 @@ const Servis             = lazy(() => import("@/pages/servis"));
 const Cariler            = lazy(() => import("@/pages/cariler"));
 const CariDetay          = lazy(() => import("@/pages/cari-detay"));
 const GrupCariDetay      = lazy(() => import("@/pages/grup-cari-detay"));
+const Urunler            = lazy(() => import("@/pages/urunler"));
 const NotFound           = lazy(() => import("@/pages/not-found"));
 const Tani               = lazy(() => import("@/pages/tani"));
 const FirmaSec           = lazy(() => import("@/pages/firma-sec"));
@@ -226,6 +227,11 @@ function Router({ kullanici, onLogout }: { kullanici: KullaniciInfo | null; onLo
         <Route path="/gonderi-gecmisi">
           <AuthGuard kullanici={kullanici} onLogout={onLogout}>
             <GonderiGecmisi />
+          </AuthGuard>
+        </Route>
+        <Route path="/urunler">
+          <AuthGuard kullanici={kullanici} onLogout={onLogout}>
+            <Urunler />
           </AuthGuard>
         </Route>
         <Route path="/tani">
