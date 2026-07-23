@@ -116,7 +116,7 @@ router.post("/teklifler", requireYazma, async (req, res) => {
     }).returning();
 
     for (let i = 0; i < kalemler.length; i++) {
-      const k = kalemler[i] as { aciklama: string; miktar: number; birimFiyat: number; birim?: string; opsiyonel?: boolean };
+      const k = kalemler[i] as { aciklama: string; miktar: number; birimFiyat: number; birim?: string; kdvOrani?: number; opsiyonel?: boolean };
       await db.insert(teklifKalemleri).values({
         teklifId: teklif.id,
         sira: i,
@@ -124,6 +124,7 @@ router.post("/teklifler", requireYazma, async (req, res) => {
         miktar: String(k.miktar),
         birimFiyat: String(k.birimFiyat),
         birim: k.birim ?? "Adet",
+        kdvOrani: String(k.kdvOrani ?? 0),
         opsiyonel: k.opsiyonel ?? false,
       });
     }
@@ -162,7 +163,7 @@ router.get("/teklifler/:id", async (req, res) => {
       kalemler: kalemler.map(k => ({
         id: k.id, teklifId: k.teklifId, sira: k.sira, aciklama: k.aciklama,
         miktar: Number(k.miktar), birimFiyat: Number(k.birimFiyat),
-        birim: k.birim, opsiyonel: k.opsiyonel,
+        birim: k.birim, kdvOrani: Number(k.kdvOrani ?? 0), opsiyonel: k.opsiyonel,
         toplam: Number(k.miktar) * Number(k.birimFiyat),
       })),
     });
@@ -205,11 +206,11 @@ router.patch("/teklifler/:id", requireYazma, async (req, res) => {
     if (kalemler && Array.isArray(kalemler)) {
       await db.delete(teklifKalemleri).where(eq(teklifKalemleri.teklifId, id));
       for (let i = 0; i < kalemler.length; i++) {
-        const k = kalemler[i] as { aciklama: string; miktar: number; birimFiyat: number; birim?: string; opsiyonel?: boolean };
+        const k = kalemler[i] as { aciklama: string; miktar: number; birimFiyat: number; birim?: string; kdvOrani?: number; opsiyonel?: boolean };
         await db.insert(teklifKalemleri).values({
           teklifId: id, sira: i, aciklama: k.aciklama,
           miktar: String(k.miktar), birimFiyat: String(k.birimFiyat),
-          birim: k.birim ?? "Adet", opsiyonel: k.opsiyonel ?? false,
+          birim: k.birim ?? "Adet", kdvOrani: String(k.kdvOrani ?? 0), opsiyonel: k.opsiyonel ?? false,
         });
       }
     }
@@ -484,11 +485,15 @@ router.post("/teklifler/:id/faturaya-donustur", requireYazma, async (req, res) =
     vade.setDate(vade.getDate() + 30);
     const vadeTarihi = vade.toISOString().split("T")[0];
 
-    let toplamTutar = 0;
+    let netToplam = 0;
+    let kdvToplam = 0;
     const faturaKalemRows = kalemler.map(k => {
       const ara = Number(k.miktar) * Number(k.birimFiyat);
-      toplamTutar += ara;
-      return { aciklama: k.aciklama, birim: (k as unknown as Record<string, string>).birim ?? "Pcs", miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: "0", araToplam: String(ara), kdvTutari: "0", genelToplam: String(ara) };
+      const kdvOrani = Number((k as unknown as Record<string, string>).kdvOrani ?? 0);
+      const kdv = ara * (kdvOrani / 100);
+      netToplam += ara;
+      kdvToplam += kdv;
+      return { aciklama: k.aciklama, birim: (k as unknown as Record<string, string>).birim ?? "Pcs", miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: String(kdvOrani), araToplam: String(ara), kdvTutari: String(kdv), genelToplam: String(ara + kdv) };
     });
 
     const [fatura] = await db.insert(faturalar).values({
@@ -502,9 +507,9 @@ router.post("/teklifler/:id/faturaya-donustur", requireYazma, async (req, res) =
       vadeTarihi,
       paraBirimi: teklif.paraBirimi,
       durum: "taslak",
-      toplamTutar: String(toplamTutar),
-      kdvTutari: "0",
-      genelToplam: String(toplamTutar),
+      toplamTutar: String(netToplam),
+      kdvTutari: String(kdvToplam),
+      genelToplam: String(netToplam + kdvToplam),
       notlar: teklif.notlar ?? null,
       aciklama: teklif.kosullar ?? null,
     }).returning();

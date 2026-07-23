@@ -278,6 +278,7 @@ export const teklifKalemleri = pgTable("teklif_kalemleri", {
   miktar: numeric("miktar", { precision: 15, scale: 4 }).notNull(),
   birimFiyat: numeric("birim_fiyat", { precision: 15, scale: 4 }).notNull(),
   birim: text("birim").notNull().default("Adet"),
+  kdvOrani: numeric("kdv_orani", { precision: 5, scale: 2 }).notNull().default("0"),
   opsiyonel: boolean("opsiyonel").notNull().default(false),
 });
 

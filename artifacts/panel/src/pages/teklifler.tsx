@@ -99,6 +99,7 @@ interface TeklifKalem {
   miktar: number;
   birimFiyat: number;
   birim: string;
+  kdvOrani: number;
   opsiyonel: boolean;
 }
 
@@ -130,7 +131,7 @@ const DURUM_RENK: Record<string, string> = {
 const PARA_BIRIMLERI = ["USD", "EUR", "GBP", "TRY"];
 
 function bosTeklifKalem(): TeklifKalem {
-  return { aciklama: "", miktar: 1, birimFiyat: 0, birim: "Adet", opsiyonel: false };
+  return { aciklama: "", miktar: 1, birimFiyat: 0, birim: "Adet", kdvOrani: 0, opsiyonel: false };
 }
 
 async function apiFetch(path: string, opts?: RequestInit) {
@@ -291,7 +292,7 @@ export default function Teklifler() {
         tanim: form.tanim || null,
         notlar: form.notlar || null,
         kosullar: form.kosullar || null,
-        kalemler: form.kalemler.filter(k => k.aciklama),
+        kalemler: form.kalemler.filter(k => k.aciklama).map(k => ({ ...k, kdvOrani: k.kdvOrani ?? 0 })),
       };
       if (duzenleId) {
         return apiFetch(`/teklifler/${duzenleId}`, { method: "PATCH", body: JSON.stringify(body) });
@@ -420,13 +421,14 @@ export default function Teklifler() {
     });
   }, []);
 
-  const sablonUygulaTeklif = useCallback((i: number, s: { birim: string; birimFiyat: number | null }) => {
+  const sablonUygulaTeklif = useCallback((i: number, s: { birim: string; birimFiyat: number | null; kdvOrani: number | null }) => {
     setForm(f => {
       const k = [...f.kalemler];
       k[i] = {
         ...k[i],
         birim: s.birim,
         ...(s.birimFiyat != null ? { birimFiyat: s.birimFiyat } : {}),
+        ...(s.kdvOrani != null ? { kdvOrani: s.kdvOrani } : {}),
       };
       return { ...f, kalemler: k };
     });
@@ -768,11 +770,12 @@ export default function Teklifler() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead className="w-[40%]">Açıklama</TableHead>
-                      <TableHead className="w-[14%]">Birim</TableHead>
-                      <TableHead className="w-[13%]">Miktar</TableHead>
-                      <TableHead className="w-[16%]">Birim Fiyat</TableHead>
-                      <TableHead className="w-[14%] text-right">Toplam</TableHead>
+                      <TableHead className="w-[34%]">Açıklama</TableHead>
+                      <TableHead className="w-[12%]">Birim</TableHead>
+                      <TableHead className="w-[10%]">Miktar</TableHead>
+                      <TableHead className="w-[13%]">Birim Fiyat</TableHead>
+                      <TableHead className="w-[9%]">KDV %</TableHead>
+                      <TableHead className="w-[13%] text-right">Toplam</TableHead>
                       <TableHead className="w-[3%]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -783,6 +786,7 @@ export default function Teklifler() {
                         <TableCell><Input value={k.birim} onChange={e => kalemGuncelle(i, "birim", e.target.value)} placeholder="Adet" /></TableCell>
                         <TableCell><Input type="number" min={0} step="any" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", Number(e.target.value))} onFocus={e => e.target.select()} /></TableCell>
                         <TableCell><Input type="number" min={0} step="any" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", Number(e.target.value))} onFocus={e => e.target.select()} /></TableCell>
+                        <TableCell><Input type="number" min={0} max={100} step="any" value={k.kdvOrani} onChange={e => kalemGuncelle(i, "kdvOrani", Number(e.target.value))} onFocus={e => e.target.select()} /></TableCell>
                         <TableCell className="text-right text-sm font-medium">{(k.miktar * k.birimFiyat).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell>
                           {form.kalemler.filter(x => !x.opsiyonel).length > 1 && (
@@ -817,11 +821,12 @@ export default function Teklifler() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/30">
-                          <TableHead className="w-[40%]">Açıklama</TableHead>
-                          <TableHead className="w-[14%]">Birim</TableHead>
-                          <TableHead className="w-[13%]">Miktar</TableHead>
-                          <TableHead className="w-[16%]">Birim Fiyat</TableHead>
-                          <TableHead className="w-[14%] text-right">Toplam</TableHead>
+                          <TableHead className="w-[34%]">Açıklama</TableHead>
+                          <TableHead className="w-[12%]">Birim</TableHead>
+                          <TableHead className="w-[10%]">Miktar</TableHead>
+                          <TableHead className="w-[13%]">Birim Fiyat</TableHead>
+                          <TableHead className="w-[9%]">KDV %</TableHead>
+                          <TableHead className="w-[13%] text-right">Toplam</TableHead>
                           <TableHead className="w-[3%]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -832,6 +837,7 @@ export default function Teklifler() {
                             <TableCell><Input value={k.birim} onChange={e => kalemGuncelle(i, "birim", e.target.value)} placeholder="Adet" /></TableCell>
                             <TableCell><Input type="number" min={0} step="any" value={k.miktar} onChange={e => kalemGuncelle(i, "miktar", Number(e.target.value))} onFocus={e => e.target.select()} /></TableCell>
                             <TableCell><Input type="number" min={0} step="any" value={k.birimFiyat} onChange={e => kalemGuncelle(i, "birimFiyat", Number(e.target.value))} onFocus={e => e.target.select()} /></TableCell>
+                            <TableCell><Input type="number" min={0} max={100} step="any" value={k.kdvOrani} onChange={e => kalemGuncelle(i, "kdvOrani", Number(e.target.value))} onFocus={e => e.target.select()} /></TableCell>
                             <TableCell className="text-right text-sm font-medium text-muted-foreground">{(k.miktar * k.birimFiyat).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}</TableCell>
                             <TableCell>
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => kalemSil(i)}>
