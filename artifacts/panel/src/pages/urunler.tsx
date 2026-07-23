@@ -18,6 +18,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Package } from "lucide-react";
 
@@ -47,6 +48,7 @@ interface Urun {
   birim: string;
   birimFiyat: number | null;
   kdvOrani: number | null;
+  paraBirimi: string;
   aktif: boolean;
 }
 
@@ -55,6 +57,8 @@ interface UrunForm {
   birim: string;
   birimFiyatStr: string;
   kdvOraniStr: string;
+  paraBirimi: string;
+  aktif: boolean;
 }
 
 const BIRIMLER: { tr: string; en: string }[] = [
@@ -72,7 +76,11 @@ const BIRIMLER: { tr: string; en: string }[] = [
 ];
 const BIRIM_EN_SET = new Set(BIRIMLER.map(b => b.en));
 
-const BOSH_FORM: UrunForm = { ad: "", birim: "Pcs", birimFiyatStr: "", kdvOraniStr: "" };
+const PARA_BIRIMLERI = ["USD", "EUR", "GBP", "TRY", "NOK", "SEK", "DKK"];
+
+const BOSH_FORM: UrunForm = {
+  ad: "", birim: "Pcs", birimFiyatStr: "", kdvOraniStr: "", paraBirimi: "USD", aktif: true,
+};
 
 function fmtPara(n: number | null) {
   if (n == null) return "—";
@@ -81,7 +89,8 @@ function fmtPara(n: number | null) {
 
 export default function Urunler() {
   const { aktifSirketId } = useSirket();
-  const { canWrite } = useYetki();
+  const { rol } = useYetki();
+  const isAdmin = rol === "yonetici";
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -91,30 +100,42 @@ export default function Urunler() {
   const [silinecek, setSilinecek] = useState<Urun | null>(null);
   const [ozelBirim, setOzelBirim] = useState(false);
 
-  const QK = ["kalem-sablonlari", aktifSirketId];
+  const QK = ["kalem-sablonlari", aktifSirketId, "all"];
 
   const { data: urunler = [], isLoading } = useQuery<Urun[]>({
     queryKey: QK,
-    queryFn: () => apiFetch(`/kalem-sablonlari?catiFirmaId=${aktifSirketId}`),
+    queryFn: () => apiFetch(`/kalem-sablonlari?catiFirmaId=${aktifSirketId}&includeInactive=true`),
     enabled: aktifSirketId != null,
   });
 
   const createMutation = useMutation({
     mutationFn: (body: object) => apiFetch("/kalem-sablonlari", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: QK }); kapatModal(); toast({ title: "Ürün oluşturuldu" }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kalem-sablonlari"] });
+      kapatModal();
+      toast({ title: "Ürün oluşturuldu" });
+    },
     onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: number; body: object }) =>
       apiFetch(`/kalem-sablonlari/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: QK }); kapatModal(); toast({ title: "Ürün güncellendi" }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kalem-sablonlari"] });
+      kapatModal();
+      toast({ title: "Ürün güncellendi" });
+    },
     onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiFetch(`/kalem-sablonlari/${id}`, { method: "DELETE" }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: QK }); setSilinecek(null); toast({ title: "Ürün silindi" }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kalem-sablonlari"] });
+      setSilinecek(null);
+      toast({ title: "Ürün silindi" });
+    },
     onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
@@ -128,6 +149,8 @@ export default function Urunler() {
         birim: urun.birim,
         birimFiyatStr: urun.birimFiyat != null ? String(urun.birimFiyat) : "",
         kdvOraniStr: urun.kdvOrani != null ? String(urun.kdvOrani) : "",
+        paraBirimi: urun.paraBirimi ?? "USD",
+        aktif: urun.aktif,
       });
     } else {
       setDuzenlenen(null);
@@ -151,7 +174,15 @@ export default function Urunler() {
     }
     const birimFiyat = form.birimFiyatStr.trim() !== "" ? Number(form.birimFiyatStr) : null;
     const kdvOrani = form.kdvOraniStr.trim() !== "" ? Number(form.kdvOraniStr) : null;
-    const body = { catiFirmaId: aktifSirketId, ad: form.ad.trim(), birim: form.birim || "Pcs", birimFiyat, kdvOrani };
+    const body = {
+      catiFirmaId: aktifSirketId,
+      ad: form.ad.trim(),
+      birim: form.birim || "Pcs",
+      birimFiyat,
+      kdvOrani,
+      paraBirimi: form.paraBirimi,
+      aktif: form.aktif,
+    };
     if (duzenlenen) {
       updateMutation.mutate({ id: duzenlenen.id, body });
     } else {
@@ -170,7 +201,7 @@ export default function Urunler() {
             Fatura kalemlerinde kullanılabilecek ürün ve hizmet şablonları
           </p>
         </div>
-        {canWrite && (
+        {isAdmin && (
           <Button onClick={() => acModal()} className="gap-2 shrink-0">
             <Plus className="h-4 w-4" /> Yeni Ürün
           </Button>
@@ -193,7 +224,7 @@ export default function Urunler() {
             <div className="flex flex-col items-center justify-center py-16 text-center px-4">
               <Package className="h-10 w-10 text-muted-foreground/30 mb-3" />
               <p className="text-sm font-medium text-muted-foreground">Henüz ürün tanımlı değil</p>
-              {canWrite && (
+              {isAdmin && (
                 <p className="text-xs text-muted-foreground mt-1">
                   "Yeni Ürün" butonuyla fatura kalemlerinde kullanılabilecek şablonlar ekleyin.
                 </p>
@@ -208,7 +239,9 @@ export default function Urunler() {
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Birim</th>
                     <th className="px-4 py-3 text-right font-medium text-muted-foreground">Birim Fiyat</th>
                     <th className="px-4 py-3 text-right font-medium text-muted-foreground">KDV %</th>
-                    {canWrite && <th className="px-4 py-3 w-20" />}
+                    <th className="px-4 py-3 text-center font-medium text-muted-foreground">Para Birimi</th>
+                    <th className="px-4 py-3 text-center font-medium text-muted-foreground">Durum</th>
+                    {isAdmin && <th className="px-4 py-3 w-20" />}
                   </tr>
                 </thead>
                 <tbody>
@@ -225,16 +258,24 @@ export default function Urunler() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">
-                          {u.birimFiyat != null ? fmtPara(u.birimFiyat) : <span className="text-muted-foreground">—</span>}
+                          {u.birimFiyat != null
+                            ? fmtPara(u.birimFiyat)
+                            : <span className="text-muted-foreground">—</span>}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {u.kdvOrani != null ? (
-                            <Badge variant="outline" className="font-normal">%{u.kdvOrani}</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                          {u.kdvOrani != null
+                            ? <Badge variant="outline" className="font-normal">%{u.kdvOrani}</Badge>
+                            : <span className="text-muted-foreground">—</span>}
                         </td>
-                        {canWrite && (
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-xs font-mono text-muted-foreground">{u.paraBirimi}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {u.aktif
+                            ? <Badge className="bg-green-500/10 text-green-700 border-green-200 font-normal">Aktif</Badge>
+                            : <Badge variant="outline" className="text-muted-foreground font-normal">Pasif</Badge>}
+                        </td>
+                        {isAdmin && (
                           <td className="px-4 py-3">
                             <span className="flex items-center justify-end gap-1">
                               <button
@@ -264,6 +305,7 @@ export default function Urunler() {
         </CardContent>
       </Card>
 
+      {/* Ekle / Düzenle Modal */}
       <Dialog open={modalAcik} onOpenChange={o => { if (!o) kapatModal(); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -339,6 +381,27 @@ export default function Urunler() {
                 />
               </div>
             </div>
+            <div className="space-y-1.5">
+              <Label>Para Birimi</Label>
+              <Select value={form.paraBirimi} onValueChange={v => setForm(f => ({ ...f, paraBirimi: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PARA_BIRIMLERI.map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {duzenlenen && (
+              <div className="flex items-center justify-between rounded-md border px-3 py-2.5">
+                <div>
+                  <p className="text-sm font-medium">Aktif</p>
+                  <p className="text-xs text-muted-foreground">Pasif ürünler fatura formunda görünmez</p>
+                </div>
+                <Switch
+                  checked={form.aktif}
+                  onCheckedChange={v => setForm(f => ({ ...f, aktif: v }))}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={kapatModal}>İptal</Button>
@@ -349,6 +412,7 @@ export default function Urunler() {
         </DialogContent>
       </Dialog>
 
+      {/* Sil Onayı */}
       <AlertDialog open={silinecek != null} onOpenChange={o => { if (!o) setSilinecek(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -16,9 +16,10 @@ function fmt(r: typeof kalemSablonlari.$inferSelect) {
 
 router.get("/kalem-sablonlari", async (req, res) => {
   try {
-    const { catiFirmaId } = req.query as Record<string, string>;
+    const { catiFirmaId, includeInactive } = req.query as Record<string, string>;
+    const showAll = includeInactive === "true";
     const rows = await db.select().from(kalemSablonlari)
-      .where(eq(kalemSablonlari.aktif, true))
+      .where(showAll ? undefined : eq(kalemSablonlari.aktif, true))
       .orderBy(kalemSablonlari.ad);
     const { rows: scoped, yetkisiz } = sirketlerFiltrele(rows, req, catiFirmaId);
     if (yetkisiz) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
@@ -30,7 +31,7 @@ router.get("/kalem-sablonlari", async (req, res) => {
 
 router.post("/kalem-sablonlari", requireYazma, async (req, res) => {
   try {
-    const { catiFirmaId, ad, birim, birimFiyat, kdvOrani } = req.body;
+    const { catiFirmaId, ad, birim, birimFiyat, kdvOrani, paraBirimi } = req.body;
     if (!catiFirmaId || !ad) { res.status(400).json({ error: "Zorunlu alanlar eksik" }); return; }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     const [firma] = await db.select({ id: firmalar.id }).from(firmalar).where(eq(firmalar.id, Number(catiFirmaId)));
@@ -41,6 +42,7 @@ router.post("/kalem-sablonlari", requireYazma, async (req, res) => {
       birim: birim ?? "Pcs",
       birimFiyat: birimFiyat != null ? String(birimFiyat) : null,
       kdvOrani: kdvOrani != null ? String(kdvOrani) : null,
+      paraBirimi: paraBirimi ?? "USD",
       aktif: true,
     }).returning();
     res.status(201).json(fmt(row));
@@ -56,12 +58,13 @@ router.patch("/kalem-sablonlari/:id", requireYazma, async (req, res) => {
     if (!existing) { res.status(404).json({ error: "Kalem şablonu bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
-    const { ad, birim, birimFiyat, kdvOrani, aktif } = req.body;
+    const { ad, birim, birimFiyat, kdvOrani, paraBirimi, aktif } = req.body;
     const [row] = await db.update(kalemSablonlari).set({
       ...(ad != null && { ad }),
       ...(birim != null && { birim }),
       birimFiyat: birimFiyat !== undefined ? (birimFiyat != null ? String(birimFiyat) : null) : existing.birimFiyat,
       kdvOrani: kdvOrani !== undefined ? (kdvOrani != null ? String(kdvOrani) : null) : existing.kdvOrani,
+      ...(paraBirimi != null && { paraBirimi }),
       ...(aktif != null && { aktif }),
     }).where(eq(kalemSablonlari.id, id)).returning();
     res.json(fmt(row));

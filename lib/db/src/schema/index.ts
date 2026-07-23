@@ -233,6 +233,7 @@ export const kalemSablonlari = pgTable("kalem_sablonlari", {
   birim: text("birim").notNull().default("Pcs"),
   birimFiyat: numeric("birim_fiyat", { precision: 15, scale: 4 }),
   kdvOrani: numeric("kdv_orani", { precision: 5, scale: 2 }),
+  paraBirimi: text("para_birimi").notNull().default("USD"),
   aktif: boolean("aktif").notNull().default(true),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
