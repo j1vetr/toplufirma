@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useCreateOdeme, useUpdateOdeme, useListBankaHesaplari, getListBankaHesaplariQueryKey,
@@ -78,6 +78,7 @@ export default function CariDetay() {
   const [, params] = useRoute("/cariler/:id");
   const id = Number(params?.id);
   const qc = useQueryClient();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const { canWrite } = useYetki();
 
@@ -647,16 +648,14 @@ export default function CariDetay() {
                     k.bakiye > 0.01 ? "text-orange-600" : k.bakiye < -0.01 ? "text-red-600" : "text-green-600";
                   const isTahsilatOdeme = k.tip !== "fatura";
                   return (
-                    <tr key={k.id} className={`border-b last:border-0 ${i % 2 === 1 ? "bg-muted/20" : ""}`}>
+                    <tr
+                      key={k.id}
+                      className={`border-b last:border-0 ${i % 2 === 1 ? "bg-muted/20" : ""} ${k.faturaId ? "cursor-pointer hover:bg-primary/5" : ""}`}
+                      onClick={() => k.faturaId && navigate(`/faturalar/${k.faturaId}`)}
+                    >
                       <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap text-xs">{k.tarih}</td>
                       <td className="px-4 py-2.5 max-w-xs">
-                        {k.faturaId ? (
-                          <Link href={`/faturalar/${k.faturaId}`} className="hover:underline font-medium block leading-tight">
-                            {k.aciklama}
-                          </Link>
-                        ) : (
-                          <span className="font-medium block leading-tight">{k.aciklama}</span>
-                        )}
+                        <span className="font-medium block leading-tight">{k.aciklama}</span>
                         {k.tip === "fatura" && k.durum && FATURA_DURUM_ETIKET[k.durum] && (
                           <span className={`text-xs px-1.5 py-0.5 font-medium mt-1 inline-block ${FATURA_DURUM_BADGE[k.durum] ?? "bg-gray-100 text-gray-600"}`}>
                             {FATURA_DURUM_ETIKET[k.durum]}
@@ -682,14 +681,14 @@ export default function CariDetay() {
                           {isTahsilatOdeme && (
                             <span className="flex items-center justify-center gap-1">
                               <button
-                                onClick={() => openDuzenleModal(k)}
+                                onClick={(e) => { e.stopPropagation(); openDuzenleModal(k); }}
                                 className="text-muted-foreground hover:text-primary transition-colors"
                                 title="Düzenle"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <button
-                                onClick={() => setSilmeOnay(k.id)}
+                                onClick={(e) => { e.stopPropagation(); setSilmeOnay(k.id); }}
                                 className="text-muted-foreground hover:text-destructive transition-colors"
                                 title="Sil"
                               >

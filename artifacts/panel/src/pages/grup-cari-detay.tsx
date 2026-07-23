@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useCreateOdeme, useDeleteOdeme, useUpdateOdeme, useListBankaHesaplari, getListBankaHesaplariQueryKey,
@@ -87,6 +87,7 @@ export default function GrupCariDetay() {
   const [, params] = useRoute("/cariler/grup/:id");
   const id = Number(params?.id);
   const qc = useQueryClient();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const { canWrite } = useYetki();
 
@@ -536,7 +537,11 @@ export default function GrupCariDetay() {
                   const bakiyeRenk = kBakiye > 0.005 ? "text-orange-600" : kBakiye < -0.005 ? "text-red-600" : "text-green-600";
                   const isOdeme = kalem.tip !== "fatura";
                   return (
-                    <tr key={kalem.id} className="border-b hover:bg-muted/30 transition-colors group">
+                    <tr
+                      key={kalem.id}
+                      className={`border-b transition-colors group ${kalem.faturaId ? "cursor-pointer hover:bg-primary/5" : "hover:bg-muted/30"}`}
+                      onClick={() => kalem.faturaId && navigate(`/faturalar/${kalem.faturaId}`)}
+                    >
                       <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
                         {kalem.tarih ? new Date(kalem.tarih + "T00:00:00").toLocaleDateString("tr-TR") : ""}
                       </td>
@@ -556,13 +561,7 @@ export default function GrupCariDetay() {
                         )}
                       </td>
                       <td className="py-2.5 px-3 max-w-xs">
-                        {kalem.faturaId ? (
-                          <Link href={`/faturalar/${kalem.faturaId}`} className="hover:text-primary">
-                            {kalem.aciklama}
-                          </Link>
-                        ) : (
-                          <span>{kalem.aciklama}</span>
-                        )}
+                        <span>{kalem.aciklama}</span>
                       </td>
                       <td className="py-2.5 px-3 text-right tabular-nums">
                         {kalem.borc > 0.005 ? fmt(kalem.borc) : ""}
@@ -578,14 +577,14 @@ export default function GrupCariDetay() {
                           {isOdeme && (
                             <span className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
-                                onClick={() => openDuzenleModal(kalem)}
+                                onClick={(e) => { e.stopPropagation(); openDuzenleModal(kalem); }}
                                 className="p-1 text-muted-foreground hover:text-primary"
                                 title="Düzenle"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <button
-                                onClick={() => handleSil(kalem)}
+                                onClick={(e) => { e.stopPropagation(); handleSil(kalem); }}
                                 className="p-1 text-muted-foreground hover:text-destructive"
                                 title="Sil"
                               >

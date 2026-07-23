@@ -150,7 +150,7 @@ export default function Faturalar() {
   const bugun = new Date().toISOString().split("T")[0];
   const taslakSayisi = faturalar.filter(f => f.durum === "taslak").length;
   const filtrelenmis = faturalar.filter(f => {
-    const aramaUyum = !arama || f.faturaNo?.toLowerCase().includes(arama.toLowerCase()) || f.bagliFirmaAd?.toLowerCase().includes(arama.toLowerCase());
+    const aramaUyum = !arama || f.faturaNo?.toLowerCase().includes(arama.toLowerCase()) || f.bagliFirmaAd?.toLowerCase().includes(arama.toLowerCase()) || f.gemiAd?.toLowerCase().includes(arama.toLowerCase());
     const durumUyum = durumFiltre === "tumu" || f.durum === durumFiltre;
     const pbUyum = pbFiltre === "tumu" || f.paraBirimi === pbFiltre;
     const baslangicUyum = !baslangicTarihi || f.faturaTarihi >= baslangicTarihi;
@@ -376,7 +376,7 @@ export default function Faturalar() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Fatura no veya firma ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-fatura-ara" />
+            <Input className="pl-9" placeholder="Fatura no, firma veya gemi ara..." value={arama} onChange={e => setArama(e.target.value)} data-testid="input-fatura-ara" />
           </div>
           <Select value={durumFiltre} onValueChange={setDurumFiltre}>
             <SelectTrigger className="w-44" data-testid="select-fatura-durum"><SelectValue /></SelectTrigger>
