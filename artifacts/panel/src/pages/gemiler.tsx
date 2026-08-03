@@ -156,7 +156,7 @@ export default function Gemiler() {
               <Label>Bağlı Firma *</Label>
               <Select value={form.firmaId} onValueChange={v => setForm(f => ({...f, firmaId: v}))}>
                 <SelectTrigger data-testid="select-gemi-cari"><SelectValue placeholder="Firma seçin" /></SelectTrigger>
-                <SelectContent>{bagliFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
+                <SelectContent className="max-h-60 overflow-y-auto">{bagliFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="col-span-2 space-y-1.5">
