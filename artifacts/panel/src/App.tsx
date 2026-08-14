@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
 import { SirketProvider } from "@/contexts/sirket-context";
 import { rotaModulu, modulIzinliMi, ilkIzinliRota, type ModulKey } from "@/lib/moduller";
+import { kurOturumInterceptor, setOturumIsleyicileri } from "@/lib/oturum";
 import Login from "@/pages/login";
 
 const Dashboard          = lazy(() => import("@/pages/dashboard"));
@@ -42,6 +43,25 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * /auth/me çağrısıyla kullanıcı bilgisini (modül izinleri dahil) tazeler.
+ * Başarılıysa güncel kullanıcıyı, oturum geçersizse (401) null döndürür.
+ * Diğer hatalarda (ağ, 5xx) mevcut bilgiye dokunmamak için undefined döndürür.
+ */
+async function kullaniciyiYenile(): Promise<KullaniciInfo | null | undefined> {
+  const token = localStorage.getItem("panel_token");
+  if (!token) return null;
+  try {
+    const resp = await fetch("/api/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (resp.status === 401) return null;
+    if (!resp.ok) return undefined;
+    return (await resp.json()) as KullaniciInfo;
+  } catch {
+    return undefined;
+  }
+}
 export interface KullaniciInfo {
   id: number;
   ad: string;
@@ -267,6 +287,70 @@ function App() {
       return null;
     }
   });
+
+  // Panel açılışında ve API'den dönen 401/403 yanıtlarında /auth/me ile
+  // kullanıcı bilgisini tazele — izin değişiklikleri yeniden giriş
+  // gerektirmesin, geçersiz oturumda otomatik çıkış yapılsın.
+  useEffect(() => {
+    if (!kullanici) return;
+
+    let iptal = false;
+    let sonYenileme = 0;
+
+    function cikisYap() {
+      localStorage.removeItem("panel_token");
+      localStorage.removeItem("panel_kullanici");
+      setKullanici(null);
+      queryClient.clear();
+    }
+
+    async function yenile() {
+      const simdi = Date.now();
+      if (simdi - sonYenileme < 5000) return; // hata fırtınasında tek çağrı
+      sonYenileme = simdi;
+      const guncel = await kullaniciyiYenile();
+      if (iptal || guncel === undefined) return;
+      if (guncel === null) {
+        cikisYap();
+        return;
+      }
+      localStorage.setItem("panel_kullanici", JSON.stringify(guncel));
+      setKullanici((mevcut) =>
+        JSON.stringify(mevcut) === JSON.stringify(guncel) ? mevcut : guncel,
+      );
+    }
+
+    yenile();
+
+    // Tüm API çağrılarını (sorgu, mutasyon, doğrudan fetch) kapsayan
+    // merkezi yakalayıcı: 401 → çıkış, 403 → izinleri tazele.
+    kurOturumInterceptor();
+    setOturumIsleyicileri({
+      on401: () => {
+        if (!iptal) cikisYap();
+      },
+      on403: () => {
+        void yenile();
+      },
+    });
+
+    // İzin *eklenmesi* hiçbir 403 üretmez — açık oturumlarda değişikliğin
+    // kendiliğinden yansıması için periyodik ve odaklanınca tazeleme.
+    const aralik = window.setInterval(() => {
+      if (document.visibilityState === "visible") void yenile();
+    }, 30_000);
+    const odaklaninca = () => void yenile();
+    window.addEventListener("focus", odaklaninca);
+    document.addEventListener("visibilitychange", odaklaninca);
+
+    return () => {
+      iptal = true;
+      setOturumIsleyicileri(null);
+      window.clearInterval(aralik);
+      window.removeEventListener("focus", odaklaninca);
+      document.removeEventListener("visibilitychange", odaklaninca);
+    };
+  }, [kullanici?.id]);
 
   function handleLogin(token: string, k: object) {
     localStorage.setItem("panel_token", token);

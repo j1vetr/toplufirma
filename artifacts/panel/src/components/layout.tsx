@@ -205,9 +205,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
 
   const baseNav = isYonetici
     ? navigation
-    : kullanici?.modulIzinleri == null
-      ? navigation.filter(item => item.href !== "/firmalar") // kısıt tanımlanmamış: mevcut davranış
-      : navigation.filter(item => modulIzinliMi(kullanici, item.modul));
+    : navigation.filter(item => modulIzinliMi(kullanici, item.modul));
 
   const allNav = isYonetici
     ? [...baseNav, { name: "Kullanıcılar", href: "/kullanicilar", icon: UserCog, modul: "ayarlar" as ModulKey }, { name: "Ayarlar", href: "/ayarlar", icon: ShieldCheck, modul: "ayarlar" as ModulKey }]
