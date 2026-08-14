@@ -153,8 +153,14 @@ export const faturalar = pgTable("faturalar", {
   genelToplam: numeric("genel_toplam", { precision: 15, scale: 2 }).notNull().default("0"),
   notlar: text("notlar"),
   aciklama: text("aciklama"),
+  // Tekrarlayan tanımdan üretildiyse: kaynak tanım ve dönem (YYYY-MM).
+  // Unique index aynı tanım + dönem için ikinci faturayı engeller.
+  tekrarlayanFaturaId: integer("tekrarlayan_fatura_id").references((): AnyPgColumn => tekrarlayanFaturalar.id, { onDelete: "set null" }),
+  tekrarDonemi: text("tekrar_donemi"),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
-});
+}, (t) => [
+  uniqueIndex("faturalar_tekrar_donem_unq").on(t.tekrarlayanFaturaId, t.tekrarDonemi),
+]);
 
 // ── Fatura Kalemleri ──────────────────────────────────────────────────────
 export const faturaKalemleri = pgTable("fatura_kalemleri", {

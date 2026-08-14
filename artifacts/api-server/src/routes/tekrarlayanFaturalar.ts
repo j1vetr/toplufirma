@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { tekrarlayanFaturalar, tekrarlayanFaturaKalemleri, firmalar, gemiler } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele } from "../middleware/auth";
-import { tekrarlayandanFaturaUret } from "../lib/otomatikFaturaUret";
+import { tekrarlayandanFaturaUret, TekrarUretimHatasi, donemHesapla } from "../lib/otomatikFaturaUret";
 
 const router = Router();
 
@@ -131,8 +131,9 @@ router.post("/tekrarlayan-faturalar/:id/uret", requireYazma, async (req, res) =>
     const [tr] = await db.select().from(tekrarlayanFaturalar).where(eq(tekrarlayanFaturalar.id, id));
     if (!tr) { res.status(404).json({ error: "Tekrarlayan fatura bulunamadı" }); return; }
     if (!sirketErisimKontrol(tr.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
+    if (!tr.aktif) { res.status(400).json({ error: "Pasif tanımdan fatura üretilemez. Önce tanımı aktifleştirin." }); return; }
 
-    const fatura = await tekrarlayandanFaturaUret(tr);
+    const fatura = await tekrarlayandanFaturaUret(tr.id, donemHesapla(tr.sonrakiTarih));
 
     res.status(201).json({
       id: fatura.id, catiFirmaId: fatura.catiFirmaId, catiFirmaAd: null,
@@ -148,7 +149,12 @@ router.post("/tekrarlayan-faturalar/:id/uret", requireYazma, async (req, res) =>
       notlar: fatura.notlar, aciklama: fatura.aciklama,
       olusturmaTarihi: fatura.olusturmaTarihi,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof TekrarUretimHatasi) {
+      const status = err.kod === "bulunamadi" ? 404 : err.kod === "pasif" ? 400 : 409;
+      res.status(status).json({ error: err.message });
+      return;
+    }
     res.status(500).json({ error: "Fatura üretilemedi" });
   }
 });

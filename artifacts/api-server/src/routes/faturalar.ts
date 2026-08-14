@@ -5,6 +5,7 @@ import { eq, sql, and } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import nodemailer from "nodemailer";
 import { emailSablonuOlustur } from "../lib/emailSablonu";
+import { faturaNoTahsisEt } from "../lib/faturaNo";
 import ExcelJS from "exceljs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -96,27 +97,16 @@ router.post("/faturalar", requireYazma, async (req, res) => {
     const GECERLI_DURUM = ["acik", "odendi", "kismi_odendi", "taslak", "iptal"] as const;
     const faturaOlusturmaDurumu = GECERLI_DURUM.includes(durumOverride) ? durumOverride : "acik";
 
-    let faturaNo = "";
-    if (manuelFaturaNo?.trim()) {
-      faturaNo = manuelFaturaNo.trim();
-    } else if (faturaSerisiId) {
+    const manuelNo: string = manuelFaturaNo?.trim() ?? "";
+    if (!manuelNo && faturaSerisiId) {
       const [seri] = await db.select().from(faturaSerileri).where(eq(faturaSerileri.id, faturaSerisiId));
       if (!seri || seri.catiFirmaId !== Number(catiFirmaId)) {
         req.log.warn({ faturaSerisiId, seriCatiFirmaId: seri?.catiFirmaId, catiFirmaId }, "[fatura-yeni] seri eşleşmedi");
         res.status(400).json({ error: "Belirtilen fatura serisi bu firmaya ait değil" }); return;
       }
-      faturaNo = `${seri.onek}${String(seri.sonrakiNo).padStart(6, "0")}`;
-      await db.update(faturaSerileri).set({ sonrakiNo: seri.sonrakiNo + 1 }).where(eq(faturaSerileri.id, seri.id));
     }
-    if (!faturaNo) {
-      const [catiFirma] = await db.select().from(firmalar).where(eq(firmalar.id, catiFirmaId));
-      const prefix = catiFirma?.seriOneki ?? "FAT";
-      const [count] = await db.select({ n: sql<number>`count(*)` }).from(faturalar).where(eq(faturalar.catiFirmaId, catiFirmaId));
-      faturaNo = `${prefix}${String((Number(count?.n ?? 0) + 1)).padStart(6, "0")}`;
-    }
-
     let toplamTutar = 0, kdvTutari = 0;
-    const kalemRows = [];
+    const kalemRows: { aciklama: string; birim: string; miktar: string; birimFiyat: string; kdvOrani: string; araToplam: string; kdvTutari: string; genelToplam: string }[] = [];
     for (const k of kalemler as { aciklama: string; miktar: number; birimFiyat: number; kdvOrani: number; birim?: string }[]) {
       const ara = k.miktar * k.birimFiyat;
       const kdv = ara * (k.kdvOrani / 100);
@@ -124,17 +114,26 @@ router.post("/faturalar", requireYazma, async (req, res) => {
       kalemRows.push({ aciklama: k.aciklama, birim: k.birim ?? "Pcs", miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: String(k.kdvOrani), araToplam: String(ara), kdvTutari: String(kdv), genelToplam: String(ara + kdv) });
     }
 
-    const [fatura] = await db.insert(faturalar).values({
-      catiFirmaId, bagliFirmaId, grupFirmaId: grupFirmaId ? Number(grupFirmaId) : null,
-      gemiId: gemiId ?? null, faturaSerisiId: faturaSerisiId ?? null,
-      faturaNo, faturaAdi: faturaAdi ?? null, faturaTarihi, vadeTarihi, paraBirimi: paraBirimi ?? "USD",
-      durum: faturaOlusturmaDurumu, toplamTutar: String(toplamTutar), kdvTutari: String(kdvTutari),
-      genelToplam: String(toplamTutar + kdvTutari), notlar, aciklama,
-    }).returning();
+    // Numara tahsisi ve fatura eklemesi tek transaction'da: seri sayacı atomik
+    // artırılır, count+1 advisory lock altında hesaplanır; tüm fatura yazarları
+    // aynı mekanizmayı kullandığı için çakışan numara üretilmez.
+    const fatura = await db.transaction(async (tx) => {
+      const tahsis = manuelNo
+        ? { faturaNo: manuelNo, faturaSerisiId: faturaSerisiId ?? null }
+        : await faturaNoTahsisEt(tx, Number(catiFirmaId), faturaSerisiId ?? null);
+      const [f] = await tx.insert(faturalar).values({
+        catiFirmaId, bagliFirmaId, grupFirmaId: grupFirmaId ? Number(grupFirmaId) : null,
+        gemiId: gemiId ?? null, faturaSerisiId: tahsis.faturaSerisiId,
+        faturaNo: tahsis.faturaNo, faturaAdi: faturaAdi ?? null, faturaTarihi, vadeTarihi, paraBirimi: paraBirimi ?? "USD",
+        durum: faturaOlusturmaDurumu, toplamTutar: String(toplamTutar), kdvTutari: String(kdvTutari),
+        genelToplam: String(toplamTutar + kdvTutari), notlar, aciklama,
+      }).returning();
 
-    for (const k of kalemRows) {
-      await db.insert(faturaKalemleri).values({ faturaId: fatura.id, ...k });
-    }
+      for (const k of kalemRows) {
+        await tx.insert(faturaKalemleri).values({ faturaId: f.id, ...k });
+      }
+      return f;
+    });
 
     if (tekrarlat) {
       const ilkKalem = (kalemler as { aciklama: string; miktar: number; birimFiyat: number; kdvOrani: number }[])[0];

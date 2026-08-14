@@ -5,6 +5,7 @@ import { eq, and, sql, inArray } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import nodemailer from "nodemailer";
 import { emailSablonuOlustur } from "../lib/emailSablonu";
+import { faturaNoTahsisEt } from "../lib/faturaNo";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { TDocumentDefinitions, TableCell } from "pdfmake/interfaces";
@@ -479,19 +480,6 @@ router.post("/teklifler/:id/faturaya-donustur", requireYazma, async (req, res) =
 
     if (!kalemler.length) { res.status(400).json({ error: "Faturaya dönüştürmek için en az bir zorunlu kalem gereklidir" }); return; }
 
-    let faturaNo = "";
-    const [varsayilanSeri] = await db.select().from(faturaSerileri)
-      .where(and(eq(faturaSerileri.catiFirmaId, teklif.catiFirmaId), eq(faturaSerileri.varsayilan, true)));
-    if (varsayilanSeri) {
-      faturaNo = `${varsayilanSeri.onek}${String(varsayilanSeri.sonrakiNo).padStart(6, "0")}`;
-      await db.update(faturaSerileri).set({ sonrakiNo: varsayilanSeri.sonrakiNo + 1 }).where(eq(faturaSerileri.id, varsayilanSeri.id));
-    } else {
-      const [catiFirma] = await db.select({ seriOneki: firmalar.seriOneki }).from(firmalar).where(eq(firmalar.id, teklif.catiFirmaId));
-      const prefix = catiFirma?.seriOneki ?? "FAT";
-      const [count] = await db.select({ n: sql<number>`count(*)` }).from(faturalar).where(eq(faturalar.catiFirmaId, teklif.catiFirmaId));
-      faturaNo = `${prefix}${String(Number(count?.n ?? 0) + 1).padStart(6, "0")}`;
-    }
-
     const today = new Date().toISOString().split("T")[0];
     const vade = new Date();
     vade.setDate(vade.getDate() + 30);
@@ -508,27 +496,33 @@ router.post("/teklifler/:id/faturaya-donustur", requireYazma, async (req, res) =
       return { aciklama: k.aciklama, birim: (k as unknown as Record<string, string>).birim ?? "Pcs", miktar: String(k.miktar), birimFiyat: String(k.birimFiyat), kdvOrani: String(kdvOrani), araToplam: String(ara), kdvTutari: String(kdv), genelToplam: String(ara + kdv) };
     });
 
-    const [fatura] = await db.insert(faturalar).values({
-      catiFirmaId: teklif.catiFirmaId,
-      bagliFirmaId: Number(bagliFirmaId),
-      gemiId: teklif.gemiId ?? null,
-      faturaSerisiId: varsayilanSeri?.id ?? null,
-      faturaNo,
-      faturaAdi: `Teklif ${teklif.teklifNo}`,
-      faturaTarihi: today,
-      vadeTarihi,
-      paraBirimi: teklif.paraBirimi,
-      durum: "taslak",
-      toplamTutar: String(netToplam),
-      kdvTutari: String(kdvToplam),
-      genelToplam: String(netToplam + kdvToplam),
-      notlar: teklif.notlar ?? null,
-      aciklama: teklif.kosullar ?? null,
-    }).returning();
+    // Numara tahsisi (varsayılan seri varsa sayaç, yoksa count+1) ve fatura
+    // eklemesi tek transaction'da, diğer akışlarla ortak mekanizmayla yapılır.
+    const fatura = await db.transaction(async (tx) => {
+      const tahsis = await faturaNoTahsisEt(tx, teklif.catiFirmaId);
+      const [f] = await tx.insert(faturalar).values({
+        catiFirmaId: teklif.catiFirmaId,
+        bagliFirmaId: Number(bagliFirmaId),
+        gemiId: teklif.gemiId ?? null,
+        faturaSerisiId: tahsis.faturaSerisiId,
+        faturaNo: tahsis.faturaNo,
+        faturaAdi: `Teklif ${teklif.teklifNo}`,
+        faturaTarihi: today,
+        vadeTarihi,
+        paraBirimi: teklif.paraBirimi,
+        durum: "taslak",
+        toplamTutar: String(netToplam),
+        kdvTutari: String(kdvToplam),
+        genelToplam: String(netToplam + kdvToplam),
+        notlar: teklif.notlar ?? null,
+        aciklama: teklif.kosullar ?? null,
+      }).returning();
 
-    for (const k of faturaKalemRows) {
-      await db.insert(faturaKalemleri).values({ faturaId: fatura.id, ...k });
-    }
+      for (const k of faturaKalemRows) {
+        await tx.insert(faturaKalemleri).values({ faturaId: f.id, ...k });
+      }
+      return f;
+    });
 
     res.status(201).json({ faturaId: fatura.id, faturaNo: fatura.faturaNo });
   } catch (err) {

@@ -251,7 +251,10 @@ export default function TekrarlayanFaturalar() {
           qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() });
           toast({ title: "1 taslak fatura üretildi", description: fatura.faturaNo });
         },
-        onError: () => toast({ title: "Fatura üretilemedi", variant: "destructive" }),
+        onError: (e: unknown) => {
+          const mesaj = (e as { data?: { error?: string } })?.data?.error;
+          toast({ title: "Fatura üretilemedi", description: mesaj, variant: "destructive" });
+        },
       }
     );
   }

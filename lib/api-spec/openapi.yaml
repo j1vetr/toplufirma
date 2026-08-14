@@ -1289,6 +1289,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Fatura"
+        "400":
+          description: Pasif tanımdan üretim reddedildi
+        "409":
+          description: Bu dönem için fatura zaten üretilmiş
 
   # ── Toplu Fatura İşlemleri ───────────────────────────────────────────────────
   /faturalar/toplu-durum:
