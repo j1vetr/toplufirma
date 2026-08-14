@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FirmaSecici } from "@/components/firma-secici";
 import {
   Table,
   TableBody,
@@ -147,17 +148,15 @@ export default function GonderiGecmisi() {
             {!aktifSirketId && (
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Firma</Label>
-                <Select value={filtreFirmaId} onValueChange={setFiltreFirmaId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tüm Firmalar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tumu">Tüm Firmalar</SelectItem>
-                    {firmalar.map(f => (
-                      <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FirmaSecici
+                  firmalar={firmalar}
+                  value={filtreFirmaId === "tumu" ? "" : filtreFirmaId}
+                  onChange={id => setFiltreFirmaId(id || "tumu")}
+                  placeholder="Tüm Firmalar"
+                  bosSecim
+                  bosSecimEtiketi="Tüm Firmalar"
+                  testId="select-gonderi-firma"
+                />
               </div>
             )}
 

@@ -22,6 +22,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { FirmaSecici } from "@/components/firma-secici";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, HardDrive, AlertTriangle, Ship } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
@@ -187,10 +188,13 @@ export default function Ekipmanlar() {
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="space-y-1.5">
               <Label>Çatı Firma *</Label>
-              <Select value={form.catiFirmaId} onValueChange={v => setForm(f => ({...f, catiFirmaId: v}))}>
-                <SelectTrigger data-testid="select-ekipman-sirket"><SelectValue placeholder="Firma" /></SelectTrigger>
-                <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
-              </Select>
+              <FirmaSecici
+                firmalar={catiFirmalar}
+                value={form.catiFirmaId}
+                onChange={id => setForm(f => ({...f, catiFirmaId: id}))}
+                placeholder="Firma"
+                testId="select-ekipman-sirket"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Gemi *</Label>

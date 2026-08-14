@@ -24,6 +24,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { FirmaSecici } from "@/components/firma-secici";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useYetki } from "@/hooks/use-yetki";
@@ -189,10 +190,13 @@ export default function Tanimlar() {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Çatı Firma *</Label>
-              <Select value={kdvForm.catiFirmaId} onValueChange={v => setKdvForm(f => ({...f, catiFirmaId: v}))}>
-                <SelectTrigger data-testid="select-kdv-sirket"><SelectValue placeholder="Firma seçin" /></SelectTrigger>
-                <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
-              </Select>
+              <FirmaSecici
+                firmalar={catiFirmalar}
+                value={kdvForm.catiFirmaId}
+                onChange={id => setKdvForm(f => ({...f, catiFirmaId: id}))}
+                placeholder="Firma seçin"
+                testId="select-kdv-sirket"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Ad *</Label>
@@ -223,10 +227,13 @@ export default function Tanimlar() {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Çatı Firma *</Label>
-              <Select value={seriForm.catiFirmaId} onValueChange={v => setSeriForm(f => ({...f, catiFirmaId: v}))}>
-                <SelectTrigger data-testid="select-seri-sirket"><SelectValue placeholder="Firma seçin" /></SelectTrigger>
-                <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
-              </Select>
+              <FirmaSecici
+                firmalar={catiFirmalar}
+                value={seriForm.catiFirmaId}
+                onChange={id => setSeriForm(f => ({...f, catiFirmaId: id}))}
+                placeholder="Firma seçin"
+                testId="select-seri-sirket"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Ad *</Label>

@@ -7,6 +7,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FirmaSecici } from "@/components/firma-secici";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -172,13 +173,16 @@ export default function Raporlar() {
       <div className="flex gap-3 flex-wrap items-end">
         <div className="space-y-1">
           <Label className="text-xs">Çatı Firma</Label>
-          <Select value={catiFirmaId || "all"} onValueChange={v => setCatiFirmaId(v === "all" ? "" : v)}>
-            <SelectTrigger className="w-52"><SelectValue placeholder="Tüm Firmalar" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Firmalar</SelectItem>
-              {catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <FirmaSecici
+            firmalar={catiFirmalar}
+            value={catiFirmaId}
+            onChange={id => setCatiFirmaId(id)}
+            placeholder="Tüm Firmalar"
+            bosSecim
+            bosSecimEtiketi="Tüm Firmalar"
+            className="w-52"
+            testId="select-rapor-firma"
+          />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Yıl</Label>
