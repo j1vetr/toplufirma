@@ -991,6 +991,10 @@ export type GetAylikGelirParams = {
  */
 catiFirmaId?: number | null;
 yil?: number;
+/**
+ * Verilirse yalnızca bu para birimindeki fatura ve tahsilatlar toplanır
+ */
+paraBirimi?: string;
 };
 
 export type GetFirmaGelirParams = {
@@ -999,6 +1003,10 @@ export type GetFirmaGelirParams = {
  */
 catiFirmaId?: number | null;
 yil?: number;
+/**
+ * Verilirse yalnızca bu para birimindeki fatura ve tahsilatlar toplanır
+ */
+paraBirimi?: string;
 };
 
 export type GetKdvOzetiParams = {

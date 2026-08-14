@@ -34,7 +34,7 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-- Kullanıcıya gösterilen uyarı/hata mesajlarında em dash (—) kullanma; parantez veya normal tire (-) tercih et. Örn: "MV Blue Star (Meridian Shipping Co.)" — "MV Blue Star — Meridian Shipping Co." değil.
+- Kullanıcıya gösterilen hiçbir metinde em dash (—) ve noktalı virgül (;) kullanma. Parantez veya normal tire (-) tercih et. Örn: "MV Blue Star (Meridian Shipping Co.)" olmalı, "MV Blue Star — Meridian Shipping Co." değil.
 
 ## Gotchas
 

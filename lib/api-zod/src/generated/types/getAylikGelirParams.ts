@@ -12,4 +12,8 @@ export type GetAylikGelirParams = {
  */
 catiFirmaId?: number | null;
 yil?: number;
+/**
+ * Verilirse yalnızca bu para birimindeki fatura ve tahsilatlar toplanır
+ */
+paraBirimi?: string;
 };

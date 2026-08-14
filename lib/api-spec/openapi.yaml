@@ -1092,6 +1092,11 @@ paths:
           in: query
           schema:
             type: integer
+        - name: paraBirimi
+          in: query
+          description: Verilirse yalnızca bu para birimindeki fatura ve tahsilatlar toplanır
+          schema:
+            type: string
       responses:
         "200":
           description: Aylık gelir
@@ -1116,6 +1121,11 @@ paths:
           in: query
           schema:
             type: integer
+        - name: paraBirimi
+          in: query
+          description: Verilirse yalnızca bu para birimindeki fatura ve tahsilatlar toplanır
+          schema:
+            type: string
       responses:
         "200":
           description: Firma gelir listesi

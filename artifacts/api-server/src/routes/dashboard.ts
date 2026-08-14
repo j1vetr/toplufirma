@@ -196,11 +196,13 @@ router.get("/dashboard/son-islemler", async (req, res) => {
 
 router.get("/dashboard/aylik-gelir", async (req, res) => {
   try {
-    const { catiFirmaId, yil } = req.query as Record<string, string>;
+    const { catiFirmaId, yil, paraBirimi } = req.query as Record<string, string>;
     const hedefYil = Number(yil) || new Date().getFullYear();
 
-    const allFats = await db.select().from(faturalar);
-    const allOds = await db.select().from(odemeler).where(eq(odemeler.tip, "tahsilat"));
+    // Para birimi filtresi: farklı para birimleri tek sayıya toplanmasın diye
+    // grafik istemcisi hedef para birimini belirtir.
+    const allFats = (await db.select().from(faturalar)).filter(f => !paraBirimi || f.paraBirimi === paraBirimi);
+    const allOds = (await db.select().from(odemeler).where(eq(odemeler.tip, "tahsilat"))).filter(o => !paraBirimi || o.paraBirimi === paraBirimi);
 
     const fats = filtreleCatiFirma(allFats, req, catiFirmaId);
     const ods = filtreleCatiFirma(allOds, req, catiFirmaId);
@@ -222,12 +224,12 @@ router.get("/dashboard/aylik-gelir", async (req, res) => {
 
 router.get("/dashboard/firma-gelir", async (req, res) => {
   try {
-    const { catiFirmaId, yil } = req.query as Record<string, string>;
+    const { catiFirmaId, yil, paraBirimi } = req.query as Record<string, string>;
     const hedefYil = Number(yil) || new Date().getFullYear();
     const prefix = String(hedefYil);
 
-    const allFats = await db.select().from(faturalar);
-    const allOds = await db.select().from(odemeler).where(eq(odemeler.tip, "tahsilat"));
+    const allFats = (await db.select().from(faturalar)).filter(f => !paraBirimi || f.paraBirimi === paraBirimi);
+    const allOds = (await db.select().from(odemeler).where(eq(odemeler.tip, "tahsilat"))).filter(o => !paraBirimi || o.paraBirimi === paraBirimi);
     const catiFirmaRows = await db.select({ id: firmalar.id, ad: firmalar.ad }).from(firmalar).where(eq(firmalar.tip, "cati"));
 
     const fats = filtreleCatiFirma(allFats, req, catiFirmaId);

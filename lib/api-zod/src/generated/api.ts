@@ -1323,7 +1323,8 @@ export const GetSonIslemlerResponse = zod.object({
  */
 export const GetAylikGelirQueryParams = zod.object({
   "catiFirmaId": zod.coerce.number().nullish(),
-  "yil": zod.coerce.number().optional()
+  "yil": zod.coerce.number().optional(),
+  "paraBirimi": zod.coerce.string().optional().describe('Verilirse yalnızca bu para birimindeki fatura ve tahsilatlar toplanır')
 })
 
 export const GetAylikGelirResponseItem = zod.object({
@@ -1341,7 +1342,8 @@ export const GetAylikGelirResponse = zod.array(GetAylikGelirResponseItem)
  */
 export const GetFirmaGelirQueryParams = zod.object({
   "catiFirmaId": zod.coerce.number().nullish(),
-  "yil": zod.coerce.number().optional()
+  "yil": zod.coerce.number().optional(),
+  "paraBirimi": zod.coerce.string().optional().describe('Verilirse yalnızca bu para birimindeki fatura ve tahsilatlar toplanır')
 })
 
 export const GetFirmaGelirResponseItem = zod.object({

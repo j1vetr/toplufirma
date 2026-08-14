@@ -4651,7 +4651,7 @@ export const uretTekrarlayanFatura = async (id: number, options?: RequestInit): 
 
 
 
-export const getUretTekrarlayanFaturaMutationOptions = <TError = ErrorType<unknown>,
+export const getUretTekrarlayanFaturaMutationOptions = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uretTekrarlayanFatura>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof uretTekrarlayanFatura>>, TError,{id: number}, TContext> => {
 
@@ -4680,12 +4680,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UretTekrarlayanFaturaMutationResult = NonNullable<Awaited<ReturnType<typeof uretTekrarlayanFatura>>>
 
-    export type UretTekrarlayanFaturaMutationError = ErrorType<unknown>
+    export type UretTekrarlayanFaturaMutationError = ErrorType<void>
 
     /**
  * @summary Şimdi fatura üret ve sonraki tarihi ilerlet
  */
-export const useUretTekrarlayanFatura = <TError = ErrorType<unknown>,
+export const useUretTekrarlayanFatura = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uretTekrarlayanFatura>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof uretTekrarlayanFatura>>,

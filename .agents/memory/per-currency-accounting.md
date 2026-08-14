@@ -18,3 +18,6 @@ Cari ekstre tahsilatı YALNIZCA odemeler (tip=tahsilat) satırlarından hesaplar
 **Rule:** Fatura durumu elle "odendi" yapılan her yol (toplu durum, tekil PATCH, durumOverride ile oluşturma) kalan tutar kadar otomatik tahsilat kaydı oluşturmalı — transaction içinde, fatura satırı FOR UPDATE kilitliyken (eşzamanlı isteklerde çift tahsilat riski).
 **Why:** Ödendi görünen faturalar ekstrede tam borç olarak kalıyordu (kullanıcı canlıda 4000 USD hatalı bakiye gördü).
 **How to apply:** Yeni bir "ödendi yap" yolu eklenirse odendiTahsilatTamamla benzeri kalan-tamamlama aynı transaction'da çağrılmalı; işlem idempotent (kalan<=0 → no-op), bu yüzden zaten ödendi faturayı tekrar işaretlemek eski bozuk kayıtları onarır.
+
+## Dashboard grafik endpointleri
+- /dashboard/aylik-gelir ve /dashboard/firma-gelir opsiyonel `paraBirimi` query paramı alır. Panel grafiği her zaman tek para birimiyle ister (çoklu PB'de toggle butonları). Param verilmezse API karışık toplam döner, UI'da asla karışık toplamı tek sayı gibi gösterme.
