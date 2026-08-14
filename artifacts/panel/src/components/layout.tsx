@@ -40,21 +40,22 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { KullaniciInfo } from "@/App";
+import { modulIzinliMi, type ModulKey } from "@/lib/moduller";
 
 const navigation = [
-  { name: "Ana Sayfa", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Firmalar", href: "/firmalar", icon: Building2 },
-  { name: "Gemiler", href: "/gemiler", icon: Ship },
-  { name: "Faturalar", href: "/faturalar", icon: FileText },
-  { name: "Teklifler", href: "/teklifler", icon: FileText },
-  { name: "Ürünler", href: "/urunler", icon: Package },
-  { name: "Cariler", href: "/cariler", icon: BookOpen },
-  { name: "Ekipmanlar", href: "/ekipmanlar", icon: HardDrive },
-  { name: "Servis & Sözleşme", href: "/servis", icon: ClipboardList },
-  { name: "Tekrarlayan Faturalar", href: "/tekrarlayan-faturalar", icon: Repeat },
-  { name: "Gönderim Geçmişi", href: "/gonderi-gecmisi", icon: Send },
-  { name: "Raporlar", href: "/raporlar", icon: PieChart },
-  { name: "Ayarlarımız", href: "/ayarlar", icon: Settings },
+  { name: "Ana Sayfa", href: "/dashboard", icon: LayoutDashboard, modul: "dashboard" as ModulKey },
+  { name: "Firmalar", href: "/firmalar", icon: Building2, modul: "firmalar" as ModulKey },
+  { name: "Gemiler", href: "/gemiler", icon: Ship, modul: "gemiler" as ModulKey },
+  { name: "Faturalar", href: "/faturalar", icon: FileText, modul: "faturalar" as ModulKey },
+  { name: "Teklifler", href: "/teklifler", icon: FileText, modul: "teklifler" as ModulKey },
+  { name: "Ürünler", href: "/urunler", icon: Package, modul: "urunler" as ModulKey },
+  { name: "Cariler", href: "/cariler", icon: BookOpen, modul: "cariler" as ModulKey },
+  { name: "Ekipmanlar", href: "/ekipmanlar", icon: HardDrive, modul: "ekipmanlar" as ModulKey },
+  { name: "Servis & Sözleşme", href: "/servis", icon: ClipboardList, modul: "servis" as ModulKey },
+  { name: "Tekrarlayan Faturalar", href: "/tekrarlayan-faturalar", icon: Repeat, modul: "faturalar" as ModulKey },
+  { name: "Gönderim Geçmişi", href: "/gonderi-gecmisi", icon: Send, modul: "gonderi_gecmisi" as ModulKey },
+  { name: "Raporlar", href: "/raporlar", icon: PieChart, modul: "raporlar" as ModulKey },
+  { name: "Ayarlarımız", href: "/ayarlar", icon: Settings, modul: "ayarlar" as ModulKey },
 ];
 
 interface LayoutProps {
@@ -204,10 +205,12 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
 
   const baseNav = isYonetici
     ? navigation
-    : navigation.filter(item => item.href !== "/firmalar");
+    : kullanici?.modulIzinleri == null
+      ? navigation.filter(item => item.href !== "/firmalar") // kısıt tanımlanmamış: mevcut davranış
+      : navigation.filter(item => modulIzinliMi(kullanici, item.modul));
 
   const allNav = isYonetici
-    ? [...baseNav, { name: "Kullanıcılar", href: "/kullanicilar", icon: UserCog }, { name: "Ayarlar", href: "/ayarlar", icon: ShieldCheck }]
+    ? [...baseNav, { name: "Kullanıcılar", href: "/kullanicilar", icon: UserCog, modul: "ayarlar" as ModulKey }, { name: "Ayarlar", href: "/ayarlar", icon: ShieldCheck, modul: "ayarlar" as ModulKey }]
     : baseNav;
 
   const currentPage =

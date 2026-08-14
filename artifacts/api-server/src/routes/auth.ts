@@ -51,6 +51,7 @@ router.post("/auth/login", async (req, res) => {
       ad: kullanici.ad,
       rol: kullanici.rol,
       sirketler,
+      modulIzinleri: kullanici.rol === "yonetici" ? null : kullanici.modulIzinleri,
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
@@ -64,7 +65,7 @@ router.post("/auth/login", async (req, res) => {
 router.get("/auth/me", requireAuth, async (req, res) => {
   try {
     const [kullanici] = await db
-      .select({ id: kullanicilar.id, ad: kullanicilar.ad, email: kullanicilar.email, rol: kullanicilar.rol })
+      .select({ id: kullanicilar.id, ad: kullanicilar.ad, email: kullanicilar.email, rol: kullanicilar.rol, modulIzinleri: kullanicilar.modulIzinleri })
       .from(kullanicilar)
       .where(eq(kullanicilar.id, req.kullanici!.id));
 

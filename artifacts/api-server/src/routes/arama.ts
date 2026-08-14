@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { firmalar, gemiler, faturalar } from "@workspace/db";
 import { sirketlerFiltrele } from "../middleware/auth";
+import { modulIzinliMi } from "../lib/moduller";
 
 const router = Router();
 
@@ -12,6 +13,8 @@ router.get("/arama", async (req, res) => {
       res.json({ firmalar: [], gemiler: [], faturalar: [] }); return;
     }
     const term = q.trim().toLowerCase();
+    // Modül izni olmayan kullanıcıya fatura sonuçları sızdırılmaz (DB'deki güncel rol/izin esas alınır).
+    const faturaIzni = await modulIzinliMi(req.kullanici!.id, ["faturalar"]);
 
     const allFirmalar = await db.select().from(firmalar).orderBy(firmalar.ad);
     const allGemiler = await db.select().from(gemiler).orderBy(gemiler.ad);
@@ -41,7 +44,7 @@ router.get("/arama", async (req, res) => {
     );
     const scopedFatIds = new Set(scopedFat.map(f => f.id));
 
-    const filtFaturalar = allFaturalar.filter(f =>
+    const filtFaturalar = !faturaIzni ? [] : allFaturalar.filter(f =>
       scopedFatIds.has(f.id) &&
       (f.faturaNo.toLowerCase().includes(term) ||
        (f.aciklama ?? "").toLowerCase().includes(term) ||

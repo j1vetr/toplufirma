@@ -294,6 +294,8 @@ export const kullanicilar = pgTable("kullanicilar", {
   parola: text("parola").notNull(),
   rol: kullaniciRolEnum("rol").notNull().default("muhasebeci"),
   aktif: boolean("aktif").notNull().default(true),
+  /** İzinli modül anahtarları; null = tüm modüller (mevcut kullanıcılar ve yöneticiler). */
+  modulIzinleri: text("modul_izinleri").array(),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
   sonGirisTarihi: timestamp("son_giris_tarihi"),
 });

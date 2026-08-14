@@ -20,9 +20,11 @@ import kalemSablonlariRouter from "./kalemSablonlari";
 import servisRouter from "./servis";
 import carilerRouter from "./cariler";
 import debugRouter from "./debug";
+import { modulKisiti } from "../lib/moduller";
 
 const router: IRouter = Router();
 
+router.use(modulKisiti);
 router.use(adminRouter);
 router.use(firmaRouter);
 router.use(gemilerRouter);

@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 import type { KullaniciInfo } from "@/App";
+import { MODULLER, MODUL_SABLONLARI, type ModulKey } from "@/lib/moduller";
 
 const apiBase = () => {
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -29,6 +30,7 @@ interface Kullanici {
   email: string;
   rol: string;
   aktif: boolean;
+  modulIzinleri: string[] | null;
   olusturmaTarihi: string;
   sonGirisTarihi: string | null;
   sirketler: Array<{ sirketId: number; rol: string }>;
@@ -72,6 +74,7 @@ export default function Kullanicilar({ kullanici }: Props) {
   const [form, setForm] = useState({
     ad: "", email: "", parola: "", rol: "muhasebeci", aktif: true,
     sirketler: [] as FirmaAtama[],
+    modulIzinleri: null as string[] | null, // null = tüm modüller
   });
 
   const { data: sirketler = [] } = useListFirmalar(
@@ -98,10 +101,11 @@ export default function Kullanicilar({ kullanici }: Props) {
       setForm({
         ad: k.ad, email: k.email, parola: "", rol: k.rol, aktif: k.aktif,
         sirketler: k.sirketler.map(s => ({ sirketId: s.sirketId, rol: s.rol })),
+        modulIzinleri: k.modulIzinleri ?? null,
       });
     } else {
       setSecili(null);
-      setForm({ ad: "", email: "", parola: "", rol: "muhasebeci", aktif: true, sirketler: [] });
+      setForm({ ad: "", email: "", parola: "", rol: "muhasebeci", aktif: true, sirketler: [], modulIzinleri: null });
     }
     setDialogAcik(true);
   }
@@ -122,7 +126,23 @@ export default function Kullanicilar({ kullanici }: Props) {
     }));
   }
 
+  function modulToggle(key: ModulKey, checked: boolean) {
+    setForm(f => {
+      const mevcut = f.modulIzinleri ?? MODULLER.map(m => m.key as string);
+      return {
+        ...f,
+        modulIzinleri: checked
+          ? [...new Set([...mevcut, key])]
+          : mevcut.filter(m => m !== key),
+      };
+    });
+  }
+
   async function kaydet() {
+    if (form.rol !== "yonetici" && form.modulIzinleri !== null && form.modulIzinleri.length === 0) {
+      toast({ title: "Hata", description: "En az bir modül izni seçilmelidir.", variant: "destructive" });
+      return;
+    }
     const token = localStorage.getItem("panel_token");
     const body: Record<string, unknown> = {
       ad: form.ad,
@@ -130,6 +150,7 @@ export default function Kullanicilar({ kullanici }: Props) {
       rol: form.rol,
       aktif: form.aktif,
       sirketler: form.sirketler,
+      modulIzinleri: form.rol === "yonetici" ? null : form.modulIzinleri,
     };
     if (form.parola) body.parola = form.parola;
 
@@ -224,6 +245,13 @@ export default function Kullanicilar({ kullanici }: Props) {
                       ? `Son giriş: ${new Date(k.sonGirisTarihi).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}`
                       : "Henüz giriş yapılmadı"}
                   </p>
+                  {k.rol !== "yonetici" && k.modulIzinleri !== null && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Modüller: {k.modulIzinleri
+                        .map(m => MODULLER.find(x => x.key === m)?.label ?? m)
+                        .join(", ")}
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-1.5 mt-1">
                     {k.sirketler.length > 0 ? k.sirketler.map(s => (
                       <span key={s.sirketId} className="inline-flex items-center gap-1 text-xs bg-muted rounded-sm px-2 py-0.5">
@@ -273,7 +301,7 @@ export default function Kullanicilar({ kullanici }: Props) {
       )}
 
       <Dialog open={dialogAcik} onOpenChange={setDialogAcik}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display">{secili ? "Kullanıcı Düzenle" : "Yeni Kullanıcı"}</DialogTitle>
           </DialogHeader>
@@ -361,6 +389,61 @@ export default function Kullanicilar({ kullanici }: Props) {
                 </>
               )}
             </div>
+
+            {form.rol !== "yonetici" && (
+              <div className="space-y-1.5">
+                <Label>Modül İzinleri</Label>
+                <p className="text-xs text-muted-foreground">Kullanıcının panelde hangi bölümleri görebileceğini seçin.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button" size="sm" variant={form.modulIzinleri === null ? "default" : "outline"}
+                    className="h-7 text-xs"
+                    onClick={() => setForm(f => ({ ...f, modulIzinleri: null }))}
+                    data-testid="button-modul-tumu"
+                  >
+                    Tüm Modüller
+                  </Button>
+                  {MODUL_SABLONLARI.map(s => (
+                    <Button
+                      key={s.ad} type="button" size="sm"
+                      variant={
+                        form.modulIzinleri !== null &&
+                        form.modulIzinleri.length === s.moduller.length &&
+                        s.moduller.every(m => form.modulIzinleri!.includes(m))
+                          ? "default" : "outline"
+                      }
+                      className="h-7 text-xs"
+                      onClick={() => setForm(f => ({ ...f, modulIzinleri: [...s.moduller] }))}
+                      data-testid={`button-modul-sablon-${s.ad.toLowerCase()}`}
+                    >
+                      {s.ad} Şablonu
+                    </Button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-none border p-3 max-h-48 overflow-y-auto">
+                  {MODULLER.map(m => {
+                    const checked = form.modulIzinleri === null || form.modulIzinleri.includes(m.key);
+                    return (
+                      <label key={m.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={e => modulToggle(m.key, e.target.checked)}
+                          className="rounded border-gray-300 h-4 w-4 cursor-pointer"
+                          data-testid={`checkbox-modul-${m.key}`}
+                        />
+                        {m.label}
+                      </label>
+                    );
+                  })}
+                </div>
+                {form.modulIzinleri !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    {form.modulIzinleri.length} / {MODULLER.length} modül seçili — diğer bölümler bu kullanıcıya kapalı olacak.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogAcik(false)}>İptal</Button>

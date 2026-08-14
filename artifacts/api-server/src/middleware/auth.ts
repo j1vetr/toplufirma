@@ -1,5 +1,6 @@
 import { type Request, type Response, type NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { kullaniciDurumu } from "../lib/moduller";
 
 if (!process.env.JWT_SECRET) {
   if (process.env.NODE_ENV === "production") {
@@ -16,6 +17,8 @@ export interface TokenPayload {
   ad: string;
   rol: string;
   sirketler: Array<{ sirketId: number; rol: string }>;
+  /** İzinli modül anahtarları; null/undefined = tüm modüller. Zorlama DB üzerinden yapılır (bkz. lib/moduller.ts). */
+  modulIzinleri?: string[] | null;
 }
 
 declare global {
@@ -27,7 +30,7 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers["authorization"];
   const tokenFromHeader = authHeader?.replace("Bearer ", "").trim();
   const tokenFromQuery = typeof req.query?.t === "string" ? req.query.t : undefined;
@@ -38,14 +41,32 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
 
+  let payload: TokenPayload;
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as TokenPayload;
-    req.kullanici = payload;
-    req.izinliSirketler = payload.sirketler.map((s) => s.sirketId);
-    next();
+    payload = jwt.verify(token, JWT_SECRET) as TokenPayload;
   } catch {
     res.status(401).json({ error: "Geçersiz veya süresi dolmuş token" });
+    return;
   }
+
+  // Rol ve aktiflik token'a değil DB'ye dayanır (30 sn cache): silinen/pasifleştirilen
+  // kullanıcı ya da düşürülen yönetici eski token'la yetkisini sürdüremez.
+  try {
+    const durum = await kullaniciDurumu(payload.id);
+    if (!durum || !durum.aktif) {
+      res.status(401).json({ error: "Hesabınız devre dışı bırakılmış veya silinmiş" });
+      return;
+    }
+    payload.rol = durum.rol;
+  } catch (err) {
+    console.error("[requireAuth] kullanıcı durumu okunamadı:", err);
+    res.status(500).json({ error: "Kimlik doğrulama yapılamadı" });
+    return;
+  }
+
+  req.kullanici = payload;
+  req.izinliSirketler = payload.sirketler.map((s) => s.sirketId);
+  next();
 }
 
 export function requireYonetici(req: Request, res: Response, next: NextFunction): void {

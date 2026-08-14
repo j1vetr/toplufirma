@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
 import { SirketProvider } from "@/contexts/sirket-context";
+import { rotaModulu, modulIzinliMi, ilkIzinliRota, type ModulKey } from "@/lib/moduller";
 import Login from "@/pages/login";
 
 const Dashboard          = lazy(() => import("@/pages/dashboard"));
@@ -47,6 +48,8 @@ export interface KullaniciInfo {
   email: string;
   rol: string;
   sirketler: Array<{ sirketId: number; rol: string }>;
+  /** İzinli modül anahtarları; null/undefined = tüm modüller. */
+  modulIzinleri?: string[] | null;
 }
 
 function PageLoader() {
@@ -66,13 +69,17 @@ function AuthGuard({
   onLogout: () => void;
   children: React.ReactNode;
 }) {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+
+  const modul: ModulKey | null = rotaModulu(location);
+  const modulEngeli = !!kullanici && modul !== null && !modulIzinliMi(kullanici, modul);
 
   useEffect(() => {
-    if (!kullanici) navigate("/login");
-  }, [kullanici]);
+    if (!kullanici) { navigate("/login"); return; }
+    if (modulEngeli) navigate(ilkIzinliRota(kullanici), { replace: true });
+  }, [kullanici, modulEngeli, location]);
 
-  if (!kullanici) return null;
+  if (!kullanici || modulEngeli) return null;
   return (
     <SirketProvider>
       <Layout kullanici={kullanici} onLogout={onLogout}>

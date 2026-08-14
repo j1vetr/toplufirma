@@ -9,3 +9,4 @@
 - [Gemi visibility filtering](gemi-visibility-filtering.md) — filter ships server-side via catiFirmaId param; client-side gemi.catiFirmaId checks drop ships of UI-created bağlı firms (ustFirmaId null)
 - [OpenAPI spec drift](openapi-spec-drift.md) — unknown-casts in panel signal openapi.yaml missing a real API field; fix spec + codegen, never cast
 - [Banka hesabı para birimleri](banka-hesap-para-birimleri.md) — scalar paraBirimi often stale TRY default; real currencies = scalar + ibanlar keys via hesapParaBirimleri() helper
+- [Modül izinleri](modul-izinleri.md) — enforcement DB-based (30s cache), never JWT; list-reads open, detail-reads need owning module; KURALLAR must track real route prefixes

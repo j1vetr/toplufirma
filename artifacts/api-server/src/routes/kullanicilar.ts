@@ -4,13 +4,14 @@ import { kullanicilar, kullaniciFirmalar } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { requireYonetici } from "../middleware/auth";
+import { gecerliModulListesi, modulCacheTemizle } from "../lib/moduller";
 
 const router = Router();
 
 router.get("/kullanicilar", requireYonetici, async (req, res) => {
   try {
     const rows = await db
-      .select({ id: kullanicilar.id, ad: kullanicilar.ad, email: kullanicilar.email, rol: kullanicilar.rol, aktif: kullanicilar.aktif, olusturmaTarihi: kullanicilar.olusturmaTarihi, sonGirisTarihi: kullanicilar.sonGirisTarihi })
+      .select({ id: kullanicilar.id, ad: kullanicilar.ad, email: kullanicilar.email, rol: kullanicilar.rol, aktif: kullanicilar.aktif, modulIzinleri: kullanicilar.modulIzinleri, olusturmaTarihi: kullanicilar.olusturmaTarihi, sonGirisTarihi: kullanicilar.sonGirisTarihi })
       .from(kullanicilar)
       .orderBy(kullanicilar.ad);
 
@@ -29,16 +30,24 @@ router.get("/kullanicilar", requireYonetici, async (req, res) => {
 
 router.post("/kullanicilar", requireYonetici, async (req, res) => {
   try {
-    const { ad, email, parola, rol, sirketler: sirketAtamalari } = req.body;
+    const { ad, email, parola, rol, sirketler: sirketAtamalari, modulIzinleri } = req.body;
     if (!ad || !email || !parola) {
       res.status(400).json({ error: "Ad, email ve parola zorunludur" });
+      return;
+    }
+
+    const etkinRol = rol ?? "muhasebeci";
+    // Yönetici her zaman tüm modüllere erişir; diğerlerinde geçersiz anahtarlar ayıklanır.
+    const moduller = etkinRol === "yonetici" ? null : gecerliModulListesi(modulIzinleri);
+    if (Array.isArray(moduller) && moduller.length === 0) {
+      res.status(400).json({ error: "En az bir modül izni seçilmelidir" });
       return;
     }
 
     const hash = await bcrypt.hash(parola, 12);
     const [yeni] = await db
       .insert(kullanicilar)
-      .values({ ad, email: email.toLowerCase().trim(), parola: hash, rol: rol ?? "muhasebeci" })
+      .values({ ad, email: email.toLowerCase().trim(), parola: hash, rol: etkinRol, modulIzinleri: moduller ?? null })
       .returning();
 
     if (sirketAtamalari?.length) {
@@ -63,7 +72,7 @@ router.post("/kullanicilar", requireYonetici, async (req, res) => {
 router.put("/kullanicilar/:id", requireYonetici, async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { ad, email, parola, rol, aktif, sirketler: sirketAtamalari } = req.body;
+    const { ad, email, parola, rol, aktif, sirketler: sirketAtamalari, modulIzinleri } = req.body;
 
     const guncelle: Partial<typeof kullanicilar.$inferInsert> = {};
     if (ad) guncelle.ad = ad;
@@ -72,8 +81,27 @@ router.put("/kullanicilar/:id", requireYonetici, async (req, res) => {
     if (rol) guncelle.rol = rol;
     if (aktif !== undefined) guncelle.aktif = aktif;
 
+    const [mevcut] = await db
+      .select({ rol: kullanicilar.rol })
+      .from(kullanicilar)
+      .where(eq(kullanicilar.id, id));
+    if (!mevcut) { res.status(404).json({ error: "Kullanıcı bulunamadı" }); return; }
+
+    const etkinRol = rol ?? mevcut.rol;
+    if (etkinRol === "yonetici") {
+      guncelle.modulIzinleri = null;
+    } else if (modulIzinleri !== undefined) {
+      const moduller = gecerliModulListesi(modulIzinleri);
+      if (Array.isArray(moduller) && moduller.length === 0) {
+        res.status(400).json({ error: "En az bir modül izni seçilmelidir" });
+        return;
+      }
+      guncelle.modulIzinleri = moduller ?? null;
+    }
+
     if (Object.keys(guncelle).length > 0) {
       await db.update(kullanicilar).set(guncelle).where(eq(kullanicilar.id, id));
+      modulCacheTemizle(id);
     }
 
     if (sirketAtamalari !== undefined) {
@@ -90,7 +118,7 @@ router.put("/kullanicilar/:id", requireYonetici, async (req, res) => {
     }
 
     const [guncellenen] = await db
-      .select({ id: kullanicilar.id, ad: kullanicilar.ad, email: kullanicilar.email, rol: kullanicilar.rol, aktif: kullanicilar.aktif })
+      .select({ id: kullanicilar.id, ad: kullanicilar.ad, email: kullanicilar.email, rol: kullanicilar.rol, aktif: kullanicilar.aktif, modulIzinleri: kullanicilar.modulIzinleri })
       .from(kullanicilar)
       .where(eq(kullanicilar.id, id));
 
@@ -108,6 +136,7 @@ router.delete("/kullanicilar/:id", requireYonetici, async (req, res) => {
       return;
     }
     await db.delete(kullanicilar).where(eq(kullanicilar.id, id));
+    modulCacheTemizle(id);
     res.status(204).send();
   } catch {
     res.status(500).json({ error: "Kullanıcı silinemedi" });
