@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 import { KalemAciklamaInput } from "@/components/kalem-aciklama-input";
+import { FirmaSecici } from "@/components/firma-secici";
 import { RichTextEditor } from "@/components/rich-text-editor";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -633,32 +634,22 @@ export default function Teklifler() {
             {/* Firma */}
             <div className="space-y-1.5">
               <Label>Firmamız <span className="text-destructive">*</span></Label>
-              <Select value={String(form.catiFirmaId)} onValueChange={v => setForm(f => ({ ...f, catiFirmaId: v, gemiId: "" }))}>
-                <SelectTrigger><SelectValue placeholder="Seçiniz…" /></SelectTrigger>
-                <SelectContent>
-                  {firmalar.map(f => (
-                    <SelectItem key={f.id} value={String(f.id)}>
-                      <span className="flex items-center gap-2">
-                        <span className="truncate">{f.ad}</span>
-                        {f.etiket && (
-                          <span className="shrink-0 text-[9px] font-bold bg-zinc-800 text-white px-1 py-0.5 leading-none">
-                            {String(f.etiket)}
-                          </span>
-                        )}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FirmaSecici
+                firmalar={firmalar}
+                value={String(form.catiFirmaId)}
+                onChange={firmaId => setForm(f => ({ ...f, catiFirmaId: firmaId, gemiId: "" }))}
+                placeholder="Seçiniz…"
+                testId="select-teklif-cati-firma"
+              />
             </div>
 
             {/* Alıcı Firma */}
             <div className="space-y-1.5">
               <Label>Alıcı Firma</Label>
-              <Select
-                value={form.aliciFirmaId ? String(form.aliciFirmaId) : "__none__"}
-                onValueChange={v => {
-                  const firmaId = v === "__none__" ? "" : v;
+              <FirmaSecici
+                firmalar={bagliFirmalar}
+                value={form.aliciFirmaId ? String(form.aliciFirmaId) : ""}
+                onChange={firmaId => {
                   const secilen = bagliFirmalar.find(f => String(f.id) === firmaId);
                   setForm(f => ({
                     ...f,
@@ -668,15 +659,11 @@ export default function Teklifler() {
                     aliciTelefon: secilen ? ((secilen as unknown as { telefon?: string }).telefon ?? f.aliciTelefon) : f.aliciTelefon,
                   }));
                 }}
-              >
-                <SelectTrigger><SelectValue placeholder="Firma seçin (opsiyonel)" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">— Firma seçmeyin —</SelectItem>
-                  {bagliFirmalar.map(f => (
-                    <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Firma seçin (opsiyonel)"
+                bosSecim
+                bosSecimEtiketi="— Firma seçmeyin —"
+                testId="select-teklif-alici-firma"
+              />
             </div>
 
             {/* Tarihler + Para Birimi */}

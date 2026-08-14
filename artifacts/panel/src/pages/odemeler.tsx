@@ -29,6 +29,7 @@ import { Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, Search, FileTex
 import { useSirket } from "@/contexts/sirket-context";
 import { useYetki } from "@/hooks/use-yetki";
 import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
+import { FirmaSecici } from "@/components/firma-secici";
 
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
@@ -300,17 +301,25 @@ export default function Odemeler() {
             </div>
             <div className="space-y-1.5">
               <Label>Çatı Firma *</Label>
-              <Select value={catiFirmaId} onValueChange={v => { setCatiFirmaId(v); setBagliFirmaId(""); }} disabled={duzenleId != null}>
-                <SelectTrigger data-testid="select-yeni-odeme-sirket"><SelectValue placeholder="Çatı Firma" /></SelectTrigger>
-                <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
-              </Select>
+              <FirmaSecici
+                firmalar={catiFirmalar}
+                value={catiFirmaId}
+                onChange={firmaId => { setCatiFirmaId(firmaId); setBagliFirmaId(""); }}
+                disabled={duzenleId != null}
+                placeholder="Çatı Firma"
+                testId="select-yeni-odeme-sirket"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Bağlı Firma *</Label>
-              <Select value={bagliFirmaId} onValueChange={setBagliFirmaId} disabled={duzenleId != null}>
-                <SelectTrigger data-testid="select-yeni-odeme-cari"><SelectValue placeholder="Bağlı Firma" /></SelectTrigger>
-                <SelectContent>{filtrelenmisBagliFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
-              </Select>
+              <FirmaSecici
+                firmalar={filtrelenmisBagliFirmalar}
+                value={bagliFirmaId}
+                onChange={setBagliFirmaId}
+                disabled={duzenleId != null}
+                placeholder="Bağlı Firma"
+                testId="select-yeni-odeme-cari"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Tutar *</Label>
