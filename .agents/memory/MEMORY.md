@@ -3,7 +3,7 @@
 - [API authz patterns](api-authz-patterns.md) — validation brace bug pattern; FK ownership checks required on all write endpoints
 - [api-server no hot-reload](api-server-no-hot-reload.md) — build-once-at-startup; restart workflow after backend edits or you test a stale bundle
 - [Recurring invoices & drafts](recurring-invoice-drafts.md) — recurring defs keep scalar+child items (fallback on generate); generated invoices are taslak; exclude taslak from income sums
-- [Cari ekstre PDF structure](cari-ekstre-pdf.md) — 8-col table matches Excel template; buildEntries() has belgeNo/vadeTarihi/durumEtiket; açılış/kapanış bakiyesi calculated; Hazırlayan=catiFirma.ad
+- [Bağlı firma erişim/ekstre](firma-hierarchy.md) — bagli erişim kontrolü ustFirmaId'ye dayanamaz (UI-created firms: null); ekstre=cariler muhasebesiyle ortak kural, utils/ekstre.ts helper
 - [RichTextEditor TipTap](rich-text-editor.md) — TipTap controlled integration pattern; isSelfChange ref prevents circular update; notlar saved as HTML string; PDF rendering out-of-scope
 - [Per-currency accounting](per-currency-accounting.md) — borç=faturalar(taslak/iptal hariç)+odeme, tahsilat ayrı; totals always per para birimi, never mix currencies into one number
 - [Gemi visibility filtering](gemi-visibility-filtering.md) — filter ships server-side via catiFirmaId param; client-side gemi.catiFirmaId checks drop ships of UI-created bağlı firms (ustFirmaId null)

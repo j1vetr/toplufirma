@@ -30,4 +30,6 @@ pdfStream.end();
 
 **Why:** `new PdfPrinter(fonts)` requires a `urlResolver` 4th param in v0.3.x — omitting it crashes with "Cannot read properties of undefined (reading 'resolve')". The singleton handles all internal wiring. `createPdf().getStream()` is async and returns a readable stream.
 
+**Gotcha:** the synchronous `createPdf(doc).getStream().pipe(res)` pattern throws `pipe is not a function` (getStream returns a Promise). If a PDF endpoint 500s with a silent catch, grep for `.getStream().pipe` — bankaHesaplari.ts had this copy-pasted bug.
+
 **How to apply:** Any time pdfmake PDF generation is needed server-side in this project. Keep `pdfmake` in esbuild `external` list (build.mjs).

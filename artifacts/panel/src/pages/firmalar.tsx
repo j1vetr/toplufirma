@@ -69,11 +69,11 @@ function ekstreCsvIndir(ekstreData: { kalemler?: Array<{ tarih: string; tip: str
     ["Tarih", "Tip", "Açıklama", "Referans No", "Borç", "Alacak", "Para Birimi"],
     ...kalemler.map(k => [
       k.tarih,
-      k.tip === "fatura" ? "Fatura" : "Ödeme",
+      k.tip === "fatura" ? "Fatura" : k.tip === "odeme" ? "Ödeme" : "Tahsilat",
       k.aciklama ?? "",
       k.referansNo ?? "",
-      k.tip === "fatura" ? String(k.borc ?? k.tutar ?? 0) : "",
-      k.tip !== "fatura" ? String(k.alacak ?? k.tutar ?? 0) : "",
+      k.borc != null ? String(k.borc) : "",
+      k.alacak != null ? String(k.alacak) : "",
       k.paraBirimi ?? "",
     ]),
   ];
@@ -588,8 +588,8 @@ export default function Firmalar() {
                       <p className="font-medium">{k.aciklama ?? k.referansNo ?? "-"}</p>
                       <p className="text-xs text-muted-foreground">{k.tarih} {k.referansNo && k.aciklama ? `• ${k.referansNo}` : ""}</p>
                     </div>
-                    <span className={`font-semibold ${k.tip === "fatura" ? "text-red-500" : "text-green-600"}`}>
-                      {k.tip === "fatura" ? "-" : "+"}{fmt(k.borc ?? k.alacak ?? k.tutar, k.paraBirimi)}
+                    <span className={`font-semibold ${k.borc != null ? "text-red-500" : "text-green-600"}`}>
+                      {k.borc != null ? "-" : "+"}{fmt(k.borc ?? k.alacak ?? k.tutar, k.paraBirimi)}
                     </span>
                   </div>
                 ))}

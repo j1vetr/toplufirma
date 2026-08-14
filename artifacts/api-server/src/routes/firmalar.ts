@@ -4,6 +4,7 @@ import { firmalar, firmaEpostaAyarlari, faturalar, odemeler, firmaSirketGorunurl
 import { eq, and, inArray } from "drizzle-orm";
 import { requireYazma, requireYonetici, sirketErisimKontrol, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
+import { bagliFirmaErisimKontrol, ekstreVerisiGetir, EKSTRE_TIP_ETIKET } from "../utils/ekstre";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
@@ -235,52 +236,9 @@ router.get("/firmalar/:id/ekstre", async (req, res) => {
     if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
     if (firma.tip !== "bagli") { res.status(400).json({ error: "Ekstre yalnızca bağlı firmalar için mevcuttur" }); return; }
 
-    const catiFirmaId = firma.ustFirmaId!;
-    if (!sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+    if (!(await bagliFirmaErisimKontrol(firma, req))) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
-    const faturalarRows = await db.select().from(faturalar)
-      .where(and(eq(faturalar.catiFirmaId, catiFirmaId), eq(faturalar.bagliFirmaId, id)));
-    const odemelerRows = await db.select().from(odemeler)
-      .where(and(eq(odemeler.catiFirmaId, catiFirmaId), eq(odemeler.bagliFirmaId, id)));
-
-    const fatFilt = faturalarRows.filter(f =>
-      (!baslangicTarihi || f.faturaTarihi >= baslangicTarihi) &&
-      (!bitisTarihi || f.faturaTarihi <= bitisTarihi)
-    );
-    const odFilt = odemelerRows.filter(o =>
-      (!baslangicTarihi || o.tarih >= baslangicTarihi) &&
-      (!bitisTarihi || o.tarih <= bitisTarihi)
-    );
-
-    const fatKalemler = fatFilt.map(f => ({
-      id: f.id,
-      tip: "fatura" as const,
-      tarih: f.faturaTarihi,
-      aciklama: f.aciklama ?? f.faturaNo,
-      referansNo: f.faturaNo,
-      gemiAd: null as string | null,
-      borc: Number(f.genelToplam),
-      alacak: null as number | null,
-      tutar: Number(f.genelToplam),
-      paraBirimi: f.paraBirimi,
-    }));
-    const odKalemler = odFilt.map(o => ({
-      id: o.id,
-      tip: o.tip as "odeme" | "tahsilat",
-      tarih: o.tarih,
-      aciklama: o.aciklama ?? null,
-      referansNo: null as string | null,
-      gemiAd: null as string | null,
-      borc: null as number | null,
-      alacak: Number(o.tutar),
-      tutar: Number(o.tutar),
-      paraBirimi: o.paraBirimi,
-    }));
-
-    const kalemler = [...fatKalemler, ...odKalemler].sort((a, b) => a.tarih.localeCompare(b.tarih));
-    const toplamBorc = fatKalemler.reduce((s, k) => s + k.tutar, 0);
-    const toplamAlacak = odKalemler.filter(k => k.tip === "tahsilat").reduce((s, k) => s + k.tutar, 0);
-    const kalanBakiye = toplamBorc - toplamAlacak;
+    const { kalemler, toplamBorc, toplamAlacak, kalanBakiye } = await ekstreVerisiGetir(id, baslangicTarihi, bitisTarihi);
 
     res.json({ firmaId: id, firmaAd: firma.ad, kalemler, toplamBorc, toplamAlacak, kalanBakiye });
   } catch {
@@ -295,27 +253,10 @@ router.get("/firmalar/:id/ekstre/pdf", async (req, res) => {
     const [firma] = await db.select().from(firmalar).where(eq(firmalar.id, id));
     if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
     if (firma.tip !== "bagli") { res.status(400).json({ error: "Ekstre yalnızca bağlı firmalar için mevcuttur" }); return; }
-    const catiFirmaId = firma.ustFirmaId!;
-    if (!sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+    if (!(await bagliFirmaErisimKontrol(firma, req))) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
-    const faturalarRows = await db.select().from(faturalar)
-      .where(and(eq(faturalar.catiFirmaId, catiFirmaId), eq(faturalar.bagliFirmaId, id)));
-    const odemelerRows = await db.select().from(odemeler)
-      .where(and(eq(odemeler.catiFirmaId, catiFirmaId), eq(odemeler.bagliFirmaId, id)));
-
-    const fatFilt = faturalarRows.filter(f =>
-      (!baslangicTarihi || f.faturaTarihi >= baslangicTarihi) && (!bitisTarihi || f.faturaTarihi <= bitisTarihi));
-    const odFilt = odemelerRows.filter(o =>
-      (!baslangicTarihi || o.tarih >= baslangicTarihi) && (!bitisTarihi || o.tarih <= bitisTarihi));
-
-    const kalemler = [
-      ...fatFilt.map(f => ({ tarih: f.faturaTarihi, tip: "Fatura", aciklama: f.aciklama ?? f.faturaNo, referansNo: f.faturaNo, borc: Number(f.genelToplam), alacak: null as number | null, paraBirimi: f.paraBirimi })),
-      ...odFilt.map(o => ({ tarih: o.tarih, tip: o.tip === "tahsilat" ? "Tahsilat" : "Ödeme", aciklama: o.aciklama ?? "", referansNo: null as string | null, borc: null as number | null, alacak: Number(o.tutar), paraBirimi: o.paraBirimi })),
-    ].sort((a, b) => a.tarih.localeCompare(b.tarih));
-
-    const toplamBorc = fatFilt.reduce((s, f) => s + Number(f.genelToplam), 0);
-    const toplamAlacak = odFilt.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
-    const kalanBakiye = toplamBorc - toplamAlacak;
+    const { kalemler: hamKalemler, toplamBorc, toplamAlacak, kalanBakiye } = await ekstreVerisiGetir(id, baslangicTarihi, bitisTarihi);
+    const kalemler = hamKalemler.map(k => ({ ...k, tip: EKSTRE_TIP_ETIKET[k.tip] }));
 
     const docDef: TDocumentDefinitions = {
       pageSize: "A4",
@@ -345,9 +286,12 @@ router.get("/firmalar/:id/ekstre/pdf", async (req, res) => {
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${firma.ad.replace(/[^a-z0-9]/gi, "-")}-ekstre.pdf"`);
-    _pdfmakeFirma.createPdf(docDef).getStream().pipe(res);
-  } catch {
-    res.status(500).json({ error: "Ekstre PDF oluşturulamadı" });
+    const pdfStream: NodeJS.ReadableStream & { end(): void } = await _pdfmakeFirma.createPdf(docDef).getStream();
+    pdfStream.pipe(res);
+    pdfStream.end();
+  } catch (err) {
+    console.error("[ekstre/pdf] hata:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Ekstre PDF oluşturulamadı" });
   }
 });
 
@@ -358,23 +302,10 @@ router.get("/firmalar/:id/ekstre/excel", async (req, res) => {
     const [firma] = await db.select().from(firmalar).where(eq(firmalar.id, id));
     if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
     if (firma.tip !== "bagli") { res.status(400).json({ error: "Ekstre yalnızca bağlı firmalar için mevcuttur" }); return; }
-    const catiFirmaId = firma.ustFirmaId!;
-    if (!sirketErisimKontrol(catiFirmaId, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+    if (!(await bagliFirmaErisimKontrol(firma, req))) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
-    const faturalarRows = await db.select().from(faturalar)
-      .where(and(eq(faturalar.catiFirmaId, catiFirmaId), eq(faturalar.bagliFirmaId, id)));
-    const odemelerRows = await db.select().from(odemeler)
-      .where(and(eq(odemeler.catiFirmaId, catiFirmaId), eq(odemeler.bagliFirmaId, id)));
-
-    const fatFilt = faturalarRows.filter(f =>
-      (!baslangicTarihi || f.faturaTarihi >= baslangicTarihi) && (!bitisTarihi || f.faturaTarihi <= bitisTarihi));
-    const odFilt = odemelerRows.filter(o =>
-      (!baslangicTarihi || o.tarih >= baslangicTarihi) && (!bitisTarihi || o.tarih <= bitisTarihi));
-
-    const kalemler = [
-      ...fatFilt.map(f => ({ tarih: f.faturaTarihi, tip: "Fatura", aciklama: f.aciklama ?? f.faturaNo, referansNo: f.faturaNo, borc: Number(f.genelToplam), alacak: null as number | null, paraBirimi: f.paraBirimi })),
-      ...odFilt.map(o => ({ tarih: o.tarih, tip: o.tip === "tahsilat" ? "Tahsilat" : "Ödeme", aciklama: o.aciklama ?? "", referansNo: null as string | null, borc: null as number | null, alacak: Number(o.tutar), paraBirimi: o.paraBirimi })),
-    ].sort((a, b) => a.tarih.localeCompare(b.tarih));
+    const { kalemler: hamKalemler } = await ekstreVerisiGetir(id, baslangicTarihi, bitisTarihi);
+    const kalemler = hamKalemler.map(k => ({ ...k, tip: EKSTRE_TIP_ETIKET[k.tip] }));
 
     const wb = new ExcelJS.Workbook();
     wb.creator = "Muhasebe Paneli";
