@@ -26,7 +26,7 @@ async function imoKopyaHatasi(imo: string, req: Request, haricGemiId?: number): 
   if (!mevcut) return null;
   const gorebilir = !mevcut.ustFirmaId || sirketErisimKontrol(mevcut.ustFirmaId, req);
   return gorebilir
-    ? `Bu IMO numarası (${imo}) ile kayıtlı bir gemi zaten var: ${mevcut.ad}${mevcut.firmaAd ? ` — ${mevcut.firmaAd}` : ""}`
+    ? `Bu IMO numarası (${imo}) ile kayıtlı bir gemi zaten var: ${mevcut.ad}${mevcut.firmaAd ? ` (${mevcut.firmaAd})` : ""}`
     : `Bu IMO numarası (${imo}) ile kayıtlı bir gemi zaten var`;
 }
 

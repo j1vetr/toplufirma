@@ -213,9 +213,12 @@ router.get("/banka-hesaplari/:id/hareketler/pdf", async (req, res) => {
 });
 
 async function hesaplaHesapBakiyeleri(): Promise<Record<number, number>> {
+  // Bakiyeye yalnızca hesabın para birimiyle eşleşen ödemeler dahil edilir
   const rows = await db
     .select({ bankaHesabiId: odemeler.bankaHesabiId, tip: odemeler.tip, toplam: sql<string>`sum(${odemeler.tutar})` })
-    .from(odemeler).where(sql`${odemeler.bankaHesabiId} is not null`)
+    .from(odemeler)
+    .innerJoin(bankaHesaplari, eq(odemeler.bankaHesabiId, bankaHesaplari.id))
+    .where(sql`coalesce(${odemeler.paraBirimi}, 'USD') = coalesce(${bankaHesaplari.paraBirimi}, 'USD')`)
     .groupBy(odemeler.bankaHesabiId, odemeler.tip);
   const result: Record<number, number> = {};
   for (const r of rows) {

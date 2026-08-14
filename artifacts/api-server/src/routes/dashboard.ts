@@ -1,12 +1,30 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { faturalar, odemeler, firmalar, bankaHesaplari } from "@workspace/db";
-import { eq, or } from "drizzle-orm";
+import { eq, or, inArray } from "drizzle-orm";
 import { sirketErisimKontrol } from "../middleware/auth";
 
 const router = Router();
 
 const AY_ADLARI = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+
+/**
+ * Fatura başına ödenen tutarı hesaplar: yalnızca fatura para birimiyle eşleşen
+ * "tahsilat" hareketleri toplanır (fatura detay API'siyle aynı mantık).
+ */
+function odenenTutarMap(
+  fats: { id: number; paraBirimi: string | null }[],
+  ods: { faturaId: number | null; tip: string; paraBirimi: string | null; tutar: string }[],
+): Map<number, number> {
+  const fatPb = new Map(fats.map(f => [f.id, f.paraBirimi]));
+  const map = new Map<number, number>();
+  for (const o of ods) {
+    if (o.faturaId == null || o.tip !== "tahsilat" || !fatPb.has(o.faturaId)) continue;
+    if (o.paraBirimi !== fatPb.get(o.faturaId)) continue;
+    map.set(o.faturaId, (map.get(o.faturaId) ?? 0) + Number(o.tutar));
+  }
+  return map;
+}
 
 function filtreleCatiFirma<T extends { catiFirmaId: number }>(
   rows: T[], req: Parameters<typeof sirketErisimKontrol>[1], catiFirmaIdParam?: string
@@ -73,13 +91,13 @@ router.get("/dashboard/ozet", async (req, res) => {
       return { paraBirimi: pb, toplamAlacak: alacak, toplamTahsilat: tahsilat, kalanBakiye: alacak - tahsilat };
     }).filter(d => d.toplamAlacak > 0.005 || d.toplamTahsilat > 0.005);
 
-    const bankaHesapBakiyeleri = await Promise.all(
-      filtrelenmisHesaplar.map(async h => {
-        const ods = await db.select().from(odemeler).where(eq(odemeler.bankaHesabiId, h.id));
-        const bakiye = ods.reduce((s, o) => s + (o.tip === "tahsilat" ? Number(o.tutar) : -Number(o.tutar)), 0);
-        return { hesapId: h.id, bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, paraBirimi: h.paraBirimi, bakiye };
-      })
-    );
+    // Bakiye yalnızca hesabın para birimiyle eşleşen ödemelerden hesaplanır
+    const bankaHesapBakiyeleri = filtrelenmisHesaplar.map(h => {
+      const bakiye = odRows
+        .filter(o => o.bankaHesabiId === h.id && (o.paraBirimi ?? "USD") === (h.paraBirimi ?? "USD"))
+        .reduce((s, o) => s + (o.tip === "tahsilat" ? Number(o.tutar) : -Number(o.tutar)), 0);
+      return { hesapId: h.id, bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, paraBirimi: h.paraBirimi, bakiye };
+    });
 
     res.json({
       toplamAlacak, toplamTahsilat, kalanBakiye: toplamAlacak - toplamTahsilat,
@@ -108,16 +126,25 @@ router.get("/dashboard/vadesi-yaklasan", async (req, res) => {
     const scoped = filtreleCatiFirma(rows, req, catiFirmaId);
     if (!scoped) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
-    res.json(scoped.map(f => ({
-      id: f.id, catiFirmaId: f.catiFirmaId, catiFirmaAd: null,
-      bagliFirmaId: f.bagliFirmaId, bagliFirmaAd: null,
-      gemiId: f.gemiId, gemiAd: null,
-      faturaNo: f.faturaNo, faturaTarihi: f.faturaTarihi, vadeTarihi: f.vadeTarihi,
-      paraBirimi: f.paraBirimi, durum: f.durum,
-      toplamTutar: Number(f.toplamTutar), kdvTutari: Number(f.kdvTutari),
-      genelToplam: Number(f.genelToplam), odenenTutar: 0, kalanTutar: Number(f.genelToplam),
-      notlar: f.notlar, aciklama: f.aciklama, olusturmaTarihi: f.olusturmaTarihi,
-    })));
+    const ilgiliOdemeler = scoped.length > 0
+      ? await db.select().from(odemeler).where(inArray(odemeler.faturaId, scoped.map(f => f.id)))
+      : [];
+    const odenenMap = odenenTutarMap(scoped, ilgiliOdemeler);
+
+    res.json(scoped.map(f => {
+      const odenen = odenenMap.get(f.id) ?? 0;
+      const kalan = Math.round((Number(f.genelToplam) - odenen) * 100) / 100;
+      return {
+        id: f.id, catiFirmaId: f.catiFirmaId, catiFirmaAd: null,
+        bagliFirmaId: f.bagliFirmaId, bagliFirmaAd: null,
+        gemiId: f.gemiId, gemiAd: null,
+        faturaNo: f.faturaNo, faturaTarihi: f.faturaTarihi, vadeTarihi: f.vadeTarihi,
+        paraBirimi: f.paraBirimi, durum: f.durum,
+        toplamTutar: Number(f.toplamTutar), kdvTutari: Number(f.kdvTutari),
+        genelToplam: Number(f.genelToplam), odenenTutar: odenen, kalanTutar: kalan,
+        notlar: f.notlar, aciklama: f.aciklama, olusturmaTarihi: f.olusturmaTarihi,
+      };
+    }));
   } catch {
     res.status(500).json({ error: "Vadesi yaklaşan faturalar alınamadı" });
   }
@@ -135,16 +162,22 @@ router.get("/dashboard/son-islemler", async (req, res) => {
     const scopedOds = filtreleCatiFirma(allOds, req, catiFirmaId);
     if (!scopedFats || !scopedOds) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
-    const sonFaturalar = scopedFats.slice(-n).reverse().map(f => ({
-      id: f.id, catiFirmaId: f.catiFirmaId, catiFirmaAd: null,
-      bagliFirmaId: f.bagliFirmaId, bagliFirmaAd: null,
-      gemiId: f.gemiId, gemiAd: null,
-      faturaNo: f.faturaNo, faturaTarihi: f.faturaTarihi, vadeTarihi: f.vadeTarihi,
-      paraBirimi: f.paraBirimi, durum: f.durum,
-      toplamTutar: Number(f.toplamTutar), kdvTutari: Number(f.kdvTutari),
-      genelToplam: Number(f.genelToplam), odenenTutar: 0, kalanTutar: Number(f.genelToplam),
-      notlar: f.notlar, aciklama: f.aciklama, olusturmaTarihi: f.olusturmaTarihi,
-    }));
+    const sonFats = scopedFats.slice(-n).reverse();
+    const odenenMap = odenenTutarMap(sonFats, allOds);
+    const sonFaturalar = sonFats.map(f => {
+      const odenen = odenenMap.get(f.id) ?? 0;
+      const kalan = Math.round((Number(f.genelToplam) - odenen) * 100) / 100;
+      return {
+        id: f.id, catiFirmaId: f.catiFirmaId, catiFirmaAd: null,
+        bagliFirmaId: f.bagliFirmaId, bagliFirmaAd: null,
+        gemiId: f.gemiId, gemiAd: null,
+        faturaNo: f.faturaNo, faturaTarihi: f.faturaTarihi, vadeTarihi: f.vadeTarihi,
+        paraBirimi: f.paraBirimi, durum: f.durum,
+        toplamTutar: Number(f.toplamTutar), kdvTutari: Number(f.kdvTutari),
+        genelToplam: Number(f.genelToplam), odenenTutar: odenen, kalanTutar: kalan,
+        notlar: f.notlar, aciklama: f.aciklama, olusturmaTarihi: f.olusturmaTarihi,
+      };
+    });
 
     const sonOdemeler = scopedOds.slice(-n).reverse().map(o => ({
       id: o.id, catiFirmaId: o.catiFirmaId, catiFirmaAd: null,

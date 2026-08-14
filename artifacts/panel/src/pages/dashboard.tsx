@@ -197,7 +197,12 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${DURUM_RENK[f.durum] ?? ""}`}>{DURUM_ETK[f.durum] ?? f.durum}</span>
-                      <span className="font-semibold">{fmt(f.genelToplam, f.paraBirimi)}</span>
+                      <div className="text-right">
+                        <span className="font-semibold">{fmt(f.genelToplam, f.paraBirimi)}</span>
+                        {(f.odenenTutar ?? 0) > 0 && (f.kalanTutar ?? 0) > 0.005 && (
+                          <p className="text-xs text-muted-foreground">Kalan: {fmt(f.kalanTutar ?? 0, f.paraBirimi)}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

@@ -108,21 +108,21 @@ router.get("/debug/firma-analizi", async (req, res) => {
           ustFirmaId: bf?.ustFirmaId ?? null,
           grupFirmaId: bf?.grupFirmaId ?? null,
           sorun: !g.firmaId
-            ? "firmaId yok — hiçbir firmaya bağlı değil"
+            ? "firmaId yok - hiçbir firmaya bağlı değil"
             : !bf
               ? "firma veritabanında bulunamadı"
               : bf.tip !== "bagli"
-                ? `firma tipi '${bf.tip}' — yalnızca 'bagli' tipi gemiler filtreye girer`
+                ? `firma tipi '${bf.tip}' - yalnızca 'bagli' tipi gemiler filtreye girer`
                 : bf.ustFirmaId == null && bf.grupFirmaId == null
-                  ? "bagli firmada ne ustFirmaId ne grupFirmaId var — hiçbir çatı firmaya bağlanamıyor"
+                  ? "bagli firmada ne ustFirmaId ne grupFirmaId var - hiçbir çatı firmaya bağlanamıyor"
                   : bf.grupFirmaId != null
                     ? (() => {
                         const gf = firmaMap.get(bf.grupFirmaId!);
                         const gorunurIcin = gorunurlukMap.get(bf.grupFirmaId!) ?? [];
-                        if (gorunurIcin.length === 0) return `grup firma '${gf?.ad}' herkese görünür ama hiçbir catiFirma eşleşmedi — incelenmeli`;
+                        if (gorunurIcin.length === 0) return `grup firma '${gf?.ad}' herkese görünür ama hiçbir catiFirma eşleşmedi - incelenmeli`;
                         return `grup firma '${gf?.ad}' yalnızca şu catiFirmalar için görünür: [${gorunurIcin.join(", ")}]`;
                       })()
-                    : "nedenini belirlenemedi — lütfen ilişkileri kontrol edin",
+                    : "nedenini belirlenemedi - lütfen ilişkileri kontrol edin",
         };
       });
 
