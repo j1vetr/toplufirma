@@ -8,3 +8,4 @@
 - [Per-currency accounting](per-currency-accounting.md) — borç=faturalar(taslak/iptal hariç)+odeme, tahsilat ayrı; totals always per para birimi, never mix currencies into one number
 - [Gemi visibility filtering](gemi-visibility-filtering.md) — filter ships server-side via catiFirmaId param; client-side gemi.catiFirmaId checks drop ships of UI-created bağlı firms (ustFirmaId null)
 - [OpenAPI spec drift](openapi-spec-drift.md) — unknown-casts in panel signal openapi.yaml missing a real API field; fix spec + codegen, never cast
+- [Banka hesabı para birimleri](banka-hesap-para-birimleri.md) — scalar paraBirimi often stale TRY default; real currencies = scalar + ibanlar keys via hesapParaBirimleri() helper

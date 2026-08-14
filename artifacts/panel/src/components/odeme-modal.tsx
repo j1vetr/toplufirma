@@ -15,6 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
 
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi",
@@ -29,9 +30,9 @@ const YONTEM_ETIKET: Record<string, string> = {
 const apiHataMesaji = (e: unknown, varsayilan: string) =>
   (e as { data?: { error?: string } })?.data?.error ?? varsayilan;
 
-/** Hesabın kayıtlı para birimleri: ana para birimi + IBAN'lardaki para birimleri. */
+/** Hesabın kayıtlı para birimlerinden (ana + IBAN'lar) biri pb ile uyumlu mu? */
 const hesapPbUyumlu = (h: { paraBirimi?: string | null; ibanlar?: Record<string, string> | null }, pb: string) =>
-  h.paraBirimi === pb || Object.keys(h.ibanlar ?? {}).includes(pb);
+  hesapParaBirimleri(h).includes(pb);
 
 function localToday(): string {
   const d = new Date();
@@ -180,13 +181,16 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
                 <SelectTrigger><SelectValue placeholder="Belirtilmedi" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Belirtilmedi</SelectItem>
-                  {faturaHesaplari.map(b => (
-                    <SelectItem key={b.id} value={String(b.id)}>
-                      {b.bankaAdi ? `${b.bankaAdi} - ` : ""}
-                      {b.hesapAdi}
-                      {b.paraBirimi ? ` (${b.paraBirimi})` : ""}
-                    </SelectItem>
-                  ))}
+                  {faturaHesaplari.map(b => {
+                    const pbs = hesapParaBirimleri(b);
+                    return (
+                      <SelectItem key={b.id} value={String(b.id)}>
+                        {b.bankaAdi ? `${b.bankaAdi} - ` : ""}
+                        {b.hesapAdi}
+                        {pbs.length > 0 ? ` (${pbs.join(", ")})` : ""}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

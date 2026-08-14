@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, Search, FileText } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
 import { useYetki } from "@/hooks/use-yetki";
+import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
 
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
@@ -40,9 +41,9 @@ const fmt = (n: number, pb = "USD") =>
 const apiHataMesaji = (e: unknown, varsayilan: string) =>
   (e as { data?: { error?: string } })?.data?.error ?? varsayilan;
 
-/** Hesabın kayıtlı para birimleri: ana para birimi + IBAN'lardaki para birimleri. */
+/** Hesabın kayıtlı para birimlerinden (ana + IBAN'lar) biri pb ile uyumlu mu? */
 const hesapPbUyumlu = (h: { paraBirimi?: string | null; ibanlar?: Record<string, string> | null }, pb: string) =>
-  h.paraBirimi === pb || Object.keys(h.ibanlar ?? {}).includes(pb);
+  hesapParaBirimleri(h).includes(pb);
 
 export default function Odemeler() {
   const { aktifSirketId } = useSirket();
@@ -112,6 +113,25 @@ export default function Odemeler() {
   const filtrelenmisBagliFirmalar = bagliFirmalar.filter(f => !catiFirmaId || f.ustFirmaId === Number(catiFirmaId));
 
   const mevcutPblar = [...new Set(odemeler.map(o => o.paraBirimi))].filter(Boolean);
+
+  const seciliBanka = bankaId && bankaId !== "none"
+    ? bankaHesaplari.find(h => String(h.id) === bankaId)
+    : undefined;
+  const bankaPbs = seciliBanka ? hesapParaBirimleri(seciliBanka) : [];
+  const pbSecenekleri = bankaPbs.length > 0
+    ? bankaPbs
+    : [...new Set(["USD", "EUR", "TRY", "GBP", ...(paraBirimi ? [paraBirimi] : [])])];
+
+  function bankaSecildi(v: string) {
+    setBankaId(v);
+    if (v && v !== "none" && duzenleId == null) {
+      const h = bankaHesaplari.find(x => String(x.id) === v);
+      const pbs = h ? hesapParaBirimleri(h) : [];
+      if (pbs.length > 0 && !pbs.includes(paraBirimi)) {
+        setParaBirimi(h?.paraBirimi && pbs.includes(h.paraBirimi) ? h.paraBirimi : pbs[0]);
+      }
+    }
+  }
 
   const filtrelenmis = odemeler.filter(o => {
     const aramaUyum = !arama || o.bagliFirmaAd?.toLowerCase().includes(arama.toLowerCase()) || o.aciklama?.toLowerCase().includes(arama.toLowerCase());
@@ -304,7 +324,7 @@ export default function Odemeler() {
                 if (secili && !hesapPbUyumlu(secili, pb)) setBankaId("");
               }} disabled={duzenleId != null}>
                 <SelectTrigger data-testid="select-yeni-odeme-pb"><SelectValue /></SelectTrigger>
-                <SelectContent>{["USD","EUR","TRY","GBP"].map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}</SelectContent>
+                <SelectContent>{pbSecenekleri.map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
@@ -320,13 +340,20 @@ export default function Odemeler() {
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Banka Hesabı</Label>
-              <Select value={bankaId} onValueChange={setBankaId}>
+              <Select value={bankaId} onValueChange={bankaSecildi}>
                 <SelectTrigger data-testid="select-yeni-odeme-banka"><SelectValue placeholder="Seçin (opsiyonel)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Seçilmedi</SelectItem>
                   {bankaHesaplari
-                    .filter(h => hesapPbUyumlu(h, paraBirimi) && (!catiFirmaId || h.catiFirmaId === Number(catiFirmaId)))
-                    .map(h => <SelectItem key={h.id} value={String(h.id)}>{h.bankaAdi} - {h.hesapAdi}</SelectItem>)}
+                    .filter(h => (duzenleId == null || hesapPbUyumlu(h, paraBirimi)) && (!catiFirmaId || h.catiFirmaId === Number(catiFirmaId)))
+                    .map(h => {
+                      const pbs = hesapParaBirimleri(h);
+                      return (
+                        <SelectItem key={h.id} value={String(h.id)}>
+                          {h.bankaAdi} - {h.hesapAdi}{pbs.length > 0 ? ` (${pbs.join(", ")})` : ""}
+                        </SelectItem>
+                      );
+                    })}
                 </SelectContent>
               </Select>
             </div>
