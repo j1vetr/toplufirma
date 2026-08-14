@@ -5,6 +5,7 @@
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
  * OpenAPI spec version: 0.2.0
  */
+import type { BankaHesabiIbanlar } from './bankaHesabiIbanlar';
 
 export interface BankaHesabi {
   id: number;
@@ -26,5 +27,6 @@ export interface BankaHesabi {
   aktif?: boolean;
   faturadaGoster?: boolean;
   bakiye?: number;
+  ibanlar?: BankaHesabiIbanlar;
   olusturmaTarihi: Date;
 }

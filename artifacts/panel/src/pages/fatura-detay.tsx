@@ -320,7 +320,7 @@ export default function FaturaDetay() {
               const ibanlar = (b.ibanlar && Object.keys(b.ibanlar).length > 0)
                 ? b.ibanlar
                 : (b.iban && b.paraBirimi ? { [b.paraBirimi]: b.iban } : {});
-              const swift = (b as unknown as Record<string,unknown>).swift as string | undefined;
+              const swift = b.swift as string | undefined;
               return (
                 <div key={b.id} className="text-sm p-3 bg-muted/50 rounded-none border">
                   {b.bankaAdi && <p className="font-medium">{b.bankaAdi}</p>}

@@ -26,6 +26,8 @@ export interface Firma {
   /** @nullable */
   telefon?: string | null;
   /** @nullable */
+  cepTel?: string | null;
+  /** @nullable */
   eposta?: string | null;
   /** @nullable */
   seriOneki?: string | null;

@@ -38,7 +38,7 @@ export function RichTextEditor({ value, onChange, placeholder, className, minHei
     if (isSelfChange.current || !editor) return;
     const next = value || "";
     if (editor.getHTML() !== next) {
-      editor.commands.setContent(next, false);
+      editor.commands.setContent(next, { emitUpdate: false });
     }
   }, [value, editor]);
 

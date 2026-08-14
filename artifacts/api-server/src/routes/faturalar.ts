@@ -379,10 +379,10 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
                 },
             {
               stack: [
-                { text: catiFirmaRow?.ad ?? row.catiFirmaAd ?? "", style: "sirketAd", alignment: "right" },
-                ...(catiFirmaRow?.adres ? [{ text: catiFirmaRow.adres, color: "#555", fontSize: 9, marginTop: 2, alignment: "right" }] : []),
-                ...((catiFirmaRow?.telefon || catiFirmaRow?.eposta) ? [{ text: [catiFirmaRow?.telefon, catiFirmaRow?.eposta].filter(Boolean).join("  |  "), color: "#555", fontSize: 9, marginTop: 1, alignment: "right" }] : []),
-                ...(catiFirmaRow?.vergiNo ? [{ text: `Tax No: ${catiFirmaRow.vergiNo}${catiFirmaRow.vergiDairesi ? ` — ${catiFirmaRow.vergiDairesi}` : ""}`, color: "#555", fontSize: 9, marginTop: 1, alignment: "right" }] : []),
+                { text: catiFirmaRow?.ad ?? row.catiFirmaAd ?? "", style: "sirketAd", alignment: "right" as const },
+                ...(catiFirmaRow?.adres ? [{ text: catiFirmaRow.adres, color: "#555", fontSize: 9, marginTop: 2, alignment: "right" as const }] : []),
+                ...((catiFirmaRow?.telefon || catiFirmaRow?.eposta) ? [{ text: [catiFirmaRow?.telefon, catiFirmaRow?.eposta].filter(Boolean).join("  |  "), color: "#555", fontSize: 9, marginTop: 1, alignment: "right" as const }] : []),
+                ...(catiFirmaRow?.vergiNo ? [{ text: `Tax No: ${catiFirmaRow.vergiNo}${catiFirmaRow.vergiDairesi ? ` — ${catiFirmaRow.vergiDairesi}` : ""}`, color: "#555", fontSize: 9, marginTop: 1, alignment: "right" as const }] : []),
               ],
               width: "*",
             },
@@ -420,7 +420,7 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
                 { text: bagliFirmaAd ?? "-", bold: true, marginTop: 4 },
                 ...(bagliFirmaAdres ? [{ text: bagliFirmaAdres, color: "#555", fontSize: 9, marginTop: 2 }] : []),
               ],
-              alignment: "right",
+              alignment: "right" as const,
             },
           ],
           marginBottom: 20,
@@ -432,33 +432,33 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
             ? [
                 { text: "Description", style: "tabloBaslik" },
                 { text: "Unit", style: "tabloBaslik" },
-                { text: "Qty", style: "tabloBaslik", alignment: "right" },
-                { text: "Unit Price", style: "tabloBaslik", alignment: "right" },
-                { text: "Total", style: "tabloBaslik", alignment: "right" },
+                { text: "Qty", style: "tabloBaslik", alignment: "right" as const },
+                { text: "Unit Price", style: "tabloBaslik", alignment: "right" as const },
+                { text: "Total", style: "tabloBaslik", alignment: "right" as const },
               ]
             : [
                 { text: "Description", style: "tabloBaslik" },
                 { text: "Unit", style: "tabloBaslik" },
-                { text: "Qty", style: "tabloBaslik", alignment: "right" },
-                { text: "Unit Price", style: "tabloBaslik", alignment: "right" },
-                { text: "VAT %", style: "tabloBaslik", alignment: "right" },
-                { text: "Total", style: "tabloBaslik", alignment: "right" },
+                { text: "Qty", style: "tabloBaslik", alignment: "right" as const },
+                { text: "Unit Price", style: "tabloBaslik", alignment: "right" as const },
+                { text: "VAT %", style: "tabloBaslik", alignment: "right" as const },
+                { text: "Total", style: "tabloBaslik", alignment: "right" as const },
               ];
           const dataRows = kalemler.map(k => kdvYok
             ? [
                 { text: k.aciklama },
                 { text: k.birim ?? "Pcs" },
-                { text: Number(k.miktar).toFixed(2), alignment: "right" },
-                { text: Number(k.birimFiyat).toFixed(2), alignment: "right" },
-                { text: Number(k.genelToplam).toFixed(2), alignment: "right" },
+                { text: Number(k.miktar).toFixed(2), alignment: "right" as const },
+                { text: Number(k.birimFiyat).toFixed(2), alignment: "right" as const },
+                { text: Number(k.genelToplam).toFixed(2), alignment: "right" as const },
               ]
             : [
                 { text: k.aciklama },
                 { text: k.birim ?? "Pcs" },
-                { text: Number(k.miktar).toFixed(2), alignment: "right" },
-                { text: Number(k.birimFiyat).toFixed(2), alignment: "right" },
-                { text: `${Number(k.kdvOrani).toFixed(0)}%`, alignment: "right" },
-                { text: Number(k.genelToplam).toFixed(2), alignment: "right" },
+                { text: Number(k.miktar).toFixed(2), alignment: "right" as const },
+                { text: Number(k.birimFiyat).toFixed(2), alignment: "right" as const },
+                { text: `${Number(k.kdvOrani).toFixed(0)}%`, alignment: "right" as const },
+                { text: Number(k.genelToplam).toFixed(2), alignment: "right" as const },
               ]);
           return {
             table: {
@@ -483,13 +483,13 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
               table: {
                 widths: ["*", "auto"],
                 body: [
-                  [{ text: "Subtotal:", color: "#555" }, { text: `${Number(f.toplamTutar).toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
-                  ...(kalemler.every(k => Number(k.kdvOrani) === 0) ? [] : [[{ text: "VAT Amount:", color: "#555" }, { text: `${Number(f.kdvTutari).toFixed(2)} ${f.paraBirimi}`, alignment: "right" }]]),
-                  [{ text: "Grand Total:", bold: true }, { text: `${Number(f.genelToplam).toFixed(2)} ${f.paraBirimi}`, alignment: "right", bold: true }],
-                  [{ text: "Paid:", color: "#555" }, { text: `${odenen.toFixed(2)} ${f.paraBirimi}`, alignment: "right" }],
+                  [{ text: "Subtotal:", color: "#555" }, { text: `${Number(f.toplamTutar).toFixed(2)} ${f.paraBirimi}`, alignment: "right" as const }],
+                  ...(kalemler.every(k => Number(k.kdvOrani) === 0) ? [] : [[{ text: "VAT Amount:", color: "#555" }, { text: `${Number(f.kdvTutari).toFixed(2)} ${f.paraBirimi}`, alignment: "right" as const }]]),
+                  [{ text: "Grand Total:", bold: true }, { text: `${Number(f.genelToplam).toFixed(2)} ${f.paraBirimi}`, alignment: "right" as const, bold: true }],
+                  [{ text: "Paid:", color: "#555" }, { text: `${odenen.toFixed(2)} ${f.paraBirimi}`, alignment: "right" as const }],
                   [
                     { text: "BALANCE DUE:", bold: true, fontSize: 12, color: "#0070d1" },
-                    { text: `${kalan.toFixed(2)} ${f.paraBirimi}`, alignment: "right", bold: true, fontSize: 12, color: "#0070d1" },
+                    { text: `${kalan.toFixed(2)} ${f.paraBirimi}`, alignment: "right" as const, bold: true, fontSize: 12, color: "#0070d1" },
                   ],
                 ],
               },

@@ -5,6 +5,7 @@
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
  * OpenAPI spec version: 0.2.0
  */
+import type { BankaHesabiUpdateIbanlar } from './bankaHesabiUpdateIbanlar';
 
 export interface BankaHesabiUpdate {
   bankaAdi?: string;
@@ -16,4 +17,5 @@ export interface BankaHesabiUpdate {
   aciklama?: string;
   aktif?: boolean;
   faturadaGoster?: boolean;
+  ibanlar?: BankaHesabiUpdateIbanlar;
 }

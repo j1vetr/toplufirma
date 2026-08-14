@@ -22,6 +22,7 @@ export const HealthCheckResponse = zod.object({
 export const ListFirmalarQueryParams = zod.object({
   "tip": zod.enum(['cati', 'bagli', 'grup']).optional(),
   "ustFirmaId": zod.coerce.number().optional(),
+  "catiFirmaId": zod.coerce.number().optional(),
   "arama": zod.coerce.string().optional()
 })
 
@@ -38,6 +39,7 @@ export const ListFirmalarResponseItem = zod.object({
   "vergiDairesi": zod.string().nullish(),
   "adres": zod.string().nullish(),
   "telefon": zod.string().nullish(),
+  "cepTel": zod.string().nullish(),
   "eposta": zod.string().nullish(),
   "seriOneki": zod.string().nullish(),
   "etiket": zod.string().nullish(),
@@ -61,6 +63,7 @@ export const CreateFirmaBody = zod.object({
   "vergiDairesi": zod.string().optional(),
   "adres": zod.string().optional(),
   "telefon": zod.string().optional(),
+  "cepTel": zod.string().optional(),
   "eposta": zod.string().optional(),
   "seriOneki": zod.string().optional(),
   "etiket": zod.string().optional(),
@@ -90,6 +93,7 @@ export const GetFirmaResponse = zod.object({
   "vergiDairesi": zod.string().nullish(),
   "adres": zod.string().nullish(),
   "telefon": zod.string().nullish(),
+  "cepTel": zod.string().nullish(),
   "eposta": zod.string().nullish(),
   "seriOneki": zod.string().nullish(),
   "etiket": zod.string().nullish(),
@@ -109,6 +113,7 @@ export const GetFirmaResponse = zod.object({
   "vergiDairesi": zod.string().nullish(),
   "adres": zod.string().nullish(),
   "telefon": zod.string().nullish(),
+  "cepTel": zod.string().nullish(),
   "eposta": zod.string().nullish(),
   "seriOneki": zod.string().nullish(),
   "etiket": zod.string().nullish(),
@@ -147,6 +152,7 @@ export const GetFirmaResponse = zod.object({
   "firmaId": zod.number(),
   "firmaAd": zod.string().nullish(),
   "catiFirmaId": zod.number().nullish(),
+  "grupFirmaId": zod.number().nullish(),
   "ad": zod.string(),
   "imoNumarasi": zod.string().nullish(),
   "bayrakDevleti": zod.string().nullish(),
@@ -186,6 +192,7 @@ export const UpdateFirmaBody = zod.object({
   "vergiDairesi": zod.string().optional(),
   "adres": zod.string().optional(),
   "telefon": zod.string().optional(),
+  "cepTel": zod.string().optional(),
   "eposta": zod.string().optional(),
   "seriOneki": zod.string().optional(),
   "etiket": zod.string().optional(),
@@ -207,6 +214,7 @@ export const UpdateFirmaResponse = zod.object({
   "vergiDairesi": zod.string().nullish(),
   "adres": zod.string().nullish(),
   "telefon": zod.string().nullish(),
+  "cepTel": zod.string().nullish(),
   "eposta": zod.string().nullish(),
   "seriOneki": zod.string().nullish(),
   "etiket": zod.string().nullish(),
@@ -357,6 +365,7 @@ export const ListGemilerResponseItem = zod.object({
   "firmaId": zod.number(),
   "firmaAd": zod.string().nullish(),
   "catiFirmaId": zod.number().nullish(),
+  "grupFirmaId": zod.number().nullish(),
   "ad": zod.string(),
   "imoNumarasi": zod.string().nullish(),
   "bayrakDevleti": zod.string().nullish(),
@@ -393,6 +402,7 @@ export const GetGemiResponse = zod.object({
   "firmaId": zod.number(),
   "firmaAd": zod.string().nullish(),
   "catiFirmaId": zod.number().nullish(),
+  "grupFirmaId": zod.number().nullish(),
   "ad": zod.string(),
   "imoNumarasi": zod.string().nullish(),
   "bayrakDevleti": zod.string().nullish(),
@@ -461,6 +471,7 @@ export const UpdateGemiResponse = zod.object({
   "firmaId": zod.number(),
   "firmaAd": zod.string().nullish(),
   "catiFirmaId": zod.number().nullish(),
+  "grupFirmaId": zod.number().nullish(),
   "ad": zod.string(),
   "imoNumarasi": zod.string().nullish(),
   "bayrakDevleti": zod.string().nullish(),
@@ -502,6 +513,7 @@ export const ListBankaHesaplariResponseItem = zod.object({
   "aktif": zod.boolean().optional(),
   "faturadaGoster": zod.boolean().default(listBankaHesaplariResponseFaturadaGosterDefault),
   "bakiye": zod.number().optional(),
+  "ibanlar": zod.record(zod.string(), zod.string()).optional(),
   "olusturmaTarihi": zod.coerce.date()
 })
 export const ListBankaHesaplariResponse = zod.array(ListBankaHesaplariResponseItem)
@@ -516,11 +528,12 @@ export const CreateBankaHesabiBody = zod.object({
   "hesapAdi": zod.string(),
   "iban": zod.string().optional(),
   "swift": zod.string().optional(),
-  "paraBirimi": zod.string(),
+  "paraBirimi": zod.string().optional(),
   "subeAdi": zod.string().optional(),
   "aciklama": zod.string().optional(),
   "aktif": zod.boolean().optional(),
-  "faturadaGoster": zod.boolean().optional()
+  "faturadaGoster": zod.boolean().optional(),
+  "ibanlar": zod.record(zod.string(), zod.string()).optional()
 })
 
 
@@ -547,6 +560,7 @@ export const GetBankaHesabiResponse = zod.object({
   "aktif": zod.boolean().optional(),
   "faturadaGoster": zod.boolean().default(getBankaHesabiResponseFaturadaGosterDefault),
   "bakiye": zod.number().optional(),
+  "ibanlar": zod.record(zod.string(), zod.string()).optional(),
   "olusturmaTarihi": zod.coerce.date()
 })
 
@@ -567,7 +581,8 @@ export const UpdateBankaHesabiBody = zod.object({
   "subeAdi": zod.string().optional(),
   "aciklama": zod.string().optional(),
   "aktif": zod.boolean().optional(),
-  "faturadaGoster": zod.boolean().optional()
+  "faturadaGoster": zod.boolean().optional(),
+  "ibanlar": zod.record(zod.string(), zod.string()).optional()
 })
 
 export const updateBankaHesabiResponseFaturadaGosterDefault = true;
@@ -586,6 +601,7 @@ export const UpdateBankaHesabiResponse = zod.object({
   "aktif": zod.boolean().optional(),
   "faturadaGoster": zod.boolean().default(updateBankaHesabiResponseFaturadaGosterDefault),
   "bakiye": zod.number().optional(),
+  "ibanlar": zod.record(zod.string(), zod.string()).optional(),
   "olusturmaTarihi": zod.coerce.date()
 })
 
@@ -696,6 +712,7 @@ export const CreateFaturaBody = zod.object({
   "aciklama": zod.string().optional(),
   "kalemler": zod.array(zod.object({
   "aciklama": zod.string(),
+  "birim": zod.string().nullish(),
   "miktar": zod.number(),
   "birimFiyat": zod.number(),
   "kdvOrani": zod.number()
@@ -741,6 +758,7 @@ export const GetFaturaResponse = zod.object({
   "id": zod.number(),
   "faturaId": zod.number(),
   "aciklama": zod.string(),
+  "birim": zod.string().nullish(),
   "miktar": zod.number(),
   "birimFiyat": zod.number(),
   "kdvOrani": zod.number(),
@@ -1426,6 +1444,7 @@ export const GlobalAramaResponse = zod.object({
   "vergiDairesi": zod.string().nullish(),
   "adres": zod.string().nullish(),
   "telefon": zod.string().nullish(),
+  "cepTel": zod.string().nullish(),
   "eposta": zod.string().nullish(),
   "seriOneki": zod.string().nullish(),
   "etiket": zod.string().nullish(),
@@ -1439,6 +1458,7 @@ export const GlobalAramaResponse = zod.object({
   "firmaId": zod.number(),
   "firmaAd": zod.string().nullish(),
   "catiFirmaId": zod.number().nullish(),
+  "grupFirmaId": zod.number().nullish(),
   "ad": zod.string(),
   "imoNumarasi": zod.string().nullish(),
   "bayrakDevleti": zod.string().nullish(),
@@ -1497,6 +1517,7 @@ export const ListTekrarlayanFaturalarResponseItem = zod.object({
   "kdvOrani": zod.number(),
   "paraBirimi": zod.string(),
   "sonrakiTarih": zod.coerce.date(),
+  "ayinGunu": zod.number().nullish(),
   "aktif": zod.boolean(),
   "kalemler": zod.array(zod.object({
   "id": zod.number(),
@@ -1524,6 +1545,7 @@ export const CreateTekrarlayanFaturaBody = zod.object({
   "kdvOrani": zod.number(),
   "paraBirimi": zod.string(),
   "sonrakiTarih": zod.coerce.date(),
+  "ayinGunu": zod.number().nullish(),
   "aktif": zod.boolean().optional(),
   "kalemler": zod.array(zod.object({
   "aciklama": zod.string(),
@@ -1550,6 +1572,7 @@ export const UpdateTekrarlayanFaturaBody = zod.object({
   "kdvOrani": zod.number().optional(),
   "paraBirimi": zod.string().optional(),
   "sonrakiTarih": zod.coerce.date().optional(),
+  "ayinGunu": zod.number().nullish(),
   "aktif": zod.boolean().optional(),
   "kalemler": zod.array(zod.object({
   "aciklama": zod.string(),
@@ -1574,6 +1597,7 @@ export const UpdateTekrarlayanFaturaResponse = zod.object({
   "kdvOrani": zod.number(),
   "paraBirimi": zod.string(),
   "sonrakiTarih": zod.coerce.date(),
+  "ayinGunu": zod.number().nullish(),
   "aktif": zod.boolean(),
   "kalemler": zod.array(zod.object({
   "id": zod.number(),

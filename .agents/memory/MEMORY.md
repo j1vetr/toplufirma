@@ -7,3 +7,4 @@
 - [RichTextEditor TipTap](rich-text-editor.md) — TipTap controlled integration pattern; isSelfChange ref prevents circular update; notlar saved as HTML string; PDF rendering out-of-scope
 - [Per-currency accounting](per-currency-accounting.md) — borç=faturalar(taslak/iptal hariç)+odeme, tahsilat ayrı; totals always per para birimi, never mix currencies into one number
 - [Gemi visibility filtering](gemi-visibility-filtering.md) — filter ships server-side via catiFirmaId param; client-side gemi.catiFirmaId checks drop ships of UI-created bağlı firms (ustFirmaId null)
+- [OpenAPI spec drift](openapi-spec-drift.md) — unknown-casts in panel signal openapi.yaml missing a real API field; fix spec + codegen, never cast

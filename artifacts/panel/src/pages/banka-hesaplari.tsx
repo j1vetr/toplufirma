@@ -91,7 +91,7 @@ export default function BankaHesaplari() {
         catiFirmaId: String(h.catiFirmaId),
         bankaAdi: h.bankaAdi ?? "",
         hesapAdi: h.hesapAdi,
-        swift: (h as unknown as Record<string,unknown>).swift as string ?? "",
+        swift: h.swift as string ?? "",
         subeAdi: h.subeAdi ?? "",
         aciklama: h.aciklama ?? "",
         faturadaGoster: h.faturadaGoster ?? true,
@@ -112,7 +112,7 @@ export default function BankaHesaplari() {
       catiFirmaId: String(h.catiFirmaId),
       bankaAdi: h.bankaAdi ?? "",
       hesapAdi: h.hesapAdi + " (Kopya)",
-      swift: (h as unknown as Record<string,unknown>).swift as string ?? "",
+      swift: h.swift as string ?? "",
       subeAdi: h.subeAdi ?? "",
       aciklama: h.aciklama ?? "",
       faturadaGoster: h.faturadaGoster ?? true,
@@ -187,7 +187,7 @@ export default function BankaHesaplari() {
           const ibanlar = (h.ibanlar && Object.keys(h.ibanlar).length > 0)
             ? h.ibanlar
             : (h.iban && h.paraBirimi ? { [h.paraBirimi]: h.iban } : {});
-          const swift = (h as unknown as Record<string,unknown>).swift as string | undefined;
+          const swift = h.swift as string | undefined;
           const ibanGirisler = Object.entries(ibanlar);
 
           return (
@@ -281,8 +281,8 @@ export default function BankaHesaplari() {
                   <SelectItem key={f.id} value={String(f.id)}>
                     <span className="flex items-center gap-2">
                       <span>{f.ad}</span>
-                      {(f as unknown as Record<string, unknown>).etiket && (
-                        <span className="text-[10px] font-bold bg-[#ffed00] text-black px-1.5 py-0.5 leading-none">{String((f as unknown as Record<string, unknown>).etiket)}</span>
+                      {f.etiket && (
+                        <span className="text-[10px] font-bold bg-[#ffed00] text-black px-1.5 py-0.5 leading-none">{String(f.etiket)}</span>
                       )}
                     </span>
                   </SelectItem>

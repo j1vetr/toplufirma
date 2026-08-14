@@ -170,14 +170,14 @@ export default function Firmalar() {
       setForm({
         ad: f.ad, vergiNo: f.vergiNo ?? "", vergiDairesi: f.vergiDairesi ?? "",
         adres: f.adres ?? "", telefon: f.telefon ?? "",
-        cepTel: (f as unknown as Record<string, unknown>).cepTel as string ?? "",
+        cepTel: f.cepTel as string ?? "",
         eposta: f.eposta ?? "",
-        etiket: (f as unknown as Record<string, unknown>).etiket as string ?? "",
-        logoUrl: (f as unknown as Record<string, unknown>).logoUrl as string ?? "",
-        grupFirmaId: (f as unknown as Record<string, unknown>).grupFirmaId != null
-          ? String((f as unknown as Record<string, unknown>).grupFirmaId) : "",
-        gorunurSirketIds: Array.isArray((f as unknown as Record<string, unknown>).gorunurSirketIds)
-          ? (f as unknown as Record<string, unknown>).gorunurSirketIds as number[] : [],
+        etiket: f.etiket as string ?? "",
+        logoUrl: f.logoUrl as string ?? "",
+        grupFirmaId: f.grupFirmaId != null
+          ? String(f.grupFirmaId) : "",
+        gorunurSirketIds: Array.isArray(f.gorunurSirketIds)
+          ? f.gorunurSirketIds as number[] : [],
       });
       setDuzenleId(id);
     } else {
@@ -241,7 +241,7 @@ export default function Firmalar() {
   }
 
   const bagliFirmaFor = (grupId: number) =>
-    bagliFirmalar.filter(b => (b as unknown as Record<string, unknown>).grupFirmaId === grupId);
+    bagliFirmalar.filter(b => b.grupFirmaId === grupId);
 
   const aramaQ = arama.trim().toLocaleLowerCase("tr");
   const metinEslesir = (f: unknown) => {
@@ -323,7 +323,7 @@ export default function Firmalar() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-base">{grup.ad}</h3>
                     <Badge variant="outline" className="text-xs">Çatı Firma</Badge>
-                    {(grup as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((grup as unknown as Record<string, unknown>).etiket)}</Badge>}
+                    {grup.etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String(grup.etiket)}</Badge>}
                     {!grup.aktif && <Badge variant="secondary">Pasif</Badge>}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
@@ -331,7 +331,7 @@ export default function Firmalar() {
                     {grup.eposta && <span>{grup.eposta}</span>}
                     <span className="flex items-center gap-1"><Users className="h-3 w-3" />{bagliler.length} bağlı firma</span>
                     {(() => {
-                      const ids = (grup as unknown as Record<string, unknown>).gorunurSirketIds;
+                      const ids = grup.gorunurSirketIds;
                       if (!Array.isArray(ids) || ids.length === 0) return null;
                       const adlar = ids.map((sid: number) => catiFirmalar.find(c => c.id === sid)?.ad ?? `#${sid}`);
                       return (
@@ -381,13 +381,13 @@ export default function Firmalar() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium text-sm">{b.ad}</p>
-                            {(b as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((b as unknown as Record<string, unknown>).etiket)}</Badge>}
+                            {b.etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String(b.etiket)}</Badge>}
                           </div>
                           <div className="flex gap-3 text-xs text-muted-foreground flex-wrap">
                             {b.vergiNo && <span>VKN: {b.vergiNo}</span>}
                             {b.eposta && <span>{b.eposta}</span>}
                             {b.telefon && <span>{b.telefon}</span>}
-                            {(b as unknown as Record<string, unknown>).cepTel && <span>{String((b as unknown as Record<string, unknown>).cepTel)}</span>}
+                            {b.cepTel && <span>{String(b.cepTel)}</span>}
                           </div>
                           {(() => {
                             const bGemiler = gemilerByFirmaId.get(b.id) ?? [];
@@ -494,8 +494,8 @@ export default function Firmalar() {
                           className="h-4 w-4 accent-[#ffed00]"
                         />
                         <span className="text-sm">{s.ad}</span>
-                        {(s as unknown as Record<string, unknown>).etiket && (
-                          <span className="text-[10px] font-bold bg-[#ffed00] text-black px-1.5 py-0.5 leading-none">{String((s as unknown as Record<string, unknown>).etiket)}</span>
+                        {s.etiket && (
+                          <span className="text-[10px] font-bold bg-[#ffed00] text-black px-1.5 py-0.5 leading-none">{String(s.etiket)}</span>
                         )}
                       </label>
                     );

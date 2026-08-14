@@ -311,12 +311,18 @@ router.post("/teklifler/:id/gonder", requireYazma, async (req, res) => {
       vergiNo: row.firmaVergiNo,
       vergiDairesi: row.firmaVergiDairesi,
     };
+    const belgeKalemler = await db.select().from(teklifKalemleri)
+      .where(and(eq(teklifKalemleri.teklifId, id), eq(teklifKalemleri.opsiyonel, false)));
+    const belgeToplam = belgeKalemler.reduce((sum, k) => {
+      const ara = Number(k.miktar) * Number(k.birimFiyat);
+      return sum + ara + ara * (Number(k.kdvOrani) / 100);
+    }, 0);
     const belgeData = {
       tip: "teklif" as const,
       no: row.t.teklifNo,
-      tarih: row.t.teklifTarihi ?? "",
+      tarih: row.t.tarih,
       gecerlilikTarihi: row.t.gecerlilikTarihi,
-      toplamTutar: row.t.toplamTutar ?? 0,
+      toplamTutar: belgeToplam,
       paraBirimi: row.t.paraBirimi ?? "USD",
       gemiAd: row.gemiAd ?? row.t.gemiAdManuel,
       durum: row.t.durum,
@@ -398,12 +404,18 @@ router.get("/teklifler/:id/email-onizleme", async (req, res) => {
       vergiNo: row.firmaVergiNo,
       vergiDairesi: row.firmaVergiDairesi,
     };
+    const belgeKalemler = await db.select().from(teklifKalemleri)
+      .where(and(eq(teklifKalemleri.teklifId, id), eq(teklifKalemleri.opsiyonel, false)));
+    const belgeToplam = belgeKalemler.reduce((sum, k) => {
+      const ara = Number(k.miktar) * Number(k.birimFiyat);
+      return sum + ara + ara * (Number(k.kdvOrani) / 100);
+    }, 0);
     const belgeData = {
       tip: "teklif" as const,
       no: row.t.teklifNo,
-      tarih: row.t.teklifTarihi ?? "",
+      tarih: row.t.tarih,
       gecerlilikTarihi: row.t.gecerlilikTarihi,
-      toplamTutar: row.t.toplamTutar ?? 0,
+      toplamTutar: belgeToplam,
       paraBirimi: row.t.paraBirimi ?? "USD",
       gemiAd: row.gemiAd ?? row.t.gemiAdManuel,
       durum: row.t.durum,
@@ -553,12 +565,12 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
     const kalemSatiri = (k: typeof kalemler[number]): TableCell[] => {
       satirNo++;
       return [
-        { text: String(satirNo), alignment: "center" },
+        { text: String(satirNo), alignment: "center" as const },
         { text: k.aciklama },
-        { text: String(k.birim ?? "Adet"), alignment: "center" },
-        { text: Number(k.miktar).toFixed(2), alignment: "right" },
-        { text: Number(k.birimFiyat).toFixed(2), alignment: "right" },
-        { text: (Number(k.miktar) * Number(k.birimFiyat)).toFixed(2), alignment: "right" },
+        { text: String(k.birim ?? "Adet"), alignment: "center" as const },
+        { text: Number(k.miktar).toFixed(2), alignment: "right" as const },
+        { text: Number(k.birimFiyat).toFixed(2), alignment: "right" as const },
+        { text: (Number(k.miktar) * Number(k.birimFiyat)).toFixed(2), alignment: "right" as const },
       ];
     };
 
@@ -587,10 +599,10 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
                 },
             {
               stack: [
-                { text: catiFirmaRow?.ad ?? row.catiFirmaAd ?? "", style: "sirketAd", alignment: "right" },
-                ...(catiFirmaRow?.adres ? [{ text: catiFirmaRow.adres, color: "#555", fontSize: 9, marginTop: 2, alignment: "right" }] : []),
-                ...((catiFirmaRow?.telefon || catiFirmaRow?.eposta) ? [{ text: [catiFirmaRow?.telefon, catiFirmaRow?.eposta].filter(Boolean).join("  |  "), color: "#555", fontSize: 9, marginTop: 1, alignment: "right" }] : []),
-                ...(catiFirmaRow?.vergiNo ? [{ text: `Tax No: ${catiFirmaRow.vergiNo}${catiFirmaRow.vergiDairesi ? ` — ${catiFirmaRow.vergiDairesi}` : ""}`, color: "#555", fontSize: 9, marginTop: 1, alignment: "right" }] : []),
+                { text: catiFirmaRow?.ad ?? row.catiFirmaAd ?? "", style: "sirketAd", alignment: "right" as const },
+                ...(catiFirmaRow?.adres ? [{ text: catiFirmaRow.adres, color: "#555", fontSize: 9, marginTop: 2, alignment: "right" as const }] : []),
+                ...((catiFirmaRow?.telefon || catiFirmaRow?.eposta) ? [{ text: [catiFirmaRow?.telefon, catiFirmaRow?.eposta].filter(Boolean).join("  |  "), color: "#555", fontSize: 9, marginTop: 1, alignment: "right" as const }] : []),
+                ...(catiFirmaRow?.vergiNo ? [{ text: `Tax No: ${catiFirmaRow.vergiNo}${catiFirmaRow.vergiDairesi ? ` — ${catiFirmaRow.vergiDairesi}` : ""}`, color: "#555", fontSize: 9, marginTop: 1, alignment: "right" as const }] : []),
               ],
               width: "*",
             },
@@ -612,8 +624,8 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
             {
               width: "auto",
               stack: [
-                { text: "PROFORMA QUOTATION", fontSize: 18, bold: true, color: "#0070d1", alignment: "right" },
-                { text: `No: ${t.teklifNo}`, fontSize: 10, color: "#555", alignment: "right", marginTop: 4 },
+                { text: "PROFORMA QUOTATION", fontSize: 18, bold: true, color: "#0070d1", alignment: "right" as const },
+                { text: `No: ${t.teklifNo}`, fontSize: 10, color: "#555", alignment: "right" as const, marginTop: 4 },
               ],
             },
           ],
@@ -638,7 +650,7 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
                 { text: [{ text: "Ship Name:", bold: true }, `  ${row.gemiAd ?? row.t.gemiAdManuel}`], marginTop: 6 },
                 ...(row.gemiImo ? [{ text: [{ text: "Ship IMO:", bold: true }, `  ${String(row.gemiImo)}`], marginTop: 3 }] : []),
               ],
-              alignment: "right",
+              alignment: "right" as const,
             }] : []),
           ],
           marginBottom: 20,
@@ -650,12 +662,12 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
             widths: [24, "*", 44, 40, 64, 64],
             body: ([
               [
-                { text: "#", style: "tabloBaslik", alignment: "center" },
+                { text: "#", style: "tabloBaslik", alignment: "center" as const },
                 { text: "Description", style: "tabloBaslik" },
-                { text: "Unit", style: "tabloBaslik", alignment: "center" },
-                { text: "Qty", style: "tabloBaslik", alignment: "right" },
-                { text: "Unit Price", style: "tabloBaslik", alignment: "right" },
-                { text: "Amount", style: "tabloBaslik", alignment: "right" },
+                { text: "Unit", style: "tabloBaslik", alignment: "center" as const },
+                { text: "Qty", style: "tabloBaslik", alignment: "right" as const },
+                { text: "Unit Price", style: "tabloBaslik", alignment: "right" as const },
+                { text: "Amount", style: "tabloBaslik", alignment: "right" as const },
               ],
               ...zorunluKalemler.map(kalemSatiri),
             ] as unknown as TableCell[][]),
@@ -671,17 +683,17 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
               widths: [24, "*", 44, 40, 64, 64],
               body: ([
                 [
-                  { text: "#", style: "tabloBaslik", alignment: "center" },
+                  { text: "#", style: "tabloBaslik", alignment: "center" as const },
                   { text: "Description", style: "tabloBaslik" },
-                  { text: "Unit", style: "tabloBaslik", alignment: "center" },
-                  { text: "Qty", style: "tabloBaslik", alignment: "right" },
-                  { text: "Unit Price", style: "tabloBaslik", alignment: "right" },
-                  { text: "Amount", style: "tabloBaslik", alignment: "right" },
+                  { text: "Unit", style: "tabloBaslik", alignment: "center" as const },
+                  { text: "Qty", style: "tabloBaslik", alignment: "right" as const },
+                  { text: "Unit Price", style: "tabloBaslik", alignment: "right" as const },
+                  { text: "Amount", style: "tabloBaslik", alignment: "right" as const },
                 ],
                 ...opsKalemler.map(kalemSatiri),
                 [
-                  { text: "Optional Total:", colSpan: 5, alignment: "right", bold: true, color: "#555" }, {}, {}, {}, {},
-                  { text: `${opsToplamTutar.toFixed(2)} ${t.paraBirimi}`, alignment: "right", bold: true, color: "#555" },
+                  { text: "Optional Total:", colSpan: 5, alignment: "right" as const, bold: true, color: "#555" }, {}, {}, {}, {},
+                  { text: `${opsToplamTutar.toFixed(2)} ${t.paraBirimi}`, alignment: "right" as const, bold: true, color: "#555" },
                 ],
               ] as unknown as TableCell[][]),
             },
@@ -697,7 +709,7 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
               table: {
                 widths: ["*", "auto"],
                 body: [
-                  [{ text: "TOTAL AMOUNT:", bold: true, fontSize: 11, color: "#0070d1" }, { text: `${araToplam.toFixed(2)} ${t.paraBirimi}`, alignment: "right", bold: true, fontSize: 11, color: "#0070d1" }],
+                  [{ text: "TOTAL AMOUNT:", bold: true, fontSize: 11, color: "#0070d1" }, { text: `${araToplam.toFixed(2)} ${t.paraBirimi}`, alignment: "right" as const, bold: true, fontSize: 11, color: "#0070d1" }],
                 ],
               },
               layout: {
@@ -730,9 +742,9 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
               { text: "", width: 50 },
               {
                 text: `${catiFirmaRow?.ad ?? ""}${catiFirmaRow?.adres ? "  ·  " + catiFirmaRow.adres : ""}`,
-                fontSize: 7.5, color: "#aaa", alignment: "center", width: "*", margin: [0, 4, 0, 0],
+                fontSize: 7.5, color: "#aaa", alignment: "center" as const, width: "*", margin: [0, 4, 0, 0],
               },
-              { text: `${currentPage} / ${pageCount}`, fontSize: 7.5, color: "#aaa", alignment: "right", width: 50, margin: [0, 4, 40, 0] },
+              { text: `${currentPage} / ${pageCount}`, fontSize: 7.5, color: "#aaa", alignment: "right" as const, width: 50, margin: [0, 4, 40, 0] },
             ],
           },
         ],

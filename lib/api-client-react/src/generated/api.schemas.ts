@@ -37,6 +37,8 @@ export interface Firma {
   /** @nullable */
   telefon?: string | null;
   /** @nullable */
+  cepTel?: string | null;
+  /** @nullable */
   eposta?: string | null;
   /** @nullable */
   seriOneki?: string | null;
@@ -173,6 +175,8 @@ export interface FirmaDetay {
   /** @nullable */
   telefon?: string | null;
   /** @nullable */
+  cepTel?: string | null;
+  /** @nullable */
   eposta?: string | null;
   /** @nullable */
   seriOneki?: string | null;
@@ -210,6 +214,7 @@ export interface FirmaInput {
   vergiDairesi?: string;
   adres?: string;
   telefon?: string;
+  cepTel?: string;
   eposta?: string;
   seriOneki?: string;
   etiket?: string;
@@ -226,6 +231,7 @@ export interface FirmaUpdate {
   vergiDairesi?: string;
   adres?: string;
   telefon?: string;
+  cepTel?: string;
   eposta?: string;
   seriOneki?: string;
   etiket?: string;
@@ -320,6 +326,8 @@ export interface GemiDetay {
   firmaAd?: string | null;
   /** @nullable */
   catiFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaId?: number | null;
   ad: string;
   /** @nullable */
   imoNumarasi?: string | null;
@@ -351,6 +359,8 @@ export interface GemiUpdate {
   firmaId?: number;
 }
 
+export type BankaHesabiIbanlar = {[key: string]: string};
+
 export interface BankaHesabi {
   id: number;
   catiFirmaId: number;
@@ -371,9 +381,11 @@ export interface BankaHesabi {
   aktif?: boolean;
   faturadaGoster?: boolean;
   bakiye?: number;
-  ibanlar?: Record<string, string>;
+  ibanlar?: BankaHesabiIbanlar;
   olusturmaTarihi: string;
 }
+
+export type BankaHesabiInputIbanlar = {[key: string]: string};
 
 export interface BankaHesabiInput {
   catiFirmaId: number;
@@ -386,8 +398,10 @@ export interface BankaHesabiInput {
   aciklama?: string;
   aktif?: boolean;
   faturadaGoster?: boolean;
-  ibanlar?: Record<string, string>;
+  ibanlar?: BankaHesabiInputIbanlar;
 }
+
+export type BankaHesabiUpdateIbanlar = {[key: string]: string};
 
 export interface BankaHesabiUpdate {
   bankaAdi?: string;
@@ -399,7 +413,7 @@ export interface BankaHesabiUpdate {
   aciklama?: string;
   aktif?: boolean;
   faturadaGoster?: boolean;
-  ibanlar?: Record<string, string>;
+  ibanlar?: BankaHesabiUpdateIbanlar;
 }
 
 export type BankaHareketiTip = typeof BankaHareketiTip[keyof typeof BankaHareketiTip];

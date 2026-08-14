@@ -15,6 +15,8 @@ export interface GemiDetay {
   firmaAd?: string | null;
   /** @nullable */
   catiFirmaId?: number | null;
+  /** @nullable */
+  grupFirmaId?: number | null;
   ad: string;
   /** @nullable */
   imoNumarasi?: string | null;

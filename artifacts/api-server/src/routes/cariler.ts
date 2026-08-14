@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import nodemailer from "nodemailer";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
+import type { Fill } from "exceljs";
 
 const _req = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -224,7 +225,7 @@ router.get("/cariler", async (req, res) => {
     for (const [grupId, grupInfo] of grupMap) {
       const gfRow = grupFirmaRowMap.get(grupId);
       const grupFaturaRows = allFaturalar.filter(f => grupInfo.bagliFirmaIds.includes(f.bagliFirmaId));
-      const grupOds = grupOdemeRows.filter(o => o.bagliFirmaId === grupId || grupInfo.bagliFirmaIds.includes(o.bagliFirmaId));
+      const grupOds = grupOdemeRows.filter(o => o.bagliFirmaId === grupId || (o.bagliFirmaId != null && grupInfo.bagliFirmaIds.includes(o.bagliFirmaId)));
       const validF = grupFaturaRows.filter(f => !["taslak", "iptal"].includes(f.durum));
 
       const toplamBorc = validF.reduce((s, f) => s + Number(f.genelToplam), 0)
@@ -1085,7 +1086,7 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     const WHITE = "FFFFFFFF";
     const LIGHT_BLUE = "FFBDD7EE";
 
-    const solidFill = (argb: string): ExcelJS.Fill =>
+    const solidFill = (argb: string): Fill =>
       ({ type: "pattern", pattern: "solid", fgColor: { argb } });
 
     // --- Satır 1: Başlık ---

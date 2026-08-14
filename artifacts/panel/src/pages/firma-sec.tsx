@@ -106,8 +106,8 @@ export default function FirmaSec({ kullanici }: Props) {
             "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
           }`}>
             {firmalar.map(f => {
-              const etiket = (f as unknown as Record<string, unknown>).etiket as string | null;
-              const logo = (f as unknown as Record<string, unknown>).logo as string | null;
+              const etiket = f.etiket ?? null;
+              const logo = f.logoUrl ?? null;
               const isAktif = aktifSirketId === f.id;
 
               return (

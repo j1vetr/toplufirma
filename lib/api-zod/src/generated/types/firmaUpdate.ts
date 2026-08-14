@@ -14,6 +14,7 @@ export interface FirmaUpdate {
   vergiDairesi?: string;
   adres?: string;
   telefon?: string;
+  cepTel?: string;
   eposta?: string;
   seriOneki?: string;
   etiket?: string;

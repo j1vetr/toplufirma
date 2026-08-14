@@ -640,9 +640,9 @@ export default function Teklifler() {
                     <SelectItem key={f.id} value={String(f.id)}>
                       <span className="flex items-center gap-2">
                         <span className="truncate">{f.ad}</span>
-                        {(f as unknown as Record<string, unknown>).etiket && (
+                        {f.etiket && (
                           <span className="shrink-0 text-[9px] font-bold bg-zinc-800 text-white px-1 py-0.5 leading-none">
-                            {String((f as unknown as Record<string, unknown>).etiket)}
+                            {String(f.etiket)}
                           </span>
                         )}
                       </span>

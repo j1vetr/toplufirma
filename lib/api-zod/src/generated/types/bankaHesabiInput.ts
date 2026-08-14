@@ -5,6 +5,7 @@
  * Çoklu Firma Muhasebe ve Cari Takip Paneli API
  * OpenAPI spec version: 0.2.0
  */
+import type { BankaHesabiInputIbanlar } from './bankaHesabiInputIbanlar';
 
 export interface BankaHesabiInput {
   catiFirmaId: number;
@@ -12,9 +13,10 @@ export interface BankaHesabiInput {
   hesapAdi: string;
   iban?: string;
   swift?: string;
-  paraBirimi: string;
+  paraBirimi?: string;
   subeAdi?: string;
   aciklama?: string;
   aktif?: boolean;
   faturadaGoster?: boolean;
+  ibanlar?: BankaHesabiInputIbanlar;
 }

@@ -376,7 +376,7 @@ export default function FaturaYeni() {
                   onValueChange={v => {
                     setBagliFirmaId(v);
                     const musteri = filtrelenmisCariler.find(f => f.id === Number(v));
-                    const gid = (musteri as unknown as Record<string, unknown>)?.grupFirmaId;
+                    const gid = musteri?.grupFirmaId;
                     setGrupFirmaId(gid != null ? String(gid) : "");
                   }}
                 >

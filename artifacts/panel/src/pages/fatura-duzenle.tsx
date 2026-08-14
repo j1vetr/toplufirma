@@ -90,7 +90,7 @@ export default function FaturaDuzenle() {
     if (fatura.kalemler?.length) {
       setKalemler(fatura.kalemler.map(k => ({
         aciklama: k.aciklama,
-        birim: (k as unknown as { birim?: string }).birim ?? "Pcs",
+        birim: k.birim ?? "Pcs",
         miktar: Number(k.miktar),
         birimFiyat: Number(k.birimFiyat),
         kdvOrani: Number(k.kdvOrani),
@@ -120,7 +120,7 @@ export default function FaturaDuzenle() {
     firmaId: g.firmaId,
     firmaAd: g.firmaAd,
     catiFirmaId: g.catiFirmaId,
-    grupFirmaId: (g as unknown as Record<string, unknown>).grupFirmaId as number | null ?? null,
+    grupFirmaId: g.grupFirmaId as number | null ?? null,
   }));
 
   const seciliGemi = gemiSecenekleri.find(g => String(g.id) === gemiId) ?? null;

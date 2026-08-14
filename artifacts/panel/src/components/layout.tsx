@@ -198,7 +198,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
     { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
   );
   const aktifFirma = firmalar.find(f => f.id === aktifSirketId);
-  const aktifFirmaEtiket = (aktifFirma as unknown as Record<string, unknown>)?.etiket as string | null | undefined;
+  const aktifFirmaEtiket = aktifFirma?.etiket as string | null | undefined;
 
   const isYonetici = kullanici?.rol === "yonetici";
 
@@ -251,9 +251,9 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
                   data-testid={`sirket-secici-${f.id}`}
                 >
                   <span className="truncate">{f.ad}</span>
-                  {(f as unknown as Record<string, unknown>).etiket && (
+                  {f.etiket && (
                     <span className="shrink-0 text-[10px] font-bold bg-[#ffed00] text-black px-1.5 py-0.5 leading-none">
-                      {String((f as unknown as Record<string, unknown>).etiket)}
+                      {String(f.etiket)}
                     </span>
                   )}
                 </DropdownMenuItem>

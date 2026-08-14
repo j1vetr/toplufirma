@@ -19,6 +19,8 @@ export interface TekrarlayanFaturaInput {
   kdvOrani: number;
   paraBirimi: string;
   sonrakiTarih: Date;
+  /** @nullable */
+  ayinGunu?: number | null;
   aktif?: boolean;
   kalemler?: TekrarlayanFaturaKalemiInput[];
 }

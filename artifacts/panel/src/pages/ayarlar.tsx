@@ -223,11 +223,12 @@ export default function Ayarlar() {
       setFirmaForm({
         ad: f.ad, vergiNo: f.vergiNo ?? "", vergiDairesi: f.vergiDairesi ?? "",
         adres: f.adres ?? "", telefon: f.telefon ?? "",
-        cepTel: (f as unknown as Record<string, unknown>).cepTel as string ?? "",
+        cepTel: f.cepTel ?? "",
         eposta: f.eposta ?? "",
         seriOneki: f.seriOneki ?? "",
-        etiket: (f as unknown as Record<string, unknown>).etiket as string ?? "",
-        logoUrl: (f as unknown as Record<string, unknown>).logoUrl as string ?? "",
+        etiket: f.etiket ?? "",
+        logoUrl: f.logoUrl ?? "",
+        seriBaslangicNo: "1",
       });
       setDuzenleId(id);
     } else {
@@ -325,7 +326,7 @@ export default function Ayarlar() {
       if (!h) return;
       setHesapForm({
         catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi ?? "",
-        hesapAdi: h.hesapAdi, swift: (h as unknown as Record<string, unknown>).swift as string ?? "",
+        hesapAdi: h.hesapAdi, swift: h.swift as string ?? "",
         subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "",
         faturadaGoster: h.faturadaGoster ?? true,
         ibanGirisler: hesapIbanGirisler(h.ibanlar, h.iban, h.paraBirimi),
@@ -343,7 +344,7 @@ export default function Ayarlar() {
     if (!h) return;
     setHesapForm({
       catiFirmaId: String(h.catiFirmaId), bankaAdi: h.bankaAdi ?? "",
-      hesapAdi: h.hesapAdi + " (Kopya)", swift: (h as unknown as Record<string, unknown>).swift as string ?? "",
+      hesapAdi: h.hesapAdi + " (Kopya)", swift: h.swift as string ?? "",
       subeAdi: h.subeAdi ?? "", aciklama: h.aciklama ?? "",
       faturadaGoster: h.faturadaGoster ?? true,
       ibanGirisler: hesapIbanGirisler(h.ibanlar, h.iban, h.paraBirimi),
@@ -549,7 +550,7 @@ export default function Ayarlar() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold">{cati.ad}</p>
-                          {(cati as unknown as Record<string, unknown>).etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String((cati as unknown as Record<string, unknown>).etiket)}</Badge>}
+                          {cati.etiket && <Badge className="text-xs bg-[#ffed00] text-black border-0 hover:bg-[#ffed00]">{String(cati.etiket)}</Badge>}
                           {!cati.aktif && <Badge variant="secondary" className="text-xs">Pasif</Badge>}
                         </div>
                         <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
@@ -600,7 +601,7 @@ export default function Ayarlar() {
                 const ibanlar = (h.ibanlar && Object.keys(h.ibanlar).length > 0)
                   ? h.ibanlar
                   : (h.iban && h.paraBirimi ? { [h.paraBirimi]: h.iban } : {});
-                const swift = (h as unknown as Record<string, unknown>).swift as string | undefined;
+                const swift = h.swift as string | undefined;
                 const ibanGirisler = Object.entries(ibanlar);
                 return (
                   <Card key={h.id} data-testid={`card-hesap-${h.id}`}>
@@ -1013,8 +1014,8 @@ export default function Ayarlar() {
                   <SelectItem key={f.id} value={String(f.id)}>
                     <span className="flex items-center gap-2">
                       <span>{f.ad}</span>
-                      {(f as unknown as Record<string, unknown>).etiket && (
-                        <span className="text-[10px] font-bold bg-[#ffed00] text-black px-1.5 py-0.5 leading-none">{String((f as unknown as Record<string, unknown>).etiket)}</span>
+                      {f.etiket && (
+                        <span className="text-[10px] font-bold bg-[#ffed00] text-black px-1.5 py-0.5 leading-none">{String(f.etiket)}</span>
                       )}
                     </span>
                   </SelectItem>
