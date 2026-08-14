@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useListFirmalar, getListFirmalarQueryKey, useListGemiler, getListGemilerQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,14 +18,14 @@ const KATEGORILER = [
   { value: "diger", label: "Diğer", color: "bg-gray-100 text-gray-700" },
 ];
 
-function kategoriRenk(k: string) {
+export function kategoriRenk(k: string) {
   return KATEGORILER.find(x => x.value === k)?.color ?? "bg-gray-100 text-gray-700";
 }
-function kategoriLabel(k: string) {
+export function kategoriLabel(k: string) {
   return KATEGORILER.find(x => x.value === k)?.label ?? k;
 }
 
-interface ServisDosya {
+export interface ServisDosya {
   id: number;
   servisId: number;
   dosyaYolu: string;
@@ -34,7 +35,7 @@ interface ServisDosya {
   olusturmaTarihi: string;
 }
 
-interface ServisKayit {
+export interface ServisKayit {
   id: number;
   catiFirmaId: number;
   gemiId: number;
@@ -48,22 +49,22 @@ interface ServisKayit {
   dosyalar: ServisDosya[];
 }
 
-const apiBase = () => {
+export const apiBase = () => {
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
   return `${base}/api`;
 };
 
-function authHeaders() {
+export function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("panel_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function dosyaUrl(dosyaId: number) {
+export function dosyaUrl(dosyaId: number) {
   const t = localStorage.getItem("panel_token") ?? "";
   return `${apiBase()}/servis-dosyalari/${dosyaId}/dosya?t=${encodeURIComponent(t)}`;
 }
 
-function formatBytes(b: number | null) {
+export function formatBytes(b: number | null) {
   if (!b) return "";
   if (b < 1024) return `${b} B`;
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
@@ -83,7 +84,7 @@ interface KayitFormProps {
   onSaved: () => void;
 }
 
-function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: KayitFormProps) {
+export function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: KayitFormProps) {
   const { toast } = useToast();
   const [gemiId, setGemiId] = useState(mevcut ? String(mevcut.gemiId) : "");
   const [kategori, setKategori] = useState(mevcut?.kategori ?? "servis");
@@ -328,11 +329,18 @@ function KayitSatiri({ kayit, onEdit, onDelete }: {
   onDelete: (id: number) => void;
 }) {
   const [detayAcik, setDetayAcik] = useState(false);
+  const [, navigate] = useLocation();
   const fotograflar = kayit.dosyalar.filter(d => d.dosyaTipi?.startsWith("image/"));
   const belgeler = kayit.dosyalar.filter(d => !d.dosyaTipi?.startsWith("image/"));
 
   return (
-    <div className="px-4 py-3 hover:bg-muted/10 transition-colors">
+    <div
+      className="px-4 py-3 hover:bg-muted/10 transition-colors cursor-pointer"
+      onClick={() => navigate(`/servis/${kayit.id}`)}
+      role="link"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === "Enter") navigate(`/servis/${kayit.id}`); }}
+    >
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -347,7 +355,7 @@ function KayitSatiri({ kayit, onEdit, onDelete }: {
           )}
           {kayit.dosyalar.length > 0 && (
             <button
-              onClick={() => setDetayAcik(a => !a)}
+              onClick={e => { e.stopPropagation(); setDetayAcik(a => !a); }}
               className="mt-1.5 text-xs text-primary hover:underline flex items-center gap-1"
             >
               <Image className="h-3 w-3" />
@@ -359,17 +367,17 @@ function KayitSatiri({ kayit, onEdit, onDelete }: {
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(kayit)}>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={e => { e.stopPropagation(); onEdit(kayit); }}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDelete(kayit.id)}>
+          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={e => { e.stopPropagation(); onDelete(kayit.id); }}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
       {detayAcik && kayit.dosyalar.length > 0 && (
-        <div className="mt-3 grid grid-cols-4 gap-2">
+        <div className="mt-3 grid grid-cols-4 gap-2" onClick={e => e.stopPropagation()}>
           {fotograflar.map(d => (
             <a key={d.id} href={dosyaUrl(d.id)} target="_blank" rel="noreferrer" className="block border overflow-hidden">
               <img
