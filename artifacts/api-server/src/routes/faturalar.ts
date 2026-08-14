@@ -132,6 +132,8 @@ router.post("/faturalar", requireYazma, async (req, res) => {
       for (const k of kalemRows) {
         await tx.insert(faturaKalemleri).values({ faturaId: f.id, ...k });
       }
+      // "Ödendi" olarak oluşturulan fatura da tahsilat kaydı olmadan kalmasın.
+      if (f.durum === "odendi") await odendiTahsilatTamamla(tx, f);
       return f;
     });
 
@@ -167,6 +169,41 @@ router.post("/faturalar", requireYazma, async (req, res) => {
   }
 });
 
+type DbVeyaTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Fatura elle "odendi" işaretlendiğinde muhasebeyi tutarlı tutar: faturanın
+ * kalan tutarı kadar otomatik tahsilat kaydı oluşturur. Böylece cari ekstre
+ * (tahsilatı yalnızca ödeme kayıtlarından hesaplar) ödenen faturayı borç
+ * olarak göstermez. Kalan yoksa hiçbir şey yapmaz — tekrar çağrılması güvenlidir.
+ *
+ * `fat` durum güncellemesi SONRASINI yansıtan fatura satırı olmalı ve çağıran
+ * tarafından aynı transaction içinde FOR UPDATE ile kilitlenmiş olmalı
+ * (yeni eklenen satırlar zaten transaction'a aittir). Eşzamanlı ödeme
+ * kayıtlarıyla yarışta çift tahsilat oluşmaması bu kilide dayanır.
+ */
+async function odendiTahsilatTamamla(tx: DbVeyaTx, fat: typeof faturalar.$inferSelect) {
+  if (fat.durum !== "odendi") return;
+  const ods = await tx.select().from(odemeler).where(eq(odemeler.faturaId, fat.id));
+  const odenenKurus = ods
+    .filter(o => o.tip === "tahsilat" && o.paraBirimi === fat.paraBirimi)
+    .reduce((s, o) => s + Math.round(Number(o.tutar) * 100), 0);
+  const kalanKurus = Math.round(Number(fat.genelToplam) * 100) - odenenKurus;
+  if (kalanKurus <= 0) return;
+  await tx.insert(odemeler).values({
+    catiFirmaId: fat.catiFirmaId,
+    bagliFirmaId: fat.bagliFirmaId,
+    gemiId: fat.gemiId,
+    faturaId: fat.id,
+    tip: "tahsilat",
+    tarih: new Date().toISOString().split("T")[0],
+    tutar: String(kalanKurus / 100),
+    paraBirimi: fat.paraBirimi,
+    odemeYontemi: "banka_havalesi",
+    aciklama: `${fat.faturaNo} ödendi olarak işaretlendi (otomatik tahsilat)`,
+  });
+}
+
 router.patch("/faturalar/toplu-durum", requireYazma, async (req, res) => {
   try {
     const { ids, durum } = req.body as { ids?: number[]; durum?: string };
@@ -180,9 +217,17 @@ router.patch("/faturalar/toplu-durum", requireYazma, async (req, res) => {
       if (!existing) continue;
       if (!sirketErisimKontrol(existing.catiFirmaId, req)) continue;
       if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) continue;
-      await db.update(faturalar)
-        .set({ durum: durum as typeof faturalar.$inferSelect["durum"] })
-        .where(eq(faturalar.id, id));
+      // Durum güncellemesi + otomatik tahsilat tek transaction'da, satır kilitli:
+      // eşzamanlı istekler aynı kalanı görüp çift tahsilat oluşturamaz.
+      await db.transaction(async (tx) => {
+        const [fat] = await tx.select().from(faturalar).where(eq(faturalar.id, id)).for("update");
+        if (!fat) return;
+        const [guncel] = await tx.update(faturalar)
+          .set({ durum: durum as typeof faturalar.$inferSelect["durum"] })
+          .where(eq(faturalar.id, id))
+          .returning();
+        if (durum === "odendi") await odendiTahsilatTamamla(tx, guncel);
+      });
       guncellenen++;
     }
     res.json({ guncellenen });
@@ -549,14 +594,20 @@ router.patch("/faturalar/:id", requireYazma, async (req, res) => {
       const [grup] = await db.select({ tip: firmalar.tip }).from(firmalar).where(eq(firmalar.id, Number(grupFirmaId)));
       if (!grup || grup.tip !== "grup") { res.status(400).json({ error: "Belirtilen çatı (grup) firma geçersiz" }); return; }
     }
-    const [row] = await db.update(faturalar)
-      .set({
-        vadeTarihi, notlar, aciklama, durum,
-        ...(faturaAdi !== undefined ? { faturaAdi } : {}),
-        ...(grupFirmaId !== undefined ? { grupFirmaId: grupFirmaId === null ? null : Number(grupFirmaId) } : {}),
-      })
-      .where(eq(faturalar.id, id))
-      .returning();
+    // Durum güncellemesi + otomatik tahsilat tek transaction'da, satır kilitli.
+    const row = await db.transaction(async (tx) => {
+      await tx.select().from(faturalar).where(eq(faturalar.id, id)).for("update");
+      const [r] = await tx.update(faturalar)
+        .set({
+          vadeTarihi, notlar, aciklama, durum,
+          ...(faturaAdi !== undefined ? { faturaAdi } : {}),
+          ...(grupFirmaId !== undefined ? { grupFirmaId: grupFirmaId === null ? null : Number(grupFirmaId) } : {}),
+        })
+        .where(eq(faturalar.id, id))
+        .returning();
+      if (durum === "odendi") await odendiTahsilatTamamla(tx, r);
+      return r;
+    });
     res.json(formatFatura(row, null, null, null, 0));
   } catch {
     res.status(500).json({ error: "Fatura güncellenemedi" });

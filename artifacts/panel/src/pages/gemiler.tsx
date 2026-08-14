@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import { Plus, Pencil, Trash2, Ship, ChevronRight, Search } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
+import { FirmaSecici } from "@/components/firma-secici";
 
 interface GemiForm {
   firmaId: string;
@@ -156,10 +157,13 @@ export default function Gemiler() {
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
               <Label>Bağlı Firma *</Label>
-              <Select value={form.firmaId} onValueChange={v => setForm(f => ({...f, firmaId: v}))}>
-                <SelectTrigger data-testid="select-gemi-cari"><SelectValue placeholder="Firma seçin" /></SelectTrigger>
-                <SelectContent className="max-h-60 overflow-y-auto">{bagliFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
-              </Select>
+              <FirmaSecici
+                firmalar={bagliFirmalar}
+                value={form.firmaId}
+                onChange={v => setForm(f => ({...f, firmaId: v}))}
+                placeholder="Firma seçin"
+                testId="select-gemi-cari"
+              />
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Gemi Adı *</Label>

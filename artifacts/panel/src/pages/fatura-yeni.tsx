@@ -23,6 +23,7 @@ import { Link } from "wouter";
 import { ArrowLeft, Plus, Trash2, Clock } from "lucide-react";
 import { KalemAciklamaInput } from "@/components/kalem-aciklama-input";
 import { GemiSecici, GemiSecenek } from "@/components/gemi-secici";
+import { FirmaSecici } from "@/components/firma-secici";
 
 interface Kalem {
   aciklama: string;
@@ -371,28 +372,29 @@ export default function FaturaYeni() {
             <>
               <div className="space-y-1.5">
                 <Label>Müşteri (Bağlı Firma) *</Label>
-                <Select
+                <FirmaSecici
+                  firmalar={filtrelenmisCariler}
                   value={bagliFirmaId}
-                  onValueChange={v => {
+                  onChange={v => {
                     setBagliFirmaId(v);
                     const musteri = filtrelenmisCariler.find(f => f.id === Number(v));
                     const gid = musteri?.grupFirmaId;
                     setGrupFirmaId(gid != null ? String(gid) : "");
                   }}
-                >
-                  <SelectTrigger data-testid="select-fatura-cari"><SelectValue placeholder="Müşteri seçin" /></SelectTrigger>
-                  <SelectContent>{filtrelenmisCariler.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
-                </Select>
+                  placeholder="Müşteri seçin"
+                  testId="select-fatura-cari"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Çatı / Grup Firma</Label>
-                <Select value={grupFirmaId || "none"} onValueChange={v => setGrupFirmaId(v === "none" ? "" : v)}>
-                  <SelectTrigger data-testid="select-fatura-grup"><SelectValue placeholder="Çatı firma seçin (opsiyonel)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Seçilmedi</SelectItem>
-                    {grupFirmalar.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.ad}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <FirmaSecici
+                  firmalar={grupFirmalar}
+                  value={grupFirmaId}
+                  onChange={v => setGrupFirmaId(v)}
+                  placeholder="Çatı firma seçin (opsiyonel)"
+                  bosSecim
+                  testId="select-fatura-grup"
+                />
               </div>
             </>
           )}

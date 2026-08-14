@@ -122,7 +122,17 @@ function GlobalArama() {
                 <div>
                   <p className="px-3 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-widest bg-muted/50">Firmalar</p>
                   {sonuclar!.firmalar!.map(f => (
-                    <button key={f.id} className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => { navigate("/firmalar"); setAcik(false); setQ(""); }}>
+                    <button
+                      key={f.id}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors"
+                      onClick={() => {
+                        // Firma tipine göre uygun detay sayfasına git
+                        if (f.tip === "bagli") navigate(`/firmalar/bagli/${f.id}`);
+                        else if (f.tip === "grup") navigate(`/cariler/grup/${f.id}`);
+                        else navigate("/firmalar");
+                        setAcik(false); setQ("");
+                      }}
+                    >
                       <p className="font-medium">{f.ad}</p>
                       {f.vergiNo && <p className="text-xs text-muted-foreground">VKN: {f.vergiNo}</p>}
                     </button>
