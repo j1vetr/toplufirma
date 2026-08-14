@@ -96,7 +96,7 @@ function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: KayitForm
   const [yuklemeProgress, setYuklemeProgress] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filtreliGemiler = gemiler.filter(g => !catiFirmaId || g.catiFirmaId === Number(catiFirmaId));
+  const filtreliGemiler = gemiler;
 
   async function handleSave() {
     if (!gemiId || !baslik || !tarih) {
@@ -411,7 +411,8 @@ export default function Servis() {
     { tip: "cati" },
     { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
   );
-  const { data: gemilerData = [] } = useListGemiler(undefined, { query: { queryKey: getListGemilerQueryKey() } });
+  const gemiParams = catiFirmaId ? { catiFirmaId: Number(catiFirmaId) } : undefined;
+  const { data: gemilerData = [] } = useListGemiler(gemiParams, { query: { queryKey: getListGemilerQueryKey(gemiParams) } });
 
   const gemilerTyped = gemilerData as Array<{ id: number; ad: string; imoNumarasi: string | null; firmaId: number; catiFirmaId: number | null }>;
 
@@ -471,7 +472,8 @@ export default function Servis() {
     gemiGruplari[key]!.kayitlar.push(k);
   }
 
-  const gemiSecenekleri = gemilerTyped.filter(g => !catiFirmaId || String(g.catiFirmaId) === catiFirmaId);
+  // Gemi listesi API'den zaten catiFirmaId'ye göre (grup görünürlüğü dahil) filtreli geliyor.
+  const gemiSecenekleri = gemilerTyped;
 
   return (
     <div className="space-y-6">

@@ -58,14 +58,20 @@ router.get("/dashboard/ozet", async (req, res) => {
       .filter(o => o.tip === "tahsilat")
       .reduce((s, o) => s + Number(o.tutar), 0);
 
-    const paraBirimleri = new Set(filtrelenmisFaturalar.map(f => f.paraBirimi));
+    // Cariler sayfasıyla tutarlı hesap: borç = taslak/iptal dışı faturalar + "odeme" tipi hareketler,
+    // tahsilat = "tahsilat" tipi hareketler, kalan = borç - tahsilat (para birimi bazında ayrı ayrı).
+    const validFaturalar = filtrelenmisFaturalar.filter(f => f.durum !== "taslak" && f.durum !== "iptal");
+    const paraBirimleri = new Set([
+      ...validFaturalar.map(f => f.paraBirimi ?? "USD"),
+      ...filtrelenmisOdemeler.map(o => o.paraBirimi ?? "USD"),
+    ]);
     const paraBirimiOzetleri = Array.from(paraBirimleri).map(pb => {
-      const fats = filtrelenmisFaturalar!.filter(f => f.paraBirimi === pb && (f.durum === "acik" || f.durum === "kismi_odendi"));
-      const ods = filtrelenmisOdemeler!.filter(o => o.paraBirimi === pb && o.tip === "tahsilat");
-      const alacak = fats.reduce((s, f) => s + Number(f.genelToplam), 0);
-      const tahsilat = ods.reduce((s, o) => s + Number(o.tutar), 0);
+      const fBorc = validFaturalar.filter(f => (f.paraBirimi ?? "USD") === pb).reduce((s, f) => s + Number(f.genelToplam), 0);
+      const oBorc = filtrelenmisOdemeler!.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "odeme").reduce((s, o) => s + Number(o.tutar), 0);
+      const tahsilat = filtrelenmisOdemeler!.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+      const alacak = fBorc + oBorc;
       return { paraBirimi: pb, toplamAlacak: alacak, toplamTahsilat: tahsilat, kalanBakiye: alacak - tahsilat };
-    });
+    }).filter(d => d.toplamAlacak > 0.005 || d.toplamTahsilat > 0.005);
 
     const bankaHesapBakiyeleri = await Promise.all(
       filtrelenmisHesaplar.map(async h => {

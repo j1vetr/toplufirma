@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import {
   Plus, Pencil, Trash2, Building2, ChevronDown, ChevronRight,
-  FileBarChart, Users, Download, Ship,
+  FileBarChart, Users, Download, Ship, Search,
 } from "lucide-react";
 
 const apiBase = () => {
@@ -103,6 +103,7 @@ export default function Firmalar() {
   const { canWrite } = useYetki();
 
   const [acikGrupFirmaId, setAcikGrupFirmaId] = useState<number | null>(null);
+  const [arama, setArama] = useState("");
   const [firmaModal, setFirmaModal] = useState(false);
   const [duzenleId, setDuzenleId] = useState<number | null>(null);
   const [modalTip, setModalTip] = useState<"grup" | "bagli">("grup");
@@ -242,6 +243,25 @@ export default function Firmalar() {
   const bagliFirmaFor = (grupId: number) =>
     bagliFirmalar.filter(b => (b as unknown as Record<string, unknown>).grupFirmaId === grupId);
 
+  const aramaQ = arama.trim().toLocaleLowerCase("tr");
+  const metinEslesir = (f: unknown) => {
+    const r = f as Record<string, unknown>;
+    return ["ad", "vergiNo", "eposta", "etiket"].some(
+      k => typeof r[k] === "string" && (r[k] as string).toLocaleLowerCase("tr").includes(aramaQ)
+    );
+  };
+  const bagliEslesir = (b: (typeof bagliFirmalar)[number]) => {
+    if (metinEslesir(b)) return true;
+    const bGemiler = gemilerByFirmaId.get(b.id) ?? [];
+    return bGemiler.some(g =>
+      g.ad.toLocaleLowerCase("tr").includes(aramaQ) ||
+      (g.imoNumarasi ?? "").toLocaleLowerCase("tr").includes(aramaQ)
+    );
+  };
+  const gosterilenGruplar = aramaQ
+    ? grupFirmalar.filter(g => metinEslesir(g) || bagliFirmaFor(g.id).some(bagliEslesir))
+    : grupFirmalar;
+
   if (isLoading) return (
     <div className="animate-pulse space-y-4">
       {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted rounded-none" />)}
@@ -250,11 +270,28 @@ export default function Firmalar() {
 
   return (
     <div className="space-y-4">
-      {canWrite && (
-        <div className="flex justify-end gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="relative w-full max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={arama}
+            onChange={e => setArama(e.target.value)}
+            placeholder="Firma, VKN, e-posta veya gemi ara..."
+            className="pl-8"
+            data-testid="input-firma-arama"
+          />
+        </div>
+        {canWrite && (
           <Button onClick={() => acFirmaModal("grup")} data-testid="button-grup-firma-ekle">
             <Plus className="mr-2 h-4 w-4" /> Çatı Firma Ekle
           </Button>
+        )}
+      </div>
+
+      {grupFirmalar.length > 0 && gosterilenGruplar.length === 0 && (
+        <div className="text-center text-muted-foreground py-20" data-testid="text-arama-sonuc-yok">
+          <Search className="h-10 w-10 mx-auto mb-3 opacity-20" />
+          <p className="text-sm">"{arama}" ile eşleşen firma bulunamadı.</p>
         </div>
       )}
 
@@ -266,9 +303,12 @@ export default function Firmalar() {
         </div>
       )}
 
-      {grupFirmalar.map(grup => {
+      {gosterilenGruplar.map(grup => {
         const bagliler = bagliFirmaFor(grup.id);
-        const acik = acikGrupFirmaId === grup.id;
+        const gosterilenBagliler = aramaQ && !metinEslesir(grup)
+          ? bagliler.filter(bagliEslesir)
+          : bagliler;
+        const acik = aramaQ ? true : acikGrupFirmaId === grup.id;
         return (
           <div key={grup.id} className="border bg-card overflow-hidden" data-testid={`card-grup-${grup.id}`}>
             <div className="flex items-center gap-3 p-4">
@@ -329,11 +369,11 @@ export default function Firmalar() {
                     </Button>
                   )}
                 </div>
-                {bagliler.length === 0 ? (
+                {gosterilenBagliler.length === 0 ? (
                   <div className="px-4 pb-4 text-sm text-muted-foreground">Henüz bağlı firma yok.</div>
                 ) : (
                   <div className="divide-y">
-                    {bagliler.map(b => (
+                    {gosterilenBagliler.map(b => (
                       <div key={b.id} className="flex items-center gap-3 px-4 py-3" data-testid={`card-bagli-${b.id}`}>
                         <div className="w-8 h-8 rounded-sm bg-blue-500/10 flex items-center justify-center shrink-0 overflow-hidden">
                           {b.logoUrl ? <img src={b.logoUrl} alt={b.ad} className="w-full h-full object-contain" /> : <Building2 className="h-4 w-4 text-blue-500" />}

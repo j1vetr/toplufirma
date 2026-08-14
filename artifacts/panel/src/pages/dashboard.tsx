@@ -63,11 +63,15 @@ export default function Dashboard() {
     );
   }
 
+  const pbOzet = ozet?.paraBirimiOzetleri ?? [];
+  const alacakSatirlari = pbOzet.filter(p => Math.abs(p.kalanBakiye) > 0.005).map(p => fmt(p.kalanBakiye, p.paraBirimi));
+  const tahsilatSatirlari = pbOzet.filter(p => p.toplamTahsilat > 0.005).map(p => fmt(p.toplamTahsilat, p.paraBirimi));
+
   const kpis = [
-    { title: "Toplam Alacak", value: fmt(ozet?.toplamAlacak ?? 0), icon: TrendingUp, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { title: "Toplam Tahsilat", value: fmt(ozet?.toplamTahsilat ?? 0), icon: Wallet, color: "text-green-500", bg: "bg-green-500/10" },
-    { title: "Açık Faturalar", value: String(ozet?.toplamFaturaSayisi ?? 0), icon: FileText, color: "text-orange-500", bg: "bg-orange-500/10" },
-    { title: "Vadesi Yaklaşan", value: String(ozet?.vadesYaklasiyor ?? 0), icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
+    { title: "Toplam Alacak (Bakiye)", values: alacakSatirlari.length > 0 ? alacakSatirlari : [fmt(0)], icon: TrendingUp, color: "text-blue-500", bg: "bg-blue-500/10" },
+    { title: "Toplam Tahsilat", values: tahsilatSatirlari.length > 0 ? tahsilatSatirlari : [fmt(0)], icon: Wallet, color: "text-green-500", bg: "bg-green-500/10" },
+    { title: "Toplam Fatura", values: [String(ozet?.toplamFaturaSayisi ?? 0)], icon: FileText, color: "text-orange-500", bg: "bg-orange-500/10" },
+    { title: "Vadesi Yaklaşan", values: [String(ozet?.vadesYaklasiyor ?? 0)], icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
   ];
 
   const aktifAylar = (aylikVeriler as { toplamFatura?: number; toplamTahsilat?: number }[]).filter(
@@ -87,7 +91,9 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">{kpi.title}</p>
-                <h3 className="text-2xl font-display font-semibold mt-0.5">{kpi.value}</h3>
+                {kpi.values.map((v, j) => (
+                  <h3 key={j} className={`${kpi.values.length > 1 ? "text-lg" : "text-2xl"} font-display font-semibold mt-0.5`}>{v}</h3>
+                ))}
               </div>
             </CardContent>
           </Card>
