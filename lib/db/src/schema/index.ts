@@ -190,6 +190,9 @@ export const odemeler = pgTable("odemeler", {
   paraBirimi: text("para_birimi").notNull().default("USD"),
   odemeYontemi: odemeYontemiEnum("odeme_yontemi").notNull().default("banka_havalesi"),
   aciklama: text("aciklama"),
+  // Fatura "ödendi" işaretlenince sistemce üretilen tahsilat kaydı işareti.
+  // Kullanıcı API'sinden değiştirilemez; ödendi geri alınınca silme bu alana dayanır.
+  otomatik: boolean("otomatik").notNull().default(false),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
 });
 

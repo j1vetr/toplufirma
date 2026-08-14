@@ -201,7 +201,27 @@ async function odendiTahsilatTamamla(tx: DbVeyaTx, fat: typeof faturalar.$inferS
     paraBirimi: fat.paraBirimi,
     odemeYontemi: "banka_havalesi",
     aciklama: `${fat.faturaNo} ödendi olarak işaretlendi (otomatik tahsilat)`,
+    // Kalıcı köken işareti: geri alma silmesi buna dayanır, açıklamaya değil.
+    otomatik: true,
   });
+}
+
+/**
+ * "Ödendi" işareti geri alındığında otomatik oluşturulan tahsilat kayıtlarını
+ * siler; elle girilen tahsilatlara dokunmaz. Otomatik kayıtlar kalıcı
+ * `otomatik` kolonundan tanınır (bkz. odendiTahsilatTamamla) — açıklama metni
+ * kullanıcı tarafından düzenlenebildiğinden ayırt etmeye uygun değildir.
+ * Kolonun eklenmesinden önceki eski kayıtlar bilinçli olarak "elle girilmiş"
+ * kabul edilir (backfill yok) ve hiçbir zaman otomatik silinmez.
+ * Fatura satırı çağıran tarafından aynı transaction'da FOR UPDATE ile
+ * kilitlenmiş olmalı — böylece eşzamanlı işaretle/geri-al yarışı oluşmaz.
+ */
+async function odendiTahsilatGeriAl(tx: DbVeyaTx, faturaId: number) {
+  await tx.delete(odemeler).where(and(
+    eq(odemeler.faturaId, faturaId),
+    eq(odemeler.tip, "tahsilat"),
+    eq(odemeler.otomatik, true),
+  ));
 }
 
 router.patch("/faturalar/toplu-durum", requireYazma, async (req, res) => {
@@ -227,6 +247,9 @@ router.patch("/faturalar/toplu-durum", requireYazma, async (req, res) => {
           .where(eq(faturalar.id, id))
           .returning();
         if (durum === "odendi") await odendiTahsilatTamamla(tx, guncel);
+        // Ödendi işareti geri alındıysa otomatik tahsilat da geri alınır ki
+        // fatura açık görünürken bakiye sıfır kalmasın.
+        else if (fat.durum === "odendi") await odendiTahsilatGeriAl(tx, id);
       });
       guncellenen++;
     }
@@ -596,7 +619,7 @@ router.patch("/faturalar/:id", requireYazma, async (req, res) => {
     }
     // Durum güncellemesi + otomatik tahsilat tek transaction'da, satır kilitli.
     const row = await db.transaction(async (tx) => {
-      await tx.select().from(faturalar).where(eq(faturalar.id, id)).for("update");
+      const [onceki] = await tx.select().from(faturalar).where(eq(faturalar.id, id)).for("update");
       const [r] = await tx.update(faturalar)
         .set({
           vadeTarihi, notlar, aciklama, durum,
@@ -606,6 +629,9 @@ router.patch("/faturalar/:id", requireYazma, async (req, res) => {
         .where(eq(faturalar.id, id))
         .returning();
       if (durum === "odendi") await odendiTahsilatTamamla(tx, r);
+      // Ödendi işareti geri alındıysa otomatik tahsilat da geri alınır ki
+      // fatura açık görünürken bakiye sıfır kalmasın.
+      else if (durum !== undefined && onceki?.durum === "odendi") await odendiTahsilatGeriAl(tx, id);
       return r;
     });
     res.json(formatFatura(row, null, null, null, 0));

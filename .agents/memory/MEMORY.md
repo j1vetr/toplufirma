@@ -11,3 +11,4 @@
 - [Banka hesabı para birimleri](banka-hesap-para-birimleri.md) — scalar paraBirimi often stale TRY default; real currencies = scalar + ibanlar keys via hesapParaBirimleri() helper
 - [Modül izinleri](modul-izinleri.md) — enforcement DB-based (30s cache), never JWT; list-reads open, detail-reads need owning module; KURALLAR must track real route prefixes
 - [tw-animate-css class adları](tw-animate-css.md) — animate-in/fade-in kullanılır, Animate.css animate__ adları sessizce çalışmaz
+- [Sistemce üretilen kayıtlar](system-generated-records.md) — otomatik kayıtları açıklama metniyle değil kalıcı, API'den yazılamayan kolonla tanı (odemeler.otomatik)
