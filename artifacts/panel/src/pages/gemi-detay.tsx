@@ -155,7 +155,12 @@ export default function GemiDetay() {
               ) : servisKayitlari.length > 0 ? (
                 <div className="divide-y">
                   {servisKayitlari.map(k => (
-                    <div key={k.id} className="flex items-start gap-3 py-3">
+                    <Link
+                      key={k.id}
+                      href={`/servis/${k.id}`}
+                      className="flex items-start gap-3 py-3 hover:bg-muted/30 transition-colors cursor-pointer -mx-2 px-2"
+                      data-testid={`link-servis-kayit-${k.id}`}
+                    >
                       <div className="p-2 rounded-sm bg-blue-500/10 shrink-0">
                         <Wrench className="h-4 w-4 text-blue-500" />
                       </div>
@@ -176,7 +181,7 @@ export default function GemiDetay() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground shrink-0">{k.tarih}</span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
