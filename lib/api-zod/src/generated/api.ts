@@ -950,7 +950,8 @@ export const UpdateOdemeBody = zod.object({
   "tarih": zod.coerce.date().optional(),
   "tutar": zod.number().optional(),
   "aciklama": zod.string().optional(),
-  "odemeYontemi": zod.string().optional()
+  "odemeYontemi": zod.string().optional(),
+  "bankaHesabiId": zod.number().nullish()
 })
 
 export const UpdateOdemeResponse = zod.object({

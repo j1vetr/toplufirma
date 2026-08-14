@@ -2158,6 +2158,8 @@ components:
           type: string
         odemeYontemi:
           type: string
+        bankaHesabiId:
+          type: ["integer", "null"]
 
     # ── Ekipman ───────────────────────────────────────────────────────────
     Ekipman:

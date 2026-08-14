@@ -12,10 +12,11 @@ router.get("/odemeler", async (req, res) => {
     const { catiFirmaId, bagliFirmaId, faturaId, tip } = req.query as Record<string, string>;
 
     let rows = await db
-      .select({ o: odemeler, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
+      .select({ o: odemeler, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad, faturaNo: faturalar.faturaNo })
       .from(odemeler)
       .leftJoin(firmalar, eq(odemeler.catiFirmaId, firmalar.id))
       .leftJoin(gemiler, eq(odemeler.gemiId, gemiler.id))
+      .leftJoin(faturalar, eq(odemeler.faturaId, faturalar.id))
       .orderBy(odemeler.tarih);
 
     const { rows: scoped, yetkisiz } = sirketlerFiltrele(
@@ -28,7 +29,7 @@ router.get("/odemeler", async (req, res) => {
     if (faturaId) rows = rows.filter(r => r.o.faturaId === Number(faturaId));
     if (tip) rows = rows.filter(r => r.o.tip === tip);
 
-    res.json(rows.map(r => formatOdeme(r.o, r.catiFirmaAd, r.gemiAd, null, null)));
+    res.json(rows.map(r => formatOdeme(r.o, r.catiFirmaAd, r.gemiAd, null, r.faturaNo)));
   } catch {
     res.status(500).json({ error: "Ödemeler listelenemedi" });
   }
@@ -98,14 +99,15 @@ router.get("/odemeler/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [row] = await db
-      .select({ o: odemeler, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
+      .select({ o: odemeler, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad, faturaNo: faturalar.faturaNo })
       .from(odemeler)
       .leftJoin(firmalar, eq(odemeler.catiFirmaId, firmalar.id))
       .leftJoin(gemiler, eq(odemeler.gemiId, gemiler.id))
+      .leftJoin(faturalar, eq(odemeler.faturaId, faturalar.id))
       .where(eq(odemeler.id, id));
     if (!row) { res.status(404).json({ error: "Ödeme bulunamadı" }); return; }
     if (!sirketErisimKontrol(row.o.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
-    res.json(formatOdeme(row.o, row.catiFirmaAd, row.gemiAd, null, null));
+    res.json(formatOdeme(row.o, row.catiFirmaAd, row.gemiAd, null, row.faturaNo));
   } catch {
     res.status(500).json({ error: "Ödeme getirilemedi" });
   }
@@ -119,11 +121,21 @@ router.patch("/odemeler/:id", requireYazma, async (req, res) => {
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
-    const { tarih, tutar, aciklama, odemeYontemi } = req.body;
+    const { tarih, tutar, aciklama, odemeYontemi, bankaHesabiId } = req.body;
     let yeniTutarKurus: number | null = null;
     if (tutar != null) {
       yeniTutarKurus = kurusaCevir(tutar);
       if (yeniTutarKurus == null || yeniTutarKurus <= 0) { res.status(400).json({ error: "Tutar sıfırdan büyük olmalı ve en fazla iki ondalık basamak içerebilir" }); return; }
+    }
+    if (bankaHesabiId != null) {
+      const [bh] = await db.select({ cid: bankaHesaplari.catiFirmaId, paraBirimi: bankaHesaplari.paraBirimi, ibanlar: bankaHesaplari.ibanlar })
+        .from(bankaHesaplari).where(eq(bankaHesaplari.id, Number(bankaHesabiId)));
+      if (!bh || bh.cid !== existing.catiFirmaId) { res.status(400).json({ error: "Belirtilen banka hesabı bu firmaya ait değil" }); return; }
+      const hesapPbleri = hesapParaBirimleri(bh);
+      const odemePb = existing.paraBirimi ?? "USD";
+      if (!hesapPbleri.includes(odemePb)) {
+        res.status(400).json({ error: `Seçilen banka hesabında ${odemePb} para birimi kayıtlı değil (hesaptaki para birimleri: ${hesapPbleri.join(", ")})` }); return;
+      }
     }
     const sonuc = await db.transaction(async (tx) => {
       if (existing.faturaId) {
@@ -139,7 +151,11 @@ router.patch("/odemeler/:id", requireYazma, async (req, res) => {
         }
       }
       const [row] = await tx.update(odemeler)
-        .set({ tarih, tutar: tutar != null ? String(tutar) : undefined, aciklama, odemeYontemi })
+        .set({
+          tarih, tutar: tutar != null ? String(tutar) : undefined, aciklama, odemeYontemi,
+          // undefined = dokunma; null = bağlantıyı kaldır; sayı = yeni hesap
+          bankaHesabiId: bankaHesabiId === undefined ? undefined : (bankaHesabiId === null ? null : Number(bankaHesabiId)),
+        })
         .where(eq(odemeler.id, id)).returning();
       if (row.faturaId) await guncelleFaturaDurum(row.faturaId, tx);
       return { row } as const;

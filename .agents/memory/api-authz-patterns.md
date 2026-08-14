@@ -34,3 +34,7 @@ Every FK reference in a write payload must be verified to belong to the same `si
 ## Rule 4 — bagliFirmaId ownership: use gorunurBagliFirmaIds, not ustFirmaId
 When validating that a `bagliFirmaId` belongs to a `catiFirmaId`, do NOT check `firmalar.ustFirmaId === catiFirmaId` directly. Use `gorunurBagliFirmaIds(catiFirmaId)` from `utils/gorunurluk`.
 **Why:** baglı firmalar may be linked via a grupFirmaId chain (baglı→grup→catı), so `ustFirmaId` points to the grup firma, not the catı firma — direct comparison always fails for these cases.
+
+## Benzersizlik (uniqueness) korumaları
+Check-then-insert tek başına yeterli değil — eşzamanlı isteklerde yarış var. Kural: canonical ifade üzerinde DB unique index (ör. `lower(trim(col))`, drizzle `uniqueIndex().on(sql\`...\`)` + `pnpm --filter @workspace/db run push` sorunsuz uyguluyor) + handler'da 23505'i (err.code veya err.cause.code) 409'a çevir; uygulama-seviyesi lookup yalnızca dostane mesaj için.
+**Why:** IMO duplicate guard review'ında yakalandı; ayrıca çakışan kaydın adı/firması istekçinin erişemediği çatıya aitse mesajdan çıkarılmalı (kiracılar arası bilgi sızması).

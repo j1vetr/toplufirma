@@ -1,11 +1,40 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { db } from "@workspace/db";
 import { gemiler, firmalar, faturalar, ekipmanlar } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql, ne, and } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 
 const router = Router();
+
+/**
+ * Aynı IMO numarasıyla (büyük/küçük harf ve boşluk farkı gözetmeden) kayıtlı başka
+ * gemi varsa Türkçe uyarı mesajı döner, yoksa null. `haricGemiId` güncellemede kaydın
+ * kendisini dışlar. Mevcut geminin adı/firması yalnızca istek sahibinin erişebildiği
+ * bir çatıya aitse mesaja eklenir (kiracılar arası bilgi sızmasını önler).
+ * Not: son güvence DB'deki gemiler_imo_benzersiz unique indeksidir (yarış durumu).
+ */
+async function imoKopyaHatasi(imo: string, req: Request, haricGemiId?: number): Promise<string | null> {
+  if (!imo) return null;
+  const esit = sql`LOWER(TRIM(${gemiler.imoNumarasi})) = ${imo.toLowerCase()}`;
+  const kosul = haricGemiId != null ? and(esit, ne(gemiler.id, haricGemiId)) : esit;
+  const [mevcut] = await db
+    .select({ ad: gemiler.ad, firmaAd: firmalar.ad, ustFirmaId: firmalar.ustFirmaId })
+    .from(gemiler)
+    .leftJoin(firmalar, eq(gemiler.firmaId, firmalar.id))
+    .where(kosul);
+  if (!mevcut) return null;
+  const gorebilir = !mevcut.ustFirmaId || sirketErisimKontrol(mevcut.ustFirmaId, req);
+  return gorebilir
+    ? `Bu IMO numarası (${imo}) ile kayıtlı bir gemi zaten var: ${mevcut.ad}${mevcut.firmaAd ? ` — ${mevcut.firmaAd}` : ""}`
+    : `Bu IMO numarası (${imo}) ile kayıtlı bir gemi zaten var`;
+}
+
+/** DB unique indeksinden gelen yarış durumu ihlalini yakalar (23505). */
+function imoUnikIhlali(err: unknown): boolean {
+  const kod = (err as { code?: string })?.code ?? ((err as { cause?: { code?: string } })?.cause?.code);
+  return kod === "23505";
+}
 
 router.get("/gemiler", async (req, res) => {
   try {
@@ -56,7 +85,8 @@ router.get("/gemiler", async (req, res) => {
 router.post("/gemiler", requireYazma, async (req, res) => {
   try {
     const { firmaId, ad, imoNumarasi, bayrakDevleti, notlar, aktif } = req.body;
-    if (!firmaId || !ad || !imoNumarasi) { res.status(400).json({ error: "firmaId, ad ve imoNumarasi zorunludur" }); return; }
+    const imo = imoNumarasi != null ? String(imoNumarasi).trim() : "";
+    if (!firmaId || !ad || !imo) { res.status(400).json({ error: "firmaId, ad ve imoNumarasi zorunludur" }); return; }
 
     const [firma] = await db.select().from(firmalar).where(eq(firmalar.id, Number(firmaId)));
     if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
@@ -64,11 +94,15 @@ router.post("/gemiler", requireYazma, async (req, res) => {
     if (firma.ustFirmaId && !sirketErisimKontrol(firma.ustFirmaId!, req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     if (firma.ustFirmaId && !firmaYazmaDenetimi(firma.ustFirmaId!, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
+    const kopyaHata = await imoKopyaHatasi(imo, req);
+    if (kopyaHata) { res.status(409).json({ error: kopyaHata }); return; }
+
     const [row] = await db.insert(gemiler).values({
-      firmaId, ad, imoNumarasi, bayrakDevleti, notlar, aktif: aktif ?? true,
+      firmaId, ad, imoNumarasi: imo, bayrakDevleti, notlar, aktif: aktif ?? true,
     }).returning();
     res.status(201).json({ ...row, firmaAd: null, catiFirmaId: firma.ustFirmaId });
-  } catch {
+  } catch (err) {
+    if (imoUnikIhlali(err)) { res.status(409).json({ error: "Bu IMO numarası ile kayıtlı bir gemi zaten var" }); return; }
     res.status(500).json({ error: "Gemi oluşturulamadı" });
   }
 });
@@ -120,16 +154,22 @@ router.patch("/gemiler/:id", requireYazma, async (req, res) => {
     if (existing.ustFirmaId && !firmaYazmaDenetimi(existing.ustFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { ad, imoNumarasi, bayrakDevleti, notlar, aktif, firmaId } = req.body;
-    if (imoNumarasi !== undefined && !imoNumarasi) { res.status(400).json({ error: "imoNumarasi boş bırakılamaz" }); return; }
+    const yeniImo = imoNumarasi !== undefined ? (imoNumarasi != null ? String(imoNumarasi).trim() : "") : undefined;
+    if (yeniImo !== undefined && !yeniImo) { res.status(400).json({ error: "imoNumarasi boş bırakılamaz" }); return; }
+    if (yeniImo !== undefined) {
+      const kopyaHata = await imoKopyaHatasi(yeniImo, req, id);
+      if (kopyaHata) { res.status(409).json({ error: kopyaHata }); return; }
+    }
     if (firmaId !== undefined) {
       const [newFirma] = await db.select().from(firmalar).where(eq(firmalar.id, Number(firmaId)));
       if (!newFirma || newFirma.ustFirmaId !== existing.ustFirmaId) { res.status(400).json({ error: "Belirtilen firma bu çatı firmaya ait değil" }); return; }
     }
     const [row] = await db.update(gemiler)
-      .set({ ad, imoNumarasi, bayrakDevleti, notlar, aktif, firmaId })
+      .set({ ad, imoNumarasi: yeniImo, bayrakDevleti, notlar, aktif, firmaId })
       .where(eq(gemiler.id, id)).returning();
     res.json({ ...row, firmaAd: null, catiFirmaId: existing.ustFirmaId });
-  } catch {
+  } catch (err) {
+    if (imoUnikIhlali(err)) { res.status(409).json({ error: "Bu IMO numarası ile kayıtlı bir gemi zaten var" }); return; }
     res.status(500).json({ error: "Gemi güncellenemedi" });
   }
 });

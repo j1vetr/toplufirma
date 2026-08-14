@@ -9,9 +9,10 @@ import {
   date,
   pgEnum,
   jsonb,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // ── Enums ──────────────────────────────────────────────────────────────────
 export const firmaTipEnum = pgEnum("firma_tip", ["cati", "bagli", "grup"]);
@@ -85,7 +86,10 @@ export const gemiler = pgTable("gemiler", {
   notlar: text("notlar"),
   aktif: boolean("aktif").notNull().default(true),
   olusturmaTarihi: timestamp("olusturma_tarihi").notNull().defaultNow(),
-});
+}, (t) => [
+  // Aynı IMO numarasıyla (büyük/küçük harf ve boşluk farkı gözetmeden) ikinci gemi kaydını DB seviyesinde engeller
+  uniqueIndex("gemiler_imo_benzersiz").on(sql`lower(trim(${t.imoNumarasi}))`),
+]);
 
 // ── Firma Şirket Görünürlük ───────────────────────────────────────────────
 export const firmaSirketGorunurluk = pgTable("firma_sirket_gorunurluk", {

@@ -81,15 +81,17 @@ export default function Gemiler() {
 
   function kaydet() {
     const data = { firmaId: Number(form.firmaId), ad: form.ad, imoNumarasi: form.imoNumarasi || undefined, bayrakDevleti: form.bayrakDevleti || undefined, notlar: form.notlar || undefined, aktif: true };
+    const hataGoster = (varsayilan: string) => (e: unknown) =>
+      toast({ title: "Hata", description: (e as { data?: { error?: string } })?.data?.error ?? varsayilan, variant: "destructive" });
     if (duzenleId) {
       updateGemi.mutate({ id: duzenleId, data }, {
         onSuccess: () => { qc.invalidateQueries({ queryKey: getListGemilerQueryKey() }); kapat(); toast({ title: "Gemi güncellendi" }); },
-        onError: () => toast({ title: "Hata", variant: "destructive" }),
+        onError: hataGoster("Gemi güncellenemedi"),
       });
     } else {
       createGemi.mutate({ data }, {
         onSuccess: () => { qc.invalidateQueries({ queryKey: getListGemilerQueryKey() }); kapat(); toast({ title: "Gemi oluşturuldu" }); },
-        onError: () => toast({ title: "Hata", variant: "destructive" }),
+        onError: hataGoster("Gemi oluşturulamadı"),
       });
     }
   }

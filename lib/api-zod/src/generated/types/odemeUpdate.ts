@@ -11,4 +11,6 @@ export interface OdemeUpdate {
   tutar?: number;
   aciklama?: string;
   odemeYontemi?: string;
+  /** @nullable */
+  bankaHesabiId?: number | null;
 }

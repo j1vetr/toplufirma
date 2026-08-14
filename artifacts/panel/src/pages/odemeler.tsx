@@ -1,11 +1,14 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListOdemeler, getListOdemelerQueryKey,
   useListFirmalar, getListFirmalarQueryKey,
   useListBankaHesaplari, getListBankaHesaplariQueryKey,
-  useCreateOdeme, useDeleteOdeme,
+  useCreateOdeme, useUpdateOdeme, useDeleteOdeme,
+  getListFaturalarQueryKey, getGetFaturaQueryKey,
 } from "@workspace/api-client-react";
+import type { Odeme } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,7 +25,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Wallet, TrendingUp, TrendingDown, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Wallet, TrendingUp, TrendingDown, Search, FileText } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
 import { useYetki } from "@/hooks/use-yetki";
 
@@ -52,6 +55,8 @@ export default function Odemeler() {
   const [baslangicTarihi, setBaslangicTarihi] = useState("");
   const [bitisTarihi, setBitisTarihi] = useState("");
   const [modalAcik, setModalAcik] = useState(false);
+  const [duzenleId, setDuzenleId] = useState<number | null>(null);
+  const [duzenleFaturaId, setDuzenleFaturaId] = useState<number | null>(null);
   const [silId, setSilId] = useState<number | null>(null);
 
   const [catiFirmaId, setCatiFirmaId] = useState("");
@@ -78,7 +83,31 @@ export default function Odemeler() {
   );
   const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
   const createOdeme = useCreateOdeme();
+  const updateOdeme = useUpdateOdeme();
   const deleteOdeme = useDeleteOdeme();
+
+  function formuSifirla() {
+    setDuzenleId(null); setDuzenleFaturaId(null);
+    setCatiFirmaId(""); setBagliFirmaId(""); setTip("tahsilat");
+    setTarih(new Date().toISOString().split("T")[0]);
+    setTutar(""); setParaBirimi("USD"); setYontem("banka_havalesi");
+    setBankaId(""); setAciklama("");
+  }
+
+  function duzenleAc(o: Odeme) {
+    setDuzenleId(o.id);
+    setDuzenleFaturaId(o.faturaId ?? null);
+    setCatiFirmaId(String(o.catiFirmaId));
+    setBagliFirmaId(o.bagliFirmaId != null ? String(o.bagliFirmaId) : "");
+    setTip(o.tip);
+    setTarih(o.tarih);
+    setTutar(String(o.tutar));
+    setParaBirimi(o.paraBirimi ?? "USD");
+    setYontem(o.odemeYontemi ?? "banka_havalesi");
+    setBankaId(o.bankaHesabiId != null ? String(o.bankaHesabiId) : "none");
+    setAciklama(o.aciklama ?? "");
+    setModalAcik(true);
+  }
 
   const filtrelenmisBagliFirmalar = bagliFirmalar.filter(f => !catiFirmaId || f.ustFirmaId === Number(catiFirmaId));
 
@@ -97,6 +126,32 @@ export default function Odemeler() {
   const toplamOdeme = filtrelenmis.filter(o => o.tip === "odeme").reduce((s, o) => s + o.tutar, 0);
 
   function kaydet() {
+    if (duzenleId != null) {
+      if (!tarih || !tutar) {
+        toast({ title: "Hata", description: "Zorunlu alanları doldurun", variant: "destructive" });
+        return;
+      }
+      updateOdeme.mutate({
+        id: duzenleId,
+        data: {
+          tarih, tutar: Number(tutar), aciklama,
+          odemeYontemi: yontem,
+          bankaHesabiId: bankaId && bankaId !== "none" ? Number(bankaId) : null,
+        },
+      }, {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getListOdemelerQueryKey() });
+          if (duzenleFaturaId != null) {
+            qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() });
+            qc.invalidateQueries({ queryKey: getGetFaturaQueryKey(duzenleFaturaId) });
+          }
+          setModalAcik(false); formuSifirla();
+          toast({ title: "İşlem güncellendi" });
+        },
+        onError: (e: unknown) => toast({ title: "Hata", description: apiHataMesaji(e, "İşlem güncellenemedi"), variant: "destructive" }),
+      });
+      return;
+    }
     if (!catiFirmaId || !bagliFirmaId || !tarih || !tutar) {
       toast({ title: "Hata", description: "Zorunlu alanları doldurun", variant: "destructive" });
       return;
@@ -112,7 +167,7 @@ export default function Odemeler() {
     }, {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListOdemelerQueryKey() });
-        setModalAcik(false); setTutar(""); setAciklama(""); setBankaId("");
+        setModalAcik(false); formuSifirla();
         toast({ title: "Ödeme kaydedildi" });
       },
       onError: (e: unknown) => toast({ title: "Hata", description: apiHataMesaji(e, "Ödeme kaydedilemedi"), variant: "destructive" }),
@@ -156,7 +211,7 @@ export default function Odemeler() {
             </SelectContent>
           </Select>
           {canWrite && (
-            <Button onClick={() => setModalAcik(true)} className="shrink-0" data-testid="button-odeme-yeni">
+            <Button onClick={() => { formuSifirla(); setModalAcik(true); }} className="shrink-0" data-testid="button-odeme-yeni">
               <Plus className="mr-2 h-4 w-4" /> Yeni İşlem
             </Button>
           )}
@@ -182,11 +237,21 @@ export default function Odemeler() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold">{o.bagliFirmaAd}</p>
                 <p className="text-sm text-muted-foreground">{o.aciklama} - {YONTEM_ETIKET[o.odemeYontemi] ?? o.odemeYontemi}</p>
-                <p className="text-xs text-muted-foreground">{o.tarih}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground">{o.tarih}</p>
+                  {o.faturaId != null ? (
+                    <Link href={`/faturalar/${o.faturaId}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline" data-testid={`link-odeme-fatura-${o.id}`}>
+                      <FileText className="h-3 w-3" />{o.faturaNo ?? `Fatura #${o.faturaId}`}
+                    </Link>
+                  ) : (
+                    <span className="text-xs text-muted-foreground border border-border rounded-sm px-1.5" data-testid={`badge-odeme-serbest-${o.id}`}>Serbest</span>
+                  )}
+                </div>
               </div>
               <span className={`font-bold text-lg ${o.tip === "tahsilat" ? "text-green-600" : "text-red-500"}`}>
                 {o.tip === "tahsilat" ? "+" : "-"}{fmt(o.tutar, o.paraBirimi)}
               </span>
+              {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => duzenleAc(o)} data-testid={`button-odeme-duzenle-${o.id}`}><Pencil className="h-3.5 w-3.5" /></Button>}
               {canWrite && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setSilId(o.id)}><Trash2 className="h-3.5 w-3.5" /></Button>}
             </CardContent>
           </Card>
@@ -199,13 +264,13 @@ export default function Odemeler() {
         )}
       </div>
 
-      <Dialog open={modalAcik} onOpenChange={setModalAcik}>
+      <Dialog open={modalAcik} onOpenChange={o => { setModalAcik(o); if (!o) formuSifirla(); }}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Yeni Ödeme / Tahsilat</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{duzenleId != null ? "İşlemi Düzenle" : "Yeni Ödeme / Tahsilat"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
               <Label>İşlem Tipi *</Label>
-              <Select value={tip} onValueChange={setTip}>
+              <Select value={tip} onValueChange={setTip} disabled={duzenleId != null}>
                 <SelectTrigger data-testid="select-yeni-odeme-tip"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="tahsilat">Tahsilat</SelectItem>
@@ -215,14 +280,14 @@ export default function Odemeler() {
             </div>
             <div className="space-y-1.5">
               <Label>Çatı Firma *</Label>
-              <Select value={catiFirmaId} onValueChange={v => { setCatiFirmaId(v); setBagliFirmaId(""); }}>
+              <Select value={catiFirmaId} onValueChange={v => { setCatiFirmaId(v); setBagliFirmaId(""); }} disabled={duzenleId != null}>
                 <SelectTrigger data-testid="select-yeni-odeme-sirket"><SelectValue placeholder="Çatı Firma" /></SelectTrigger>
                 <SelectContent>{catiFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Bağlı Firma *</Label>
-              <Select value={bagliFirmaId} onValueChange={setBagliFirmaId}>
+              <Select value={bagliFirmaId} onValueChange={setBagliFirmaId} disabled={duzenleId != null}>
                 <SelectTrigger data-testid="select-yeni-odeme-cari"><SelectValue placeholder="Bağlı Firma" /></SelectTrigger>
                 <SelectContent>{filtrelenmisBagliFirmalar.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>)}</SelectContent>
               </Select>
@@ -237,7 +302,7 @@ export default function Odemeler() {
                 setParaBirimi(pb);
                 const secili = bankaHesaplari.find(h => String(h.id) === bankaId);
                 if (secili && !hesapPbUyumlu(secili, pb)) setBankaId("");
-              }}>
+              }} disabled={duzenleId != null}>
                 <SelectTrigger data-testid="select-yeni-odeme-pb"><SelectValue /></SelectTrigger>
                 <SelectContent>{["USD","EUR","TRY","GBP"].map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}</SelectContent>
               </Select>
@@ -259,7 +324,9 @@ export default function Odemeler() {
                 <SelectTrigger data-testid="select-yeni-odeme-banka"><SelectValue placeholder="Seçin (opsiyonel)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Seçilmedi</SelectItem>
-                  {bankaHesaplari.filter(h => hesapPbUyumlu(h, paraBirimi)).map(h => <SelectItem key={h.id} value={String(h.id)}>{h.bankaAdi} - {h.hesapAdi}</SelectItem>)}
+                  {bankaHesaplari
+                    .filter(h => hesapPbUyumlu(h, paraBirimi) && (!catiFirmaId || h.catiFirmaId === Number(catiFirmaId)))
+                    .map(h => <SelectItem key={h.id} value={String(h.id)}>{h.bankaAdi} - {h.hesapAdi}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -269,8 +336,8 @@ export default function Odemeler() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModalAcik(false)}>İptal</Button>
-            <Button onClick={kaydet} disabled={createOdeme.isPending} data-testid="button-yeni-odeme-kaydet">Kaydet</Button>
+            <Button variant="outline" onClick={() => { setModalAcik(false); formuSifirla(); }}>İptal</Button>
+            <Button onClick={kaydet} disabled={createOdeme.isPending || updateOdeme.isPending} data-testid="button-yeni-odeme-kaydet">Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
