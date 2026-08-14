@@ -4,7 +4,7 @@ import { useListFirmalar, getListFirmalarQueryKey, useListGemiler, getListGemile
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -64,6 +64,23 @@ export function dosyaUrl(dosyaId: number) {
   return `${apiBase()}/servis-dosyalari/${dosyaId}/dosya?t=${encodeURIComponent(t)}`;
 }
 
+// Eski düz metin notları editöre yüklerken satır sonlarını koruyacak HTML'e çevirir.
+function duzMetniHtmlYap(metin: string): string {
+  if (!metin || /<[a-z][\s\S]*>/i.test(metin)) return metin;
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return metin
+    .split(/\n{2,}/)
+    .map(p => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
+export function notlarOzet(notlar: string): string {
+  if (!/<[a-z][\s\S]*>/i.test(notlar)) return notlar;
+  const div = document.createElement("div");
+  div.innerHTML = notlar;
+  return (div.textContent ?? "").replace(/\s+/g, " ").trim();
+}
+
 export function formatBytes(b: number | null) {
   if (!b) return "";
   if (b < 1024) return `${b} B`;
@@ -90,7 +107,7 @@ export function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: Ka
   const [kategori, setKategori] = useState(mevcut?.kategori ?? "servis");
   const [baslik, setBaslik] = useState(mevcut?.baslik ?? "");
   const [tarih, setTarih] = useState(mevcut?.tarih ?? today);
-  const [notlar, setNotlar] = useState(mevcut?.notlar ?? "");
+  const [notlar, setNotlar] = useState(() => duzMetniHtmlYap(mevcut?.notlar ?? ""));
   const [kayitYapiliyor, setKayitYapiliyor] = useState(false);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [dosyalar, setDosyalar] = useState<ServisDosya[]>(mevcut?.dosyalar ?? []);
@@ -208,7 +225,7 @@ export function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: Ka
 
       <div className="space-y-1.5">
         <Label>Not</Label>
-        <Textarea value={notlar} onChange={e => setNotlar(e.target.value)} rows={3} placeholder="Detaylar, gözlemler..." />
+        <RichTextEditor value={notlar} onChange={setNotlar} minHeight={80} placeholder="Detaylar, gözlemler..." />
       </div>
 
       {mevcut && (
@@ -351,7 +368,7 @@ function KayitSatiri({ kayit, onEdit, onDelete }: {
             <span className="text-xs text-muted-foreground ml-auto">{kayit.tarih}</span>
           </div>
           {kayit.notlar && (
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{kayit.notlar}</p>
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notlarOzet(kayit.notlar)}</p>
           )}
           {kayit.dosyalar.length > 0 && (
             <button
@@ -469,7 +486,7 @@ export default function Servis() {
   }
 
   const filtrelenmis = kayitlar
-    .filter(k => !aramaQ || k.baslik.toLowerCase().includes(aramaQ.toLowerCase()) || (k.notlar ?? "").toLowerCase().includes(aramaQ.toLowerCase()))
+    .filter(k => !aramaQ || k.baslik.toLowerCase().includes(aramaQ.toLowerCase()) || notlarOzet(k.notlar ?? "").toLowerCase().includes(aramaQ.toLowerCase()))
     .filter(k => kategoriFiltre === "hepsi" || k.kategori === kategoriFiltre)
     .filter(k => gemiFiltre === "hepsi" || String(k.gemiId) === gemiFiltre);
 
