@@ -26,7 +26,12 @@ const YONTEM_ETIKET: Record<string, string> = {
   diger: "Diğer",
 };
 
-const PARA_BIRIMLERI = ["USD", "EUR", "TRY", "GBP"];
+const apiHataMesaji = (e: unknown, varsayilan: string) =>
+  (e as { data?: { error?: string } })?.data?.error ?? varsayilan;
+
+/** Hesabın kayıtlı para birimleri: ana para birimi + IBAN'lardaki para birimleri. */
+const hesapPbUyumlu = (h: { paraBirimi?: string | null; ibanlar?: Record<string, string> | null }, pb: string) =>
+  h.paraBirimi === pb || Object.keys(h.ibanlar ?? {}).includes(pb);
 
 function localToday(): string {
   const d = new Date();
@@ -70,6 +75,7 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
 
   const faturaHesaplari = bankaHesaplari.filter(
     b => b.catiFirmaId === fatura?.catiFirmaId && b.faturadaGoster !== false
+      && (!fatura || hesapPbUyumlu(b, fatura.paraBirimi))
   );
 
   const createOdeme = useCreateOdeme();
@@ -84,14 +90,6 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
     setOdemeBankaId("none");
     setOdemeAciklama("");
   }, [open, fatura]);
-
-  function onBankaChange(bankaId: string) {
-    setOdemeBankaId(bankaId);
-    if (bankaId && bankaId !== "none") {
-      const banka = faturaHesaplari.find(b => String(b.id) === bankaId);
-      if (banka?.paraBirimi) setOdemeParaBirimi(banka.paraBirimi);
-    }
-  }
 
   function odemeKaydet() {
     if (!fatura || !odemeTutar || !odemeTarih) return;
@@ -117,7 +115,7 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
         toast({ title: "Ödeme kaydedildi" });
         onSuccess?.();
       },
-      onError: () => toast({ title: "Ödeme kaydedilemedi", variant: "destructive" }),
+      onError: (e: unknown) => toast({ title: "Ödeme kaydedilemedi", description: apiHataMesaji(e, "Sunucu hatası"), variant: "destructive" }),
     });
   }
 
@@ -141,14 +139,13 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
             </div>
             <div className="w-28 space-y-1.5">
               <Label>Para Birimi</Label>
-              <Select value={odemeParaBirimi} onValueChange={setOdemeParaBirimi}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={odemeParaBirimi} onValueChange={setOdemeParaBirimi} disabled>
+                <SelectTrigger data-testid="select-odeme-modal-pb"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {PARA_BIRIMLERI.map(pb => (
-                    <SelectItem key={pb} value={pb}>{pb}</SelectItem>
-                  ))}
+                  <SelectItem value={fatura?.paraBirimi ?? odemeParaBirimi}>{fatura?.paraBirimi ?? odemeParaBirimi}</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">Fatura para birimi</p>
             </div>
           </div>
 
@@ -179,7 +176,7 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
                 Banka Hesabı{" "}
                 <span className="text-xs text-muted-foreground">(opsiyonel)</span>
               </Label>
-              <Select value={odemeBankaId} onValueChange={onBankaChange}>
+              <Select value={odemeBankaId} onValueChange={setOdemeBankaId}>
                 <SelectTrigger><SelectValue placeholder="Belirtilmedi" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Belirtilmedi</SelectItem>
@@ -192,11 +189,6 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
                   ))}
                 </SelectContent>
               </Select>
-              {odemeBankaId !== "none" && (
-                <p className="text-xs text-muted-foreground">
-                  Para birimi seçilen hesabın birimine ayarlandı; dilediğiniz gibi değiştirebilirsiniz.
-                </p>
-              )}
             </div>
           )}
 

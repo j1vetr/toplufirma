@@ -41,6 +41,8 @@ router.post("/odemeler", requireYazma, async (req, res) => {
       res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
     }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+    const tutarKurus = kurusaCevir(tutar);
+    if (tutarKurus == null || tutarKurus <= 0) { res.status(400).json({ error: "Tutar sıfırdan büyük olmalı ve en fazla iki ondalık basamak içerebilir" }); return; }
 
     if (bagliFirmaId) {
       const [targetFirma] = await db.select({ tip: firmalar.tip }).from(firmalar).where(eq(firmalar.id, Number(bagliFirmaId)));
@@ -56,24 +58,37 @@ router.post("/odemeler", requireYazma, async (req, res) => {
         res.status(400).json({ error: "Belirtilen firma ödeme için geçersiz tipte" }); return;
       }
     }
-    if (faturaId) {
-      const [fat] = await db.select({ cid: faturalar.catiFirmaId }).from(faturalar).where(eq(faturalar.id, Number(faturaId)));
-      if (!fat || fat.cid !== Number(catiFirmaId)) { res.status(400).json({ error: "Belirtilen fatura bu firmaya ait değil" }); return; }
-    }
+    const odemePb: string = paraBirimi ?? "USD";
     if (bankaHesabiId) {
-      const [bh] = await db.select({ cid: bankaHesaplari.catiFirmaId }).from(bankaHesaplari).where(eq(bankaHesaplari.id, Number(bankaHesabiId)));
+      const [bh] = await db.select({ cid: bankaHesaplari.catiFirmaId, paraBirimi: bankaHesaplari.paraBirimi, ibanlar: bankaHesaplari.ibanlar })
+        .from(bankaHesaplari).where(eq(bankaHesaplari.id, Number(bankaHesabiId)));
       if (!bh || bh.cid !== Number(catiFirmaId)) { res.status(400).json({ error: "Belirtilen banka hesabı bu firmaya ait değil" }); return; }
+      const hesapPbleri = hesapParaBirimleri(bh);
+      if (!hesapPbleri.includes(odemePb)) {
+        res.status(400).json({ error: `Seçilen banka hesabında ${odemePb} para birimi kayıtlı değil (hesaptaki para birimleri: ${hesapPbleri.join(", ")})` }); return;
+      }
     }
 
-    const [row] = await db.insert(odemeler).values({
-      catiFirmaId, bagliFirmaId: bagliFirmaId ?? null, gemiId: gemiId ?? null,
-      bankaHesabiId: bankaHesabiId ?? null,
-      faturaId: faturaId ?? null, tip, tarih, tutar: String(tutar),
-      paraBirimi: paraBirimi ?? "USD", odemeYontemi: odemeYontemi ?? "banka_havalesi", aciklama,
-    }).returning();
-
-    if (faturaId) await guncelleFaturaDurum(faturaId);
-    res.status(201).json(formatOdeme(row, null, null, null, null));
+    // Fatura doğrulaması + kayıt tek transaksiyonda: fatura satırı kilitlenir ki
+    // eşzamanlı iki tahsilat aynı "kalan"ı görüp birlikte limit aşamasın.
+    const sonuc = await db.transaction(async (tx) => {
+      if (faturaId) {
+        const [fat] = await tx.select().from(faturalar).where(eq(faturalar.id, Number(faturaId))).for("update");
+        if (!fat || fat.catiFirmaId !== Number(catiFirmaId)) return { hata: "Belirtilen fatura bu firmaya ait değil" } as const;
+        const hata = await faturaOdemeKuralHatasi(tx, fat, { tip, tutarKurus, paraBirimi: odemePb });
+        if (hata) return { hata } as const;
+      }
+      const [row] = await tx.insert(odemeler).values({
+        catiFirmaId, bagliFirmaId: bagliFirmaId ?? null, gemiId: gemiId ?? null,
+        bankaHesabiId: bankaHesabiId ?? null,
+        faturaId: faturaId ?? null, tip, tarih, tutar: String(tutar),
+        paraBirimi: odemePb, odemeYontemi: odemeYontemi ?? "banka_havalesi", aciklama,
+      }).returning();
+      if (faturaId) await guncelleFaturaDurum(Number(faturaId), tx);
+      return { row } as const;
+    });
+    if ("hata" in sonuc) { res.status(400).json({ error: sonuc.hata }); return; }
+    res.status(201).json(formatOdeme(sonuc.row, null, null, null, null));
   } catch {
     res.status(500).json({ error: "Ödeme oluşturulamadı" });
   }
@@ -105,11 +120,32 @@ router.patch("/odemeler/:id", requireYazma, async (req, res) => {
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { tarih, tutar, aciklama, odemeYontemi } = req.body;
-    const [row] = await db.update(odemeler)
-      .set({ tarih, tutar: tutar ? String(tutar) : undefined, aciklama, odemeYontemi })
-      .where(eq(odemeler.id, id)).returning();
-    if (row.faturaId) await guncelleFaturaDurum(row.faturaId);
-    res.json(formatOdeme(row, null, null, null, null));
+    let yeniTutarKurus: number | null = null;
+    if (tutar != null) {
+      yeniTutarKurus = kurusaCevir(tutar);
+      if (yeniTutarKurus == null || yeniTutarKurus <= 0) { res.status(400).json({ error: "Tutar sıfırdan büyük olmalı ve en fazla iki ondalık basamak içerebilir" }); return; }
+    }
+    const sonuc = await db.transaction(async (tx) => {
+      if (existing.faturaId) {
+        const [fat] = await tx.select().from(faturalar).where(eq(faturalar.id, existing.faturaId)).for("update");
+        if (fat) {
+          const hata = await faturaOdemeKuralHatasi(tx, fat, {
+            tip: existing.tip,
+            tutarKurus: yeniTutarKurus ?? Math.round(Number(existing.tutar) * 100),
+            paraBirimi: existing.paraBirimi ?? "USD",
+            haricOdemeId: id,
+          });
+          if (hata) return { hata } as const;
+        }
+      }
+      const [row] = await tx.update(odemeler)
+        .set({ tarih, tutar: tutar != null ? String(tutar) : undefined, aciklama, odemeYontemi })
+        .where(eq(odemeler.id, id)).returning();
+      if (row.faturaId) await guncelleFaturaDurum(row.faturaId, tx);
+      return { row } as const;
+    });
+    if ("hata" in sonuc) { res.status(400).json({ error: sonuc.hata }); return; }
+    res.json(formatOdeme(sonuc.row, null, null, null, null));
   } catch {
     res.status(500).json({ error: "Ödeme güncellenemedi" });
   }
@@ -122,25 +158,86 @@ router.delete("/odemeler/:id", requireYazma, async (req, res) => {
     if (!existing) { res.status(404).json({ error: "Ödeme bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
-    await db.delete(odemeler).where(eq(odemeler.id, id));
-    if (existing.faturaId) await guncelleFaturaDurum(existing.faturaId);
+    await db.transaction(async (tx) => {
+      if (existing.faturaId) {
+        await tx.select({ id: faturalar.id }).from(faturalar).where(eq(faturalar.id, existing.faturaId)).for("update");
+      }
+      await tx.delete(odemeler).where(eq(odemeler.id, id));
+      if (existing.faturaId) await guncelleFaturaDurum(existing.faturaId, tx);
+    });
     res.status(204).send();
   } catch {
     res.status(500).json({ error: "Ödeme silinemedi" });
   }
 });
 
-async function guncelleFaturaDurum(faturaId: number) {
+/** db veya bir transaksiyon içindeki tx — her ikisiyle de çalışan sorgu yürütücüsü. */
+type DbVeyaTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+function hesapParaBirimleri(bh: { paraBirimi: string | null; ibanlar: Record<string, string> | null }): string[] {
+  return [...new Set([bh.paraBirimi, ...Object.keys(bh.ibanlar ?? {})].filter((p): p is string => !!p))];
+}
+
+/**
+ * Parasal tutarı kuruş (minör birim, tam sayı) cinsine çevirir.
+ * Sonlu olmayan veya ikiden fazla ondalık basamaklı değerler için null döner —
+ * kayıt numeric(scale:2) olduğundan fazla hassasiyet sessiz yuvarlama yaratırdı.
+ */
+function kurusaCevir(t: unknown): number | null {
+  const n = Number(t);
+  if (!Number.isFinite(n)) return null;
+  const k = Math.round(n * 100);
+  if (Math.abs(n * 100 - k) > 1e-6) return null;
+  return k;
+}
+
+/**
+ * Faturaya bağlı ödeme iş kuralları (create + update ortak).
+ * Karşılaştırmalar kuruş (tam sayı) üzerinden yapılır — kayan nokta toleransı yok.
+ * Fatura satırı çağıran tarafından FOR UPDATE ile kilitlenmiş olmalı.
+ * Hata varsa Türkçe mesaj, yoksa null döner.
+ */
+async function faturaOdemeKuralHatasi(
+  tx: DbVeyaTx,
+  fat: typeof faturalar.$inferSelect,
+  odeme: { tip: string; tutarKurus: number; paraBirimi: string; haricOdemeId?: number },
+): Promise<string | null> {
+  if (fat.durum === "taslak" || fat.durum === "iptal") {
+    return fat.durum === "taslak"
+      ? "Taslak faturaya ödeme kaydedilemez"
+      : "İptal edilmiş faturaya ödeme kaydedilemez";
+  }
+  if (odeme.paraBirimi !== fat.paraBirimi) {
+    return `Ödemenin para birimi (${odeme.paraBirimi}) fatura para birimiyle (${fat.paraBirimi}) eşleşmeli`;
+  }
+  if (odeme.tip === "tahsilat") {
+    const ods = await tx.select().from(odemeler).where(eq(odemeler.faturaId, fat.id));
+    const odenenKurus = ods
+      .filter(o => o.tip === "tahsilat" && o.paraBirimi === fat.paraBirimi && o.id !== odeme.haricOdemeId)
+      .reduce((s, o) => s + Math.round(Number(o.tutar) * 100), 0);
+    const kalanKurus = Math.round(Number(fat.genelToplam) * 100) - odenenKurus;
+    if (odeme.tutarKurus > kalanKurus) {
+      return `Tahsilat tutarı faturanın kalan tutarını aşamaz (kalan: ${(Math.max(kalanKurus, 0) / 100).toFixed(2)} ${fat.paraBirimi})`;
+    }
+  }
+  return null;
+}
+
+async function guncelleFaturaDurum(faturaId: number, tx: DbVeyaTx = db) {
   try {
-    const [fatura] = await db.select().from(faturalar).where(eq(faturalar.id, faturaId));
+    const [fatura] = await tx.select().from(faturalar).where(eq(faturalar.id, faturaId));
     if (!fatura) return;
-    const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, faturaId));
-    const odenen = ods.filter(o => o.tip === "tahsilat" && o.paraBirimi === fatura.paraBirimi).reduce((s, o) => s + Number(o.tutar), 0);
-    const genel = Number(fatura.genelToplam);
+    // Manuel taslak/iptal durumunu otomatik hesaplama asla ezmemeli.
+    if (fatura.durum === "taslak" || fatura.durum === "iptal") return;
+    const ods = await tx.select().from(odemeler).where(eq(odemeler.faturaId, faturaId));
+    const odenenKurus = ods
+      .filter(o => o.tip === "tahsilat" && o.paraBirimi === fatura.paraBirimi)
+      .reduce((s, o) => s + Math.round(Number(o.tutar) * 100), 0);
+    const genelKurus = Math.round(Number(fatura.genelToplam) * 100);
     let durum: typeof faturalar.$inferSelect["durum"] = "acik";
-    if (odenen >= genel) durum = "odendi";
-    else if (odenen > 0) durum = "kismi_odendi";
-    await db.update(faturalar).set({ durum }).where(eq(faturalar.id, faturaId));
+    if (odenenKurus >= genelKurus) durum = "odendi";
+    else if (odenenKurus > 0) durum = "kismi_odendi";
+    await tx.update(faturalar).set({ durum }).where(eq(faturalar.id, faturaId));
   } catch {}
 }
 

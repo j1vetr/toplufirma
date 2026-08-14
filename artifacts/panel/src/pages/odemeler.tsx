@@ -34,6 +34,13 @@ const YONTEM_ETIKET: Record<string, string> = {
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
 
+const apiHataMesaji = (e: unknown, varsayilan: string) =>
+  (e as { data?: { error?: string } })?.data?.error ?? varsayilan;
+
+/** Hesabın kayıtlı para birimleri: ana para birimi + IBAN'lardaki para birimleri. */
+const hesapPbUyumlu = (h: { paraBirimi?: string | null; ibanlar?: Record<string, string> | null }, pb: string) =>
+  h.paraBirimi === pb || Object.keys(h.ibanlar ?? {}).includes(pb);
+
 export default function Odemeler() {
   const { aktifSirketId } = useSirket();
   const { canWrite } = useYetki();
@@ -108,7 +115,7 @@ export default function Odemeler() {
         setModalAcik(false); setTutar(""); setAciklama(""); setBankaId("");
         toast({ title: "Ödeme kaydedildi" });
       },
-      onError: () => toast({ title: "Hata", variant: "destructive" }),
+      onError: (e: unknown) => toast({ title: "Hata", description: apiHataMesaji(e, "Ödeme kaydedilemedi"), variant: "destructive" }),
     });
   }
 
@@ -226,7 +233,11 @@ export default function Odemeler() {
             </div>
             <div className="space-y-1.5">
               <Label>Para Birimi</Label>
-              <Select value={paraBirimi} onValueChange={setParaBirimi}>
+              <Select value={paraBirimi} onValueChange={pb => {
+                setParaBirimi(pb);
+                const secili = bankaHesaplari.find(h => String(h.id) === bankaId);
+                if (secili && !hesapPbUyumlu(secili, pb)) setBankaId("");
+              }}>
                 <SelectTrigger data-testid="select-yeni-odeme-pb"><SelectValue /></SelectTrigger>
                 <SelectContent>{["USD","EUR","TRY","GBP"].map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}</SelectContent>
               </Select>
@@ -248,7 +259,7 @@ export default function Odemeler() {
                 <SelectTrigger data-testid="select-yeni-odeme-banka"><SelectValue placeholder="Seçin (opsiyonel)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Seçilmedi</SelectItem>
-                  {bankaHesaplari.map(h => <SelectItem key={h.id} value={String(h.id)}>{h.bankaAdi} - {h.hesapAdi}</SelectItem>)}
+                  {bankaHesaplari.filter(h => hesapPbUyumlu(h, paraBirimi)).map(h => <SelectItem key={h.id} value={String(h.id)}>{h.bankaAdi} - {h.hesapAdi}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
