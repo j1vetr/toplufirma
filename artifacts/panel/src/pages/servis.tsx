@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { GemiSecici, type GemiSecenek } from "@/components/gemi-secici";
 import { Plus, Trash2, Upload, X, Image, FileText, ChevronDown, ChevronUp, Pencil } from "lucide-react";
@@ -112,8 +112,24 @@ export function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: Ka
   const [kayitYapiliyor, setKayitYapiliyor] = useState(false);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [dosyalar, setDosyalar] = useState<ServisDosya[]>(mevcut?.dosyalar ?? []);
+  const [bekleyenDosyalar, setBekleyenDosyalar] = useState<File[]>([]);
   const [yuklemeProgress, setYuklemeProgress] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function dosyalariYukle(kayitId: number, files: File[]) {
+    const fd = new FormData();
+    for (const file of files) fd.append("dosyalar", file);
+    const resp = await fetch(`${apiBase()}/servis-kayitlari/${kayitId}/dosyalar`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: fd,
+    });
+    if (!resp.ok) {
+      const e = await resp.json();
+      throw new Error(e.error ?? "Dosya yükleme hatası");
+    }
+    return await resp.json() as ServisDosya[];
+  }
 
   async function handleSave() {
     if (!gemiId || !baslik || !tarih) {
@@ -133,7 +149,26 @@ export function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: Ka
         body: JSON.stringify(body),
       });
       if (!resp.ok) { const e = await resp.json(); throw new Error(e.error ?? "Hata"); }
-      toast({ title: mevcut ? "Kayıt güncellendi" : "Kayıt oluşturuldu" });
+      const kayit = await resp.json() as { id: number };
+      if (!mevcut && bekleyenDosyalar.length > 0) {
+        setYukleniyor(true);
+        setYuklemeProgress(`${bekleyenDosyalar.length} dosya optimize edilip yükleniyor...`);
+        try {
+          await dosyalariYukle(kayit.id, bekleyenDosyalar);
+        } catch {
+          toast({
+            title: "Kayıt oluşturuldu",
+            description: "Fotoğraflar yüklenemedi. Kaydı açıp tekrar deneyebilirsiniz.",
+            variant: "destructive",
+          });
+          onSaved();
+          return;
+        } finally {
+          setYukleniyor(false);
+          setYuklemeProgress(null);
+        }
+      }
+      toast({ title: mevcut ? "Kayıt güncellendi" : "Kayıt ve dosyalar oluşturuldu" });
       onSaved();
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Hata", variant: "destructive" });
@@ -144,19 +179,21 @@ export function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: Ka
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
-    if (!files || !files.length || !mevcut) return;
+    if (!files || !files.length) return;
+    const secilenler = Array.from(files);
+    if (!mevcut) {
+      if (bekleyenDosyalar.length + secilenler.length > 10) {
+        toast({ title: "En fazla 10 dosya seçebilirsiniz", variant: "destructive" });
+      } else {
+        setBekleyenDosyalar(prev => [...prev, ...secilenler]);
+      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     setYukleniyor(true);
     setYuklemeProgress(`${files.length} dosya yükleniyor...`);
     try {
-      const fd = new FormData();
-      for (const f of Array.from(files)) fd.append("dosyalar", f);
-      const resp = await fetch(`${apiBase()}/servis-kayitlari/${mevcut.id}/dosyalar`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: fd,
-      });
-      if (!resp.ok) { const e = await resp.json(); throw new Error(e.error ?? "Yükleme hatası"); }
-      const yeni: ServisDosya[] = await resp.json();
+      const yeni = await dosyalariYukle(mevcut.id, secilenler);
       setDosyalar(prev => [...prev, ...yeni]);
       toast({ title: `${yeni.length} dosya yüklendi` });
     } catch (err) {
@@ -291,7 +328,51 @@ export function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: Ka
       )}
 
       {!mevcut && (
-        <p className="text-xs text-muted-foreground">Kayıt oluşturduktan sonra fotoğraf ve dosya ekleyebilirsiniz.</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Fotoğraf / Dosya</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={kayitYapiliyor || yukleniyor}
+            >
+              <Upload className="mr-1.5 h-3.5 w-3.5" />
+              {bekleyenDosyalar.length > 0 ? `${bekleyenDosyalar.length} dosya seçildi` : "Fotoğraf / Dosya Ekle"}
+            </Button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.heic,.heif,.pdf,.doc,.docx"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          {bekleyenDosyalar.length > 0 ? (
+            <div className="border bg-muted/20 divide-y">
+              {bekleyenDosyalar.map((file, index) => (
+                <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
+                  <span className="truncate">{file.name}</span>
+                  <button
+                    type="button"
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => setBekleyenDosyalar(prev => prev.filter((_, i) => i !== index))}
+                    aria-label={`${file.name} dosyasını kaldır`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Kayıt oluştururken fotoğraf ekleyebilirsiniz. HEIC ve HEIF fotoğraflar sunucuda optimize edilir.
+            </p>
+          )}
+        </div>
       )}
 
       <div className="flex justify-end gap-2 pt-2 border-t">
@@ -580,6 +661,9 @@ export default function Servis() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{duzenleKayit ? "Kayıt Düzenle" : "Yeni Servis/Sözleşme Kaydı"}</DialogTitle>
+            <DialogDescription>
+              Gemiye ait servis, sözleşme ve bakım kayıtlarını burada oluşturabilirsiniz.
+            </DialogDescription>
           </DialogHeader>
           <KayitForm
             catiFirmaId={catiFirmaId}

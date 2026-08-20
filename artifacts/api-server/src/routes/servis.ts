@@ -19,31 +19,40 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter(_req, file, cb) {
-    const ok = /^image\/(jpeg|png|gif|webp|heic|heif)$/i.test(file.mimetype) || /\.(pdf|doc|docx)$/i.test(file.originalname);
+    const ok = /^image\//i.test(file.mimetype)
+      || /\.(heic|heif|jpg|jpeg|png|gif|webp|avif)$/i.test(file.originalname)
+      || /\.(pdf|doc|docx)$/i.test(file.originalname);
     cb(null, ok);
   },
 });
 
-function isImage(mimetype: string): boolean {
-  return /^image\//i.test(mimetype);
+function isImage(file: Pick<Express.Multer.File, "mimetype" | "originalname">): boolean {
+  return /^image\//i.test(file.mimetype)
+    || /\.(heic|heif|jpg|jpeg|png|gif|webp|avif)$/i.test(file.originalname);
 }
 
 async function saveFile(file: Express.Multer.File): Promise<{ dosyaYolu: string; boyut: number }> {
-  const ext = isImage(file.mimetype) ? ".jpg" : path.extname(file.originalname).toLowerCase() || ".bin";
+  const image = isImage(file);
+  const ext = image ? ".jpg" : path.extname(file.originalname).toLowerCase() || ".bin";
   const name = `${Date.now()}_${crypto.randomBytes(6).toString("hex")}${ext}`;
   const dest = path.join(UPLOAD_DIR, name);
 
-  if (isImage(file.mimetype)) {
-    await sharp(file.buffer)
-      .resize({ width: 1200, height: 1200, fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: 80 })
-      .toFile(dest);
-  } else {
-    fs.writeFileSync(dest, file.buffer);
+  try {
+    if (image) {
+      await sharp(file.buffer)
+        .rotate()
+        .resize({ width: 1200, height: 1200, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 80, mozjpeg: true })
+        .toFile(dest);
+    } else {
+      fs.writeFileSync(dest, file.buffer);
+    }
+    const stat = fs.statSync(dest);
+    return { dosyaYolu: name, boyut: stat.size };
+  } catch (err) {
+    if (fs.existsSync(dest)) fs.unlinkSync(dest);
+    throw err;
   }
-
-  const stat = fs.statSync(dest);
-  return { dosyaYolu: name, boyut: stat.size };
 }
 
 router.get("/servis-kayitlari", async (req, res) => {
@@ -196,19 +205,35 @@ router.post("/servis-kayitlari/:id/dosyalar", requireYazma, upload.array("dosyal
     const files = (req.files ?? []) as Express.Multer.File[];
     if (!files.length) { res.status(400).json({ error: "Dosya seçilmedi" }); return; }
 
-    const saved = [];
-    for (const file of files) {
-      const { dosyaYolu, boyut } = await saveFile(file);
-      const [row] = await db.insert(servisDosyalari).values({
-        servisId: id,
-        dosyaYolu,
-        dosyaTipi: isImage(file.mimetype) ? "image/jpeg" : file.mimetype,
-        boyut,
-        orijinalAd: file.originalname,
-      }).returning();
-      saved.push(row);
+    const savedFiles: Array<{ file: Express.Multer.File; dosyaYolu: string; boyut: number }> = [];
+    try {
+      for (const file of files) {
+        const saved = await saveFile(file);
+        savedFiles.push({ file, ...saved });
+      }
+
+      const savedRows = await db.transaction(async tx => {
+        const rows = [];
+        for (const saved of savedFiles) {
+          const [row] = await tx.insert(servisDosyalari).values({
+            servisId: id,
+            dosyaYolu: saved.dosyaYolu,
+            dosyaTipi: isImage(saved.file) ? "image/jpeg" : saved.file.mimetype,
+            boyut: saved.boyut,
+            orijinalAd: saved.file.originalname,
+          }).returning();
+          rows.push(row);
+        }
+        return rows;
+      });
+      res.status(201).json(savedRows);
+    } catch (err) {
+      for (const saved of savedFiles) {
+        const fp = path.join(UPLOAD_DIR, saved.dosyaYolu);
+        if (fs.existsSync(fp)) fs.unlinkSync(fp);
+      }
+      throw err;
     }
-    res.status(201).json(saved);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Dosya yüklenemedi" });
