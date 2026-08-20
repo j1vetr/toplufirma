@@ -4,6 +4,7 @@ import { odemeler, firmalar, gemiler, bankaHesaplari, faturalar, firmaSirketGoru
 import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
+import { hesapParaBirimleri } from "../utils/bankaParaBirimleri";
 
 const router = Router();
 
@@ -189,10 +190,6 @@ router.delete("/odemeler/:id", requireYazma, async (req, res) => {
 
 /** db veya bir transaksiyon içindeki tx — her ikisiyle de çalışan sorgu yürütücüsü. */
 type DbVeyaTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-function hesapParaBirimleri(bh: { paraBirimi: string | null; ibanlar: Record<string, string> | null }): string[] {
-  return [...new Set([bh.paraBirimi, ...Object.keys(bh.ibanlar ?? {})].filter((p): p is string => !!p))];
-}
 
 /**
  * Parasal tutarı kuruş (minör birim, tam sayı) cinsine çevirir.

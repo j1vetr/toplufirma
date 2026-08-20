@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import ExcelJS from "exceljs";
+import { hesapAnaParaBirimi } from "../utils/bankaParaBirimleri";
 
 const _reqPdfB = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,8 +52,9 @@ router.post("/banka-hesaplari", requireYazma, async (req, res) => {
     const { catiFirmaId, bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster, ibanlar } = req.body;
     if (!catiFirmaId || !hesapAdi) { res.status(400).json({ error: "catiFirmaId ve hesapAdi zorunludur" }); return; }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+    const anaParaBirimi = hesapAnaParaBirimi({ paraBirimi, ibanlar });
     const [row] = await db.insert(bankaHesaplari).values({
-      catiFirmaId, bankaAdi, hesapAdi, iban, swift, paraBirimi: paraBirimi ?? "TRY",
+      catiFirmaId, bankaAdi, hesapAdi, iban, swift, paraBirimi: anaParaBirimi,
       subeAdi, aciklama, aktif: aktif ?? true, faturadaGoster: faturadaGoster ?? true,
       ibanlar: ibanlar ?? {},
     }).returning();
@@ -87,8 +89,13 @@ router.patch("/banka-hesaplari/:id", requireYazma, async (req, res) => {
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
 
     const { bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster, ibanlar } = req.body;
+    const etkinIbanlar = ibanlar === undefined ? existing.ibanlar : ibanlar;
+    const anaParaBirimi = hesapAnaParaBirimi({
+      paraBirimi: paraBirimi ?? existing.paraBirimi,
+      ibanlar: etkinIbanlar,
+    });
     const [row] = await db.update(bankaHesaplari)
-      .set({ bankaAdi, hesapAdi, iban, swift, paraBirimi, subeAdi, aciklama, aktif, faturadaGoster, ...(ibanlar !== undefined ? { ibanlar } : {}) })
+      .set({ bankaAdi, hesapAdi, iban, swift, paraBirimi: anaParaBirimi, subeAdi, aciklama, aktif, faturadaGoster, ...(ibanlar !== undefined ? { ibanlar } : {}) })
       .where(eq(bankaHesaplari.id, id)).returning();
     const bakiyeler = await hesaplaHesapBakiyeleri();
     res.json(formatHesap(row, null, bakiyeler[id] ?? 0));
@@ -233,7 +240,7 @@ function formatHesap(h: typeof bankaHesaplari.$inferSelect, catiFirmaAd: string 
   return {
     id: h.id, catiFirmaId: h.catiFirmaId, catiFirmaAd: catiFirmaAd ?? null,
     bankaAdi: h.bankaAdi, hesapAdi: h.hesapAdi, iban: h.iban, swift: h.swift,
-    paraBirimi: h.paraBirimi, subeAdi: h.subeAdi, aciklama: h.aciklama,
+    paraBirimi: hesapAnaParaBirimi(h), subeAdi: h.subeAdi, aciklama: h.aciklama,
     aktif: h.aktif, faturadaGoster: h.faturadaGoster, bakiye,
     ibanlar: (h.ibanlar ?? {}) as Record<string, string>,
     olusturmaTarihi: h.olusturmaTarihi,

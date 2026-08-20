@@ -365,7 +365,7 @@ export default function Ayarlar() {
   function kaydetHesap() {
     const ibanlar: Record<string, string> = {};
     for (const g of hesapForm.ibanGirisler) { if (g.pb && g.iban.trim()) ibanlar[g.pb] = g.iban.trim(); }
-    const data = { catiFirmaId: Number(hesapForm.catiFirmaId), bankaAdi: hesapForm.bankaAdi || undefined, hesapAdi: hesapForm.hesapAdi, swift: hesapForm.swift || undefined, subeAdi: hesapForm.subeAdi || undefined, aciklama: hesapForm.aciklama || undefined, aktif: true, faturadaGoster: hesapForm.faturadaGoster, ibanlar };
+    const data = { catiFirmaId: Number(hesapForm.catiFirmaId), bankaAdi: hesapForm.bankaAdi || undefined, hesapAdi: hesapForm.hesapAdi, swift: hesapForm.swift || undefined, subeAdi: hesapForm.subeAdi || undefined, aciklama: hesapForm.aciklama || undefined, aktif: true, faturadaGoster: hesapForm.faturadaGoster, paraBirimi: Object.keys(ibanlar)[0] ?? hesapForm.ibanGirisler[0]?.pb ?? "TRY", ibanlar };
     if (duzenleHesapId) {
       updateHesap.mutate({ id: duzenleHesapId, data }, {
         onSuccess: () => { qc.invalidateQueries({ queryKey: getListBankaHesaplariQueryKey() }); kapatHesap(); toast({ title: "Hesap güncellendi" }); },

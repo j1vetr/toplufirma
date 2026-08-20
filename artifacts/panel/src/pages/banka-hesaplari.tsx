@@ -155,6 +155,7 @@ export default function BankaHesaplari() {
       aciklama: form.aciklama || undefined,
       aktif: true,
       faturadaGoster: form.faturadaGoster,
+      paraBirimi: Object.keys(ibanlar)[0] ?? form.ibanGirisler[0]?.pb ?? "TRY",
       ibanlar,
     };
     if (duzenleId) {
