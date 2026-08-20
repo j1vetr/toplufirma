@@ -22,6 +22,7 @@ import {
   FileSpreadsheet, Mail, Send, CreditCard,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
 
 interface CariKalem {
   id: string;
@@ -422,6 +423,24 @@ export default function CariDetay() {
   const { firma, catiFirma, ozet, kalemler } = detay;
   const oncekiBakiye = detay.oncekiBakiye ?? null;
   const catiFirmaBankalar = bankaHesaplariGenel.filter(b => b.catiFirmaId === catiFirma?.id);
+  const seciliIslemBanka = islemBanka && islemBanka !== "none"
+    ? catiFirmaBankalar.find(b => String(b.id) === islemBanka)
+    : undefined;
+  const islemBankaPbs = seciliIslemBanka ? hesapParaBirimleri(seciliIslemBanka) : [];
+  const islemPbSecenekleri = islemBankaPbs.length > 0
+    ? islemBankaPbs
+    : [...new Set(["USD", "EUR", "TRY", "GBP", ...(islemPb ? [islemPb] : [])])];
+
+  function islemBankaSecildi(v: string) {
+    setIslemBanka(v);
+    if (v && v !== "none") {
+      const b = catiFirmaBankalar.find(x => String(x.id) === v);
+      const pbs = b ? hesapParaBirimleri(b) : [];
+      if (pbs.length > 0 && !pbs.includes(islemPb)) {
+        setIslemPb(b?.paraBirimi && pbs.includes(b.paraBirimi) ? b.paraBirimi : pbs[0]);
+      }
+    }
+  }
   const faturaKalemleri = kalemler.filter(k => k.tip === "fatura" && k.faturaId !== null);
 
   const bakiyeRenk =
@@ -773,7 +792,7 @@ export default function CariDetay() {
               <Select value={islemPb} onValueChange={setIslemPb}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {["USD", "EUR", "TRY", "GBP"].map(pb => (
+                  {islemPbSecenekleri.map(pb => (
                     <SelectItem key={pb} value={pb}>{pb}</SelectItem>
                   ))}
                 </SelectContent>
@@ -800,15 +819,18 @@ export default function CariDetay() {
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Banka Hesabı</Label>
-              <Select value={islemBanka} onValueChange={setIslemBanka}>
+              <Select value={islemBanka} onValueChange={islemBankaSecildi}>
                 <SelectTrigger><SelectValue placeholder="Seçilmedi (opsiyonel)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Seçilmedi</SelectItem>
-                  {catiFirmaBankalar.map(b => (
-                    <SelectItem key={b.id} value={String(b.id)}>
-                      {b.bankaAdi ? `${b.bankaAdi} - ` : ""}{b.hesapAdi}
-                    </SelectItem>
-                  ))}
+                  {catiFirmaBankalar.map(b => {
+                    const pbs = hesapParaBirimleri(b);
+                    return (
+                      <SelectItem key={b.id} value={String(b.id)}>
+                        {b.bankaAdi ? `${b.bankaAdi} - ` : ""}{b.hesapAdi}{pbs.length > 0 ? ` (${pbs.join(", ")})` : ""}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

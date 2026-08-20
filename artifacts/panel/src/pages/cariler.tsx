@@ -20,6 +20,7 @@ import {
 } from "@workspace/api-client-react";
 import type { OdemeInputOdemeYontemi } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
 
 interface BakiyeDetay {
   paraBirimi: string;
@@ -94,6 +95,25 @@ export default function Cariler() {
     query: { queryKey: getListBankaHesaplariQueryKey(), enabled: !!odemeModal?.catiFirmaId },
   });
   const modalBankalar = bankaHesaplari.filter(b => b.catiFirmaId === odemeModal?.catiFirmaId && b.faturadaGoster !== false);
+
+  const seciliBanka = odBanka !== "none"
+    ? modalBankalar.find(b => String(b.id) === odBanka)
+    : undefined;
+  const bankaPbs = seciliBanka ? hesapParaBirimleri(seciliBanka) : [];
+  const pbSecenekleri = bankaPbs.length > 0
+    ? bankaPbs
+    : [...new Set([...PARA_BIRIMLERI, ...(odPb ? [odPb] : [])])];
+
+  function bankaSecildi(v: string) {
+    setOdBanka(v);
+    if (v !== "none") {
+      const b = modalBankalar.find(x => String(x.id) === v);
+      const pbs = b ? hesapParaBirimleri(b) : [];
+      if (pbs.length > 0 && !pbs.includes(odPb)) {
+        setOdPb(b?.paraBirimi && pbs.includes(b.paraBirimi) ? b.paraBirimi : pbs[0]);
+      }
+    }
+  }
 
   function odemeAc(c: CariOzet, e: React.MouseEvent) {
     e.preventDefault();
@@ -471,7 +491,7 @@ export default function Cariler() {
                 <Select value={odPb} onValueChange={setOdPb}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {PARA_BIRIMLERI.map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}
+                    {pbSecenekleri.map(pb => <SelectItem key={pb} value={pb}>{pb}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -497,15 +517,18 @@ export default function Cariler() {
             {modalBankalar.length > 0 && (
               <div className="space-y-1.5">
                 <Label>Banka Hesabı <span className="text-xs text-muted-foreground">(opsiyonel)</span></Label>
-                <Select value={odBanka} onValueChange={v => { setOdBanka(v); if (v !== "none") { const b = modalBankalar.find(x => String(x.id) === v); if (b?.paraBirimi) setOdPb(b.paraBirimi); } }}>
+                <Select value={odBanka} onValueChange={bankaSecildi}>
                   <SelectTrigger><SelectValue placeholder="Belirtilmedi" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Belirtilmedi</SelectItem>
-                    {modalBankalar.map(b => (
-                      <SelectItem key={b.id} value={String(b.id)}>
-                        {b.bankaAdi ? `${b.bankaAdi} - ` : ""}{b.hesapAdi}{b.paraBirimi ? ` (${b.paraBirimi})` : ""}
-                      </SelectItem>
-                    ))}
+                    {modalBankalar.map(b => {
+                      const pbs = hesapParaBirimleri(b);
+                      return (
+                        <SelectItem key={b.id} value={String(b.id)}>
+                          {b.bankaAdi ? `${b.bankaAdi} - ` : ""}{b.hesapAdi}{pbs.length > 0 ? ` (${pbs.join(", ")})` : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
