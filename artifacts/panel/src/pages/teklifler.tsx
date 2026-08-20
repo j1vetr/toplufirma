@@ -655,8 +655,8 @@ export default function Teklifler() {
                     ...f,
                     aliciFirmaId: firmaId,
                     aliciAd: secilen ? secilen.ad : f.aliciAd,
-                    aliciAdres: secilen ? ((secilen as unknown as { adres?: string }).adres ?? f.aliciAdres) : f.aliciAdres,
-                    aliciTelefon: secilen ? ((secilen as unknown as { telefon?: string }).telefon ?? f.aliciTelefon) : f.aliciTelefon,
+                    aliciAdres: secilen ? (secilen.adres ?? f.aliciAdres) : f.aliciAdres,
+                    aliciTelefon: secilen ? (secilen.telefon ?? f.aliciTelefon) : f.aliciTelefon,
                   }));
                 }}
                 placeholder="Firma seçin (opsiyonel)"
