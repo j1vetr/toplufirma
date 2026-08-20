@@ -147,9 +147,8 @@ export default function Dashboard() {
     <div className="space-y-8 pb-8">
       {/* Header & Quick Actions */}
       <section className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="animate-in fade-in duration-300 fill-mode-both">
-          <h1 className="text-2xl font-display font-bold tracking-tight text-foreground">Günaydın.</h1>
-          <div className="flex items-center gap-4 mt-2 text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+         <div className="animate-in fade-in duration-300 fill-mode-both">
+           <div className="flex items-center gap-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
             <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> {ozet?.toplamFaturaSayisi || 0} Fatura İşlemi</span>
             <span className="flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" /> {ozet?.vadesGecmisFaturaSayisi || 0} Geciken Fatura</span>
           </div>

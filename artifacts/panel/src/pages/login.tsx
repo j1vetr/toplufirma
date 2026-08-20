@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import toovBeyaz from "@assets/toov__beyaz_logo_1782430202251.png";
+import lacivertLogo from "@assets/lacivert_light_logo_1763796346759-WC73pPaY_1787267387137.png";
 
 interface Props {
   onLogin: (token: string, kullanici: object) => void;
@@ -38,11 +39,11 @@ export default function Login({ onLogin }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6 relative">
       <div className="w-full max-w-sm flex flex-col items-center gap-10">
 
         <div className="flex flex-col items-center gap-4">
-          <img src={toovBeyaz} alt="TOOV" className="w-52 h-auto" />
+          <img src={lacivertLogo} alt="Lacivert Teknoloji" className="w-52 h-auto" />
           <p className="text-[10px] font-bold text-white/30 tracking-widest text-center">
             Çoklu FİRMA Yönetim Sistemi
           </p>
@@ -96,6 +97,10 @@ export default function Login({ onLogin }: Props) {
           </Button>
         </form>
 
+      </div>
+
+      <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+        <img src={toovBeyaz} alt="TOOV" className="w-20 h-auto opacity-60" />
       </div>
     </div>
   );

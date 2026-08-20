@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import toovBeyaz from "@assets/toov__beyaz_logo_1782430202251.png";
+import lacivertLogo from "@assets/lacivert_light_logo_1763796346759-WC73pPaY_1787267387137.png";
 import {
   LayoutDashboard,
   Building2,
@@ -235,7 +235,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
       <div className="w-64 border-r border-sidebar-border bg-sidebar hidden md:flex flex-col">
         {/* Logo */}
         <div className="flex items-center justify-center px-5 py-5 border-b border-sidebar-border shrink-0">
-          <img src={toovBeyaz} alt="TOOV" className="w-36 h-auto" />
+          <img src={lacivertLogo} alt="Lacivert Teknoloji" className="w-36 h-auto" />
         </div>
 
         {/* Firma seçici */}
@@ -306,7 +306,7 @@ export function Layout({ children, kullanici, onLogout }: LayoutProps) {
         <SheetContent side="left" className="w-72 p-0 flex flex-col bg-sidebar border-r-0">
           <SheetHeader className="flex flex-row items-center justify-center px-5 py-5 border-b border-sidebar-border shrink-0">
             <SheetTitle className="flex items-center justify-center">
-              <img src={toovBeyaz} alt="TOOV" className="w-32 h-auto" />
+              <img src={lacivertLogo} alt="Lacivert Teknoloji" className="w-32 h-auto" />
             </SheetTitle>
           </SheetHeader>
 
