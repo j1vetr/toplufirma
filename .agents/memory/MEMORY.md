@@ -12,3 +12,4 @@
 - [Modül izinleri](modul-izinleri.md) — enforcement DB-based (30s cache), never JWT; list-reads open, detail-reads need owning module; KURALLAR must track real route prefixes
 - [tw-animate-css class adları](tw-animate-css.md) — animate-in/fade-in kullanılır, Animate.css animate__ adları sessizce çalışmaz
 - [Sistemce üretilen kayıtlar](system-generated-records.md) — otomatik kayıtları açıklama metniyle değil kalıcı, API'den yazılamayan kolonla tanı (odemeler.otomatik)
+- [Dosya ve veritabanı tutarlılığı](file-db-lifecycle.md) — görsel yükleme ve silmede staging dosyalarıyla DB kaydını eşleştir, ani kapanmada başlangıç kurtarması uygula

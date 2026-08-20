@@ -189,7 +189,7 @@ router.delete("/gemiler/:id", requireYazma, async (req, res) => {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("foreign key") || msg.includes("violates")) {
-        res.status(400).json({ error: "Bu gemi fatura veya kayıtlarda kullanılıyor. Önce ilgili kayıtları silin." });
+        res.status(400).json({ error: "Bu gemi fatura, kayıt veya günlüğe bağlı fotoğraflarda kullanılıyor. Önce ilgili kayıtları silin." });
         return;
       }
       throw e;
