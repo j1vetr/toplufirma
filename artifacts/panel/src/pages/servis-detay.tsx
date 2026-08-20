@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DOMPurify from "dompurify";
 import { useRoute, useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Pencil, Trash2, FileText, Image, Ship } from "lucide-react";
+import { useYetki } from "@/hooks/use-yetki";
+import { ArrowLeft, Camera, Pencil, Trash2, FileText, Image, MessageSquarePlus, Ship } from "lucide-react";
 import {
   KayitForm,
   kategoriRenk,
@@ -35,6 +37,39 @@ function formatTarih(t: string | null | undefined) {
   return d.toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
+function tarihSaat(t: string) {
+  return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(t));
+}
+
+interface ServisNotu {
+  id: number;
+  metin: string;
+  olusturanKullaniciId: number | null;
+  olusturmaTarihi: string;
+  olusturanAd: string | null;
+}
+
+interface ServisFotografi {
+  id: number;
+  dosyaYolu: string;
+  dosyaTipi: string;
+  boyut: number;
+  orijinalAd: string | null;
+  olusturanKullaniciId: number | null;
+  olusturmaTarihi: string;
+  olusturanAd: string | null;
+}
+
+interface ServisGunlugu {
+  notlar: ServisNotu[];
+  fotograflar: ServisFotografi[];
+}
+
+function gunlukFotoUrl(fotografId: number) {
+  const token = localStorage.getItem("panel_token") ?? "";
+  return `${apiBase()}/servis-fotograflari/${fotografId}/dosya?t=${encodeURIComponent(token)}`;
+}
+
 export default function ServisDetay() {
   const [, params] = useRoute("/servis/:id");
   const id = Number(params?.id);
@@ -45,6 +80,14 @@ export default function ServisDetay() {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [hata, setHata] = useState<string | null>(null);
   const [duzenleAcik, setDuzenleAcik] = useState(false);
+  const { canWrite, rol, kullaniciId } = useYetki();
+  const gunlukFotoInputRef = useRef<HTMLInputElement>(null);
+  const [gunluk, setGunluk] = useState<ServisGunlugu>({ notlar: [], fotograflar: [] });
+  const [gunlukYukleniyor, setGunlukYukleniyor] = useState(true);
+  const [notDialogAcik, setNotDialogAcik] = useState(false);
+  const [notMetni, setNotMetni] = useState("");
+  const [notKaydediliyor, setNotKaydediliyor] = useState(false);
+  const [fotografYukleniyor, setFotografYukleniyor] = useState(false);
 
   const yukle = useCallback(async () => {
     if (!id) return;
@@ -66,12 +109,110 @@ export default function ServisDetay() {
 
   useEffect(() => { yukle(); }, [yukle]);
 
+  const gunluguYukle = useCallback(async () => {
+    if (!id) return;
+    setGunlukYukleniyor(true);
+    try {
+      const resp = await fetch(`${apiBase()}/servis-kayitlari/${id}/gunluk`, { headers: authHeaders() });
+      if (!resp.ok) throw new Error("Servis günlüğü alınamadı");
+      setGunluk(await resp.json());
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Servis günlüğü alınamadı", variant: "destructive" });
+    } finally {
+      setGunlukYukleniyor(false);
+    }
+  }, [id, toast]);
+
+  useEffect(() => { gunluguYukle(); }, [gunluguYukle]);
+
+  async function notEkle() {
+    const metin = notMetni.trim();
+    if (!metin) {
+      toast({ title: "Not metni zorunludur", variant: "destructive" });
+      return;
+    }
+    setNotKaydediliyor(true);
+    try {
+      const resp = await fetch(`${apiBase()}/servis-kayitlari/${id}/gunluk/notlar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ metin }),
+      });
+      if (!resp.ok) {
+        const error = await resp.json().catch(() => ({}));
+        throw new Error(error.error ?? "Not eklenemedi");
+      }
+      setNotMetni("");
+      setNotDialogAcik(false);
+      await gunluguYukle();
+      toast({ title: "Not servis günlüğüne eklendi" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Not eklenemedi", variant: "destructive" });
+    } finally {
+      setNotKaydediliyor(false);
+    }
+  }
+
+  async function fotografYukle(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files?.length) return;
+    setFotografYukleniyor(true);
+    try {
+      const form = new FormData();
+      for (const file of Array.from(files)) form.append("fotograflar", file);
+      const resp = await fetch(`${apiBase()}/servis-kayitlari/${id}/gunluk/fotograflar`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: form,
+      });
+      if (!resp.ok) {
+        const error = await resp.json().catch(() => ({}));
+        throw new Error(error.error ?? "Fotoğraflar yüklenemedi");
+      }
+      const yeni: ServisFotografi[] = await resp.json();
+      await gunluguYukle();
+      toast({ title: `${yeni.length} fotoğraf servis günlüğüne eklendi` });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Fotoğraflar yüklenemedi", variant: "destructive" });
+    } finally {
+      setFotografYukleniyor(false);
+      if (gunlukFotoInputRef.current) gunlukFotoInputRef.current.value = "";
+    }
+  }
+
+  async function notSil(notId: number) {
+    if (!confirm("Bu not silinsin mi?")) return;
+    try {
+      const resp = await fetch(`${apiBase()}/servis-notlari/${notId}`, { method: "DELETE", headers: authHeaders() });
+      if (!resp.ok) throw new Error("Not silinemedi");
+      await gunluguYukle();
+      toast({ title: "Not silindi" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Not silinemedi", variant: "destructive" });
+    }
+  }
+
+  async function fotografSil(fotografId: number) {
+    if (!confirm("Bu fotoğraf silinsin mi?")) return;
+    try {
+      const resp = await fetch(`${apiBase()}/servis-fotograflari/${fotografId}`, { method: "DELETE", headers: authHeaders() });
+      if (!resp.ok) throw new Error("Fotoğraf silinemedi");
+      await gunluguYukle();
+      toast({ title: "Fotoğraf silindi" });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "Fotoğraf silinemedi", variant: "destructive" });
+    }
+  }
+
   async function handleDelete() {
     if (!kayit) return;
-    if (!confirm("Bu kayıt ve tüm dosyaları silinecek. Onaylıyor musunuz?")) return;
+    if (!confirm("Bu kayıt ve standart dosyaları silinecek. Servis Günlüğü'nde fotoğraf varsa önce onu silmeniz gerekir. Onaylıyor musunuz?")) return;
     try {
       const resp = await fetch(`${apiBase()}/servis-kayitlari/${kayit.id}`, { method: "DELETE", headers: authHeaders() });
-      if (!resp.ok) throw new Error("Silme hatası");
+      if (!resp.ok) {
+        const error = await resp.json().catch(() => ({}));
+        throw new Error(error.error ?? "Silme hatası");
+      }
       toast({ title: "Kayıt silindi" });
       navigate("/servis");
     } catch (err) {
@@ -104,6 +245,12 @@ export default function ServisDetay() {
   const fotograflar = kayit.dosyalar.filter(d => d.dosyaTipi?.startsWith("image/"));
   const belgeler = kayit.dosyalar.filter(d => !d.dosyaTipi?.startsWith("image/"));
   const notlarHtmlMi = !!kayit.notlar && /<[a-z][\s\S]*>/i.test(kayit.notlar);
+  const gunlukKayitlari = [
+    ...gunluk.notlar.map(not => ({ tip: "not" as const, id: not.id, tarih: not.olusturmaTarihi, not })),
+    ...gunluk.fotograflar.map(fotograf => ({ tip: "fotograf" as const, id: fotograf.id, tarih: fotograf.olusturmaTarihi, fotograf })),
+  ].sort((a, b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime());
+  const silebilirMi = (olusturanKullaniciId: number | null) =>
+    canWrite && (rol === "yonetici" || (olusturanKullaniciId != null && olusturanKullaniciId === kullaniciId));
 
   return (
     <div className="space-y-6">
@@ -127,6 +274,25 @@ export default function ServisDetay() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {canWrite && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => setNotDialogAcik(true)}>
+                <MessageSquarePlus className="mr-1.5 h-3.5 w-3.5" /> Not Ekle
+              </Button>
+              <Button size="sm" onClick={() => gunlukFotoInputRef.current?.click()} disabled={fotografYukleniyor}>
+                <Camera className="mr-1.5 h-3.5 w-3.5" /> {fotografYukleniyor ? "Optimize ediliyor..." : "Görsel Ekle"}
+              </Button>
+              <input
+                ref={gunlukFotoInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*,.heic,.heif"
+                capture="environment"
+                multiple
+                onChange={fotografYukle}
+              />
+            </>
+          )}
           <Button variant="outline" size="sm" onClick={() => setDuzenleAcik(true)}>
             <Pencil className="mr-1.5 h-3.5 w-3.5" /> Düzenle
           </Button>
@@ -163,6 +329,68 @@ export default function ServisDetay() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 className="font-semibold">Servis Günlüğü</h3>
+              <p className="text-sm text-muted-foreground">Bu kayıt için eklenen not ve görseller</p>
+            </div>
+            {gunlukKayitlari.length > 0 && <span className="text-xs bg-muted px-2 py-1 rounded-sm">{gunlukKayitlari.length}</span>}
+          </div>
+          {gunlukYukleniyor ? (
+            <div className="animate-pulse space-y-3">
+              <div className="h-16 bg-muted rounded-none" />
+              <div className="h-16 bg-muted rounded-none" />
+            </div>
+          ) : gunlukKayitlari.length > 0 ? (
+            <div className="space-y-3">
+              {gunlukKayitlari.map(kayitGunluk => kayitGunluk.tip === "not" ? (
+                <div key={`not-${kayitGunluk.id}`} className="flex gap-3 border-l-2 border-blue-500 pl-3 py-1">
+                  <div className="p-2 h-fit rounded-sm bg-blue-500/10"><MessageSquarePlus className="h-4 w-4 text-blue-600" /></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium">Not eklendi</p>
+                      {silebilirMi(kayitGunluk.not.olusturanKullaniciId) && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => notSil(kayitGunluk.not.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap mt-1">{kayitGunluk.not.metin}</p>
+                    <p className="text-xs text-muted-foreground mt-2">{kayitGunluk.not.olusturanAd ?? "Bilinmeyen kullanıcı"} · {tarihSaat(kayitGunluk.tarih)}</p>
+                  </div>
+                </div>
+              ) : (
+                <div key={`foto-${kayitGunluk.id}`} className="flex gap-3 border-l-2 border-amber-500 pl-3 py-1">
+                  <div className="p-2 h-fit rounded-sm bg-amber-500/10"><Image className="h-4 w-4 text-amber-600" /></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium">Görsel eklendi</p>
+                      {silebilirMi(kayitGunluk.fotograf.olusturanKullaniciId) && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => fotografSil(kayitGunluk.fotograf.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <a href={gunlukFotoUrl(kayitGunluk.fotograf.id)} target="_blank" rel="noreferrer" className="block mt-2 w-fit">
+                      <img src={gunlukFotoUrl(kayitGunluk.fotograf.id)} alt={kayitGunluk.fotograf.orijinalAd ?? "Servis görseli"} className="h-32 w-48 max-w-full object-cover border" />
+                    </a>
+                    <p className="text-xs text-muted-foreground mt-2">{kayitGunluk.fotograf.orijinalAd ?? "Fotoğraf"} · {kayitGunluk.fotograf.olusturanAd ?? "Bilinmeyen kullanıcı"} · {tarihSaat(kayitGunluk.tarih)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="border border-dashed py-9 text-center text-muted-foreground">
+              <Image className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Henüz servis günlüğü kaydı yok.</p>
+              {canWrite && <p className="text-xs mt-1">Not veya görsel ekleyerek geçmişi oluşturmaya başlayın.</p>}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -228,6 +456,26 @@ export default function ServisDetay() {
             onClose={() => setDuzenleAcik(false)}
             onSaved={() => { setDuzenleAcik(false); yukle(); }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={notDialogAcik} onOpenChange={setNotDialogAcik}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Servis Günlüğüne Not Ekle</DialogTitle>
+            <DialogDescription>Bu not, servis kaydının geçmişine tarih ve ekleyen kullanıcı bilgisiyle eklenir.</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={notMetni}
+            onChange={event => setNotMetni(event.target.value)}
+            placeholder="Gözlem, kontrol sonucu veya açıklama..."
+            rows={5}
+            maxLength={5000}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNotDialogAcik(false)}>İptal</Button>
+            <Button onClick={notEkle} disabled={notKaydediliyor}>{notKaydediliyor ? "Kaydediliyor..." : "Notu Ekle"}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

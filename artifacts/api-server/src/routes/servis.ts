@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { servisKayitlari, servisDosyalari, gemiler } from "@workspace/db";
+import { servisKayitlari, servisDosyalari, servisFotograflari, gemiler } from "@workspace/db";
 import { eq, desc, inArray } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, firmaYazmaDenetimi, sirketlerFiltrele } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
@@ -181,6 +181,13 @@ router.delete("/servis-kayitlari/:id", requireYazma, async (req, res) => {
     if (!existing) { res.status(404).json({ error: "Kayıt bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Erişim yok" }); return; }
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
+    const [gunlukFotografi] = await db.select({ id: servisFotograflari.id })
+      .from(servisFotograflari)
+      .where(eq(servisFotograflari.servisId, id));
+    if (gunlukFotografi) {
+      res.status(400).json({ error: "Bu kaydı silmeden önce Servis Günlüğü'ndeki fotoğrafları silin." });
+      return;
+    }
 
     const dosyalar = await db.select().from(servisDosyalari).where(eq(servisDosyalari.servisId, id));
     for (const d of dosyalar) {

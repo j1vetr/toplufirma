@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRoute } from "wouter";
 import { Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -7,11 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useYetki } from "@/hooks/use-yetki";
-import { ArrowLeft, Camera, FileText, HardDrive, Image, MessageSquarePlus, Trash2, Wrench } from "lucide-react";
+import { ArrowLeft, FileText, HardDrive, Wrench } from "lucide-react";
 
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
@@ -47,51 +44,14 @@ interface ServisKayit {
   dosyalar: { id: number }[];
 }
 
-interface GemiNotu {
-  id: number;
-  metin: string;
-  olusturanKullaniciId: number | null;
-  olusturmaTarihi: string;
-  olusturanAd: string | null;
-}
-
-interface GemiFotografi {
-  id: number;
-  dosyaYolu: string;
-  dosyaTipi: string;
-  boyut: number;
-  orijinalAd: string | null;
-  olusturanKullaniciId: number | null;
-  olusturmaTarihi: string;
-  olusturanAd: string | null;
-}
-
-interface GemiGunlugu {
-  notlar: GemiNotu[];
-  fotograflar: GemiFotografi[];
-}
-
 const apiBase = () => `${import.meta.env.BASE_URL?.replace(/\/$/, "") ?? ""}/api`;
 function getToken() { return localStorage.getItem("panel_token") ?? ""; }
-function authHeaders() { return { Authorization: `Bearer ${getToken()}` }; }
-function fotoUrl(fotoId: number) {
-  return `${apiBase()}/gemi-fotograflari/${fotoId}/dosya?t=${encodeURIComponent(getToken())}`;
-}
-function tarihSaat(tarih: string) {
-  return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(tarih));
-}
 
 export default function GemiDetay() {
   const [, params] = useRoute("/gemiler/:id");
   const id = Number(params?.id);
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { canWrite, rol, kullaniciId } = useYetki();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [notDialogAcik, setNotDialogAcik] = useState(false);
-  const [notMetni, setNotMetni] = useState("");
-  const [notKaydediliyor, setNotKaydediliyor] = useState(false);
-  const [fotografYukleniyor, setFotografYukleniyor] = useState(false);
   const { data: gemi, isLoading } = useGetGemi(id, { query: { enabled: !!id, queryKey: getGetGemiQueryKey(id) } });
 
   const { data: servisKayitlari = [], isLoading: servisYukleniyor } = useQuery<ServisKayit[]>({
@@ -108,103 +68,6 @@ export default function GemiDetay() {
     staleTime: 30_000,
   });
 
-  const { data: gunluk = { notlar: [], fotograflar: [] }, isLoading: gunlukYukleniyor } = useQuery<GemiGunlugu>({
-    queryKey: ["gemi-gunlugu", id],
-    queryFn: async () => {
-      const r = await fetch(`${apiBase()}/gemiler/${id}/gunluk`, { headers: authHeaders() });
-      if (!r.ok) throw new Error("Gemi günlüğü alınamadı");
-      return r.json();
-    },
-    enabled: !!id,
-    staleTime: 15_000,
-  });
-
-  async function notEkle() {
-    const metin = notMetni.trim();
-    if (!metin) {
-      toast({ title: "Not metni zorunludur", variant: "destructive" });
-      return;
-    }
-    setNotKaydediliyor(true);
-    try {
-      const r = await fetch(`${apiBase()}/gemiler/${id}/notlar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ metin }),
-      });
-      if (!r.ok) {
-        const hata = await r.json();
-        throw new Error(hata.error ?? "Not eklenemedi");
-      }
-      setNotMetni("");
-      setNotDialogAcik(false);
-      await qc.invalidateQueries({ queryKey: ["gemi-gunlugu", id] });
-      toast({ title: "Not gemi günlüğüne eklendi" });
-    } catch (err) {
-      toast({ title: err instanceof Error ? err.message : "Not eklenemedi", variant: "destructive" });
-    } finally {
-      setNotKaydediliyor(false);
-    }
-  }
-
-  async function fotografYukle(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files?.length) return;
-    setFotografYukleniyor(true);
-    try {
-      const form = new FormData();
-      for (const file of Array.from(files)) form.append("fotograflar", file);
-      const r = await fetch(`${apiBase()}/gemiler/${id}/fotograflar`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: form,
-      });
-      if (!r.ok) {
-        const hata = await r.json();
-        throw new Error(hata.error ?? "Fotoğraflar yüklenemedi");
-      }
-      const yeni: GemiFotografi[] = await r.json();
-      await qc.invalidateQueries({ queryKey: ["gemi-gunlugu", id] });
-      toast({ title: `${yeni.length} fotoğraf gemi günlüğüne eklendi` });
-    } catch (err) {
-      toast({ title: err instanceof Error ? err.message : "Fotoğraflar yüklenemedi", variant: "destructive" });
-    } finally {
-      setFotografYukleniyor(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
-
-  async function notSil(notId: number) {
-    if (!confirm("Bu not silinsin mi?")) return;
-    try {
-      const r = await fetch(`${apiBase()}/gemi-notlari/${notId}`, { method: "DELETE", headers: authHeaders() });
-      if (!r.ok) throw new Error("Not silinemedi");
-      await qc.invalidateQueries({ queryKey: ["gemi-gunlugu", id] });
-      toast({ title: "Not silindi" });
-    } catch (err) {
-      toast({ title: err instanceof Error ? err.message : "Not silinemedi", variant: "destructive" });
-    }
-  }
-
-  async function fotografSil(fotografId: number) {
-    if (!confirm("Bu fotoğraf silinsin mi?")) return;
-    try {
-      const r = await fetch(`${apiBase()}/gemi-fotograflari/${fotografId}`, { method: "DELETE", headers: authHeaders() });
-      if (!r.ok) throw new Error("Fotoğraf silinemedi");
-      await qc.invalidateQueries({ queryKey: ["gemi-gunlugu", id] });
-      toast({ title: "Fotoğraf silindi" });
-    } catch (err) {
-      toast({ title: err instanceof Error ? err.message : "Fotoğraf silinemedi", variant: "destructive" });
-    }
-  }
-
-  const gunlukKayitlari = [
-    ...gunluk.notlar.map(not => ({ tip: "not" as const, id: not.id, tarih: not.olusturmaTarihi, not })),
-    ...gunluk.fotograflar.map(fotograf => ({ tip: "fotograf" as const, id: fotograf.id, tarih: fotograf.olusturmaTarihi, fotograf })),
-  ].sort((a, b) => new Date(b.tarih).getTime() - new Date(a.tarih).getTime());
-  const silebilirMi = (olusturanKullaniciId: number | null) =>
-    canWrite && (rol === "yonetici" || (olusturanKullaniciId != null && olusturanKullaniciId === kullaniciId));
-
   if (isLoading) return <div className="animate-pulse space-y-4"><div className="h-32 bg-muted rounded-none" /><div className="h-64 bg-muted rounded-none" /></div>;
   if (!gemi) return <div className="text-center py-16 text-muted-foreground">Gemi bulunamadı.</div>;
 
@@ -218,96 +81,7 @@ export default function GemiDetay() {
             <p className="text-sm text-muted-foreground">{gemi.firmaAd}</p>
           </div>
         </div>
-        {canWrite && (
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setNotDialogAcik(true)}>
-              <MessageSquarePlus className="mr-1.5 h-4 w-4" />
-              Not Ekle
-            </Button>
-            <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={fotografYukleniyor}>
-              <Camera className="mr-1.5 h-4 w-4" />
-              {fotografYukleniyor ? "Optimize ediliyor..." : "Görsel Ekle"}
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept="image/*,.heic,.heif"
-              capture="environment"
-              multiple
-              onChange={fotografYukle}
-            />
-          </div>
-        )}
       </div>
-
-      <Card>
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div>
-              <h3 className="font-semibold">Gemi Günlüğü</h3>
-              <p className="text-sm text-muted-foreground">Geminin not ve görsel geçmişi</p>
-            </div>
-            {gunlukKayitlari.length > 0 && <Badge variant="secondary">{gunlukKayitlari.length}</Badge>}
-          </div>
-          {gunlukYukleniyor ? (
-            <div className="animate-pulse space-y-3">
-              <div className="h-16 bg-muted rounded-none" />
-              <div className="h-16 bg-muted rounded-none" />
-            </div>
-          ) : gunlukKayitlari.length > 0 ? (
-            <div className="space-y-3">
-              {gunlukKayitlari.map(kayit => kayit.tip === "not" ? (
-                <div key={`not-${kayit.id}`} className="flex gap-3 border-l-2 border-blue-500 pl-3 py-1">
-                  <div className="p-2 h-fit rounded-sm bg-blue-500/10"><MessageSquarePlus className="h-4 w-4 text-blue-600" /></div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium">Not eklendi</p>
-                      {silebilirMi(kayit.not.olusturanKullaniciId) && <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => notSil(kayit.not.id)}><Trash2 className="h-3.5 w-3.5" /></Button>}
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap mt-1">{kayit.not.metin}</p>
-                    <p className="text-xs text-muted-foreground mt-2">{kayit.not.olusturanAd ?? "Bilinmeyen kullanıcı"} · {tarihSaat(kayit.tarih)}</p>
-                  </div>
-                </div>
-              ) : (
-                <div key={`foto-${kayit.id}`} className="flex gap-3 border-l-2 border-amber-500 pl-3 py-1">
-                  <div className="p-2 h-fit rounded-sm bg-amber-500/10"><Image className="h-4 w-4 text-amber-600" /></div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium">Görsel eklendi</p>
-                      {silebilirMi(kayit.fotograf.olusturanKullaniciId) && <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => fotografSil(kayit.fotograf.id)}><Trash2 className="h-3.5 w-3.5" /></Button>}
-                    </div>
-                    <a href={fotoUrl(kayit.fotograf.id)} target="_blank" rel="noreferrer" className="block mt-2 w-fit">
-                      <img src={fotoUrl(kayit.fotograf.id)} alt={kayit.fotograf.orijinalAd ?? "Gemi görseli"} className="h-32 w-48 max-w-full object-cover border" />
-                    </a>
-                    <p className="text-xs text-muted-foreground mt-2">{kayit.fotograf.orijinalAd ?? "Fotoğraf"} · {tarihSaat(kayit.tarih)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="border border-dashed py-9 text-center text-muted-foreground">
-              <Image className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Henüz gemi günlüğü kaydı yok.</p>
-              {canWrite && <p className="text-xs mt-1">Not veya görsel ekleyerek geçmişi oluşturmaya başlayın.</p>}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog open={notDialogAcik} onOpenChange={setNotDialogAcik}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Gemi Günlüğüne Not Ekle</DialogTitle>
-            <DialogDescription>Bu not, geminin geçmişine tarih ve ekleyen kullanıcı bilgisiyle kaydedilir.</DialogDescription>
-          </DialogHeader>
-          <Textarea value={notMetni} onChange={e => setNotMetni(e.target.value)} placeholder="Gözlem, kontrol sonucu veya açıklama..." rows={5} maxLength={5000} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setNotDialogAcik(false)}>İptal</Button>
-            <Button onClick={notEkle} disabled={notKaydediliyor}>{notKaydediliyor ? "Kaydediliyor..." : "Notu Ekle"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Card>
         <CardContent className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
