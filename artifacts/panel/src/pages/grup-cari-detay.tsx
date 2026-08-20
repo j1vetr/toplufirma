@@ -63,6 +63,9 @@ const apiBase = () => {
 const fmt = (n: number) =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
+const bakiyeDurumu = (bakiye: number) =>
+  bakiye < -0.01 ? "Alacak Bakiyesi" : bakiye > 0.01 ? "Tahsil edilecek" : "Kapatılmış";
+
 const TUR_ETIKET = { fatura: "Fatura", tahsilat: "Tahsilat", odeme: "Ödeme" };
 const TUR_RENK: Record<string, string> = {
   fatura: "bg-blue-100 text-blue-700",
@@ -432,10 +435,10 @@ export default function GrupCariDetay() {
             >
               <p className="text-xs text-muted-foreground font-medium">{d.paraBirimi}</p>
               <p className={`text-lg font-display font-bold mt-0.5 ${d.bakiye > 0.01 ? "text-orange-600" : d.bakiye < -0.01 ? "text-red-600" : "text-green-600"}`}>
-                {fmt(Math.abs(d.bakiye))}
+                {fmt(d.bakiye)}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {d.bakiye > 0.01 ? "Alacaklı" : d.bakiye < -0.01 ? "Borçlu" : "Kapatılmış"}
+                {bakiyeDurumu(d.bakiye)}
               </p>
             </button>
           ))}
@@ -472,12 +475,12 @@ export default function GrupCariDetay() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Bakiye</p>
+                <p className="text-xs text-muted-foreground">Net Bakiye</p>
               </div>
               <p className={`text-xl font-display font-bold ${aktifPbOzet.bakiye > 0.01 ? "text-orange-600" : aktifPbOzet.bakiye < -0.01 ? "text-red-600" : "text-green-600"}`}>
-                {fmt(Math.abs(aktifPbOzet.bakiye))}
+                {fmt(aktifPbOzet.bakiye)}
               </p>
-              <p className="text-xs text-muted-foreground">{aktifPbOzet.paraBirimi}</p>
+              <p className="text-xs text-muted-foreground">{aktifPbOzet.paraBirimi} &bull; {bakiyeDurumu(aktifPbOzet.bakiye)}</p>
             </CardContent>
           </Card>
         </div>
@@ -487,7 +490,7 @@ export default function GrupCariDetay() {
         <div className="flex items-center justify-between p-3 bg-muted/50 border text-sm">
           <span className="text-muted-foreground font-medium">Dönem Öncesi Bakiye</span>
           <span className={`font-bold ${oncekiBakiye[aktifPb] > 0 ? "text-orange-600" : oncekiBakiye[aktifPb] < 0 ? "text-red-600" : "text-green-600"}`}>
-            {fmt(Math.abs(oncekiBakiye[aktifPb]))} {aktifPb}
+            {fmt(oncekiBakiye[aktifPb])} {aktifPb}
           </span>
         </div>
       )}
@@ -570,7 +573,7 @@ export default function GrupCariDetay() {
                         {kalem.alacak > 0.005 ? fmt(kalem.alacak) : ""}
                       </td>
                       <td className={`py-2.5 px-3 text-right tabular-nums font-bold ${bakiyeRenk}`}>
-                        {fmt(Math.abs(kBakiye))}
+                        {fmt(kBakiye)}
                       </td>
                       {canWrite && (
                         <td className="py-2.5 px-1 w-16">

@@ -41,6 +41,7 @@ interface CariDetay {
   firma: { id: number; ad: string; adres?: string | null; vergiNo?: string | null; telefon?: string | null; eposta?: string | null; paraBirimi: string };
   catiFirma: { id: number; ad: string; vergiNo?: string | null; logo?: string | null } | null;
   ozet: { toplamBorc: number; toplamAlacak: number; bakiye: number; paraBirimi: string };
+  bakiyeDetay: { paraBirimi: string; toplamBorc: number; toplamAlacak: number; bakiye: number }[];
   kalemler: CariKalem[];
   bankaHesaplari: { id: number; hesapAdi: string; bankaAdi: string | null; paraBirimi: string }[];
   oncekiBakiye?: number | null;
@@ -53,6 +54,9 @@ const apiBase = () => {
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+const bakiyeDurumu = (bakiye: number) =>
+  bakiye < -0.01 ? "Alacak Bakiyesi" : bakiye > 0.01 ? "Tahsil edilecek" : "Kapatılmış";
 
 const TUR_ETIKET = { fatura: "Fatura", tahsilat: "Tahsilat", odeme: "Ödeme" };
 const TUR_RENK: Record<string, string> = {
@@ -144,24 +148,8 @@ export default function CariDetay() {
   });
 
   const pbOzetler = useMemo(() => {
-    const kalemler = detay?.kalemler ?? [];
-    const map = new Map<string, { toplamBorc: number; toplamAlacak: number }>();
-    for (const k of kalemler) {
-      const pb = k.paraBirimi;
-      const cur = map.get(pb) ?? { toplamBorc: 0, toplamAlacak: 0 };
-      cur.toplamBorc += k.borc;
-      cur.toplamAlacak += k.alacak;
-      map.set(pb, cur);
-    }
-    return [...map.entries()]
-      .map(([pb, v]) => ({
-        paraBirimi: pb,
-        toplamBorc: v.toplamBorc,
-        toplamAlacak: v.toplamAlacak,
-        bakiye: v.toplamBorc - v.toplamAlacak,
-      }))
-      .filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
-  }, [detay?.kalemler]);
+    return detay?.bakiyeDetay ?? [];
+  }, [detay?.bakiyeDetay]);
 
   useEffect(() => {
     if (pbOzetler.length > 0 && (aktifPb === null || !pbOzetler.find(d => d.paraBirimi === aktifPb))) {
@@ -586,9 +574,9 @@ export default function CariDetay() {
                 <Card className={pbBakiyeBg}>
                   <CardContent className="p-4">
                     <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Net Bakiye</p>
-                    <p className={`text-xl font-display font-bold ${pbBakiyeRenk}`}>{fmt(Math.abs(d.bakiye))}</p>
+                    <p className={`text-xl font-display font-bold ${pbBakiyeRenk}`}>{fmt(d.bakiye)}</p>
                     <p className={`text-xs mt-0.5 ${pbBakiyeRenk}`}>
-                      {d.paraBirimi} &bull; {d.bakiye > 0.01 ? "Tahsil edilecek" : d.bakiye < -0.01 ? "Ödenecek" : "Kapatılmış"}
+                      {d.paraBirimi} &bull; {bakiyeDurumu(d.bakiye)}
                     </p>
                   </CardContent>
                 </Card>
@@ -615,9 +603,9 @@ export default function CariDetay() {
           <Card className={bakiyeBg}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Net Bakiye</p>
-              <p className={`text-xl font-display font-bold ${bakiyeRenk}`}>{fmt(Math.abs(ozet.bakiye))}</p>
+              <p className={`text-xl font-display font-bold ${bakiyeRenk}`}>{fmt(ozet.bakiye)}</p>
               <p className={`text-xs mt-0.5 ${bakiyeRenk}`}>
-                {ozet.paraBirimi} &bull; {ozet.bakiye > 0.01 ? "Tahsil edilecek" : ozet.bakiye < -0.01 ? "Ödenecek" : "Kapatılmış"}
+                {ozet.paraBirimi} &bull; {bakiyeDurumu(ozet.bakiye)}
               </p>
             </CardContent>
           </Card>
@@ -657,7 +645,7 @@ export default function CariDetay() {
                     <td />
                     <td />
                     <td className={`px-4 py-2 text-right font-bold tabular-nums whitespace-nowrap text-sm ${devredenRenk}`}>
-                      {fmt(Math.abs(oncekiBakiye))}
+                      {fmt(oncekiBakiye)}
                     </td>
                     {canWrite && <td />}
                   </tr>
@@ -693,7 +681,7 @@ export default function CariDetay() {
                         {k.alacak > 0 ? fmt(k.alacak) : <span className="text-muted-foreground">-</span>}
                       </td>
                       <td className={`px-4 py-2.5 text-right font-bold tabular-nums whitespace-nowrap ${rowBakiyeRenk}`}>
-                        {fmt(Math.abs(k.bakiye))}
+                        {fmt(k.bakiye)}
                       </td>
                       {canWrite && (
                         <td className="px-2 py-2.5 text-center w-16">
@@ -734,7 +722,7 @@ export default function CariDetay() {
                       {fmt(ozet.toplamAlacak)}
                     </td>
                     <td className={`px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap ${bakiyeRenk}`}>
-                      {fmt(Math.abs(ozet.bakiye))}
+                      {fmt(ozet.bakiye)}
                     </td>
                     {canWrite && <td />}
                   </tr>

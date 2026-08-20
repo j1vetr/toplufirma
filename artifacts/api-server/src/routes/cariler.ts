@@ -4,6 +4,7 @@ import { faturalar, firmalar, odemeler, bankaHesaplari, firmaEpostaAyarlari, gon
 import { eq, and, inArray, or, gte, lte, lt, isNull } from "drizzle-orm";
 import { sirketErisimKontrol, requireYazma, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
+import { hesaplaParaBirimiBakiyeleri } from "../utils/cariBakiye";
 import { createRequire } from "node:module";
 import path from "node:path";
 import nodemailer from "nodemailer";
@@ -209,13 +210,7 @@ router.get("/cariler", async (req, res) => {
       validF: typeof faturalar.$inferSelect[],
       ods: typeof odemeler.$inferSelect[],
     ) {
-      const allPb = new Set([...validF.map(f => f.paraBirimi ?? "USD"), ...ods.map(o => o.paraBirimi ?? "USD")]);
-      return [...allPb].map(pb => {
-        const fBorc = validF.filter(f => (f.paraBirimi ?? "USD") === pb).reduce((s, f) => s + Number(f.genelToplam), 0);
-        const oBorc = ods.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "odeme").reduce((s, o) => s + Number(o.tutar), 0);
-        const oAlacak = ods.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
-        return { paraBirimi: pb, toplamBorc: fBorc + oBorc, toplamAlacak: oAlacak, bakiye: fBorc + oBorc - oAlacak };
-      }).filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
+      return hesaplaParaBirimiBakiyeleri(validF, ods);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1538,25 +1533,7 @@ router.get("/cariler/:bagliFirmaId", async (req, res) => {
     const toplamBorc = kalemler.reduce((s, e) => s + e.borc, 0);
     const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
 
-    const validDetayF = faturaRows.filter(f => !["taslak", "iptal"].includes(f.durum));
-    const allDetayPb = new Set([
-      ...validDetayF.map(f => f.paraBirimi ?? "USD"),
-      ...odemeRows.map(o => o.paraBirimi ?? "USD"),
-    ]);
-    const bakiyeDetay = [...allDetayPb].map(pb => {
-      const fBorc = validDetayF
-        .filter(f => (f.paraBirimi ?? "USD") === pb)
-        .reduce((s, f) => s + Number(f.genelToplam), 0);
-      const oBorc = odemeRows
-        .filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "odeme")
-        .reduce((s, o) => s + Number(o.tutar), 0);
-      const oAlacak = odemeRows
-        .filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "tahsilat")
-        .reduce((s, o) => s + Number(o.tutar), 0);
-      const pbBorc = fBorc + oBorc;
-      const pbAlacak = oAlacak;
-      return { paraBirimi: pb, toplamBorc: pbBorc, toplamAlacak: pbAlacak, bakiye: pbBorc - pbAlacak };
-    }).filter(d => d.toplamBorc > 0.005 || d.toplamAlacak > 0.005);
+    const bakiyeDetay = hesaplaParaBirimiBakiyeleri(faturaRows, odemeRows);
 
     let oncekiBakiye: number | null = null;
     if (baslangic) {

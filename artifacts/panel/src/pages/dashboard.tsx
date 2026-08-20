@@ -20,6 +20,9 @@ import { useSirket } from "@/contexts/sirket-context";
 const fmt = (n: number, pb = "USD") =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2 }).format(n) + " " + pb;
 
+const bakiyeDurumu = (bakiye: number) =>
+  bakiye < -0.01 ? "Alacak Bakiyesi" : bakiye > 0.01 ? "Tahsil edilecek" : "Kapatılmış";
+
 const DURUM_ETK: Record<string, string> = {
   taslak: "Taslak", acik: "Açık", kismi_odendi: "Kısmi", odendi: "Ödendi", iptal: "İptal",
 };
@@ -171,10 +174,15 @@ export default function Dashboard() {
                >
                  <div className="absolute top-0 left-0 w-[3px] h-full bg-foreground/10 group-hover:bg-primary transition-colors" />
                  <div className="pl-2">
-                   <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{pb.paraBirimi} Bakiye</h3>
+                    <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{pb.paraBirimi} Net Bakiye</h3>
                    <div className="text-2xl font-display font-bold tracking-tight text-foreground">
                      {fmt(pb.kalanBakiye, pb.paraBirimi)}
                    </div>
+                    <p className={`mt-1 text-[11px] font-semibold ${
+                      pb.kalanBakiye < -0.01 ? "text-red-600" : pb.kalanBakiye > 0.01 ? "text-orange-600" : "text-green-600"
+                    }`}>
+                      {bakiyeDurumu(pb.kalanBakiye)}
+                    </p>
                    <div className="mt-4 pt-4 border-t border-border/40 flex items-center justify-between text-xs">
                      <span className="text-muted-foreground font-medium">Toplam Tahsilat</span>
                      <span className="font-bold text-foreground">{fmt(pb.toplamTahsilat, pb.paraBirimi)}</span>

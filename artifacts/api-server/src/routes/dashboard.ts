@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { faturalar, odemeler, firmalar, bankaHesaplari } from "@workspace/db";
 import { eq, or, inArray } from "drizzle-orm";
 import { sirketErisimKontrol } from "../middleware/auth";
+import { hesaplaParaBirimiBakiyeleri } from "../utils/cariBakiye";
 
 const router = Router();
 
@@ -76,20 +77,16 @@ router.get("/dashboard/ozet", async (req, res) => {
       .filter(o => o.tip === "tahsilat")
       .reduce((s, o) => s + Number(o.tutar), 0);
 
-    // Cariler sayfasıyla tutarlı hesap: borç = taslak/iptal dışı faturalar + "odeme" tipi hareketler,
-    // tahsilat = "tahsilat" tipi hareketler, kalan = borç - tahsilat (para birimi bazında ayrı ayrı).
-    const validFaturalar = filtrelenmisFaturalar.filter(f => f.durum !== "taslak" && f.durum !== "iptal");
-    const paraBirimleri = new Set([
-      ...validFaturalar.map(f => f.paraBirimi ?? "USD"),
-      ...filtrelenmisOdemeler.map(o => o.paraBirimi ?? "USD"),
-    ]);
-    const paraBirimiOzetleri = Array.from(paraBirimleri).map(pb => {
-      const fBorc = validFaturalar.filter(f => (f.paraBirimi ?? "USD") === pb).reduce((s, f) => s + Number(f.genelToplam), 0);
-      const oBorc = filtrelenmisOdemeler!.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "odeme").reduce((s, o) => s + Number(o.tutar), 0);
-      const tahsilat = filtrelenmisOdemeler!.filter(o => (o.paraBirimi ?? "USD") === pb && o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
-      const alacak = fBorc + oBorc;
-      return { paraBirimi: pb, toplamAlacak: alacak, toplamTahsilat: tahsilat, kalanBakiye: alacak - tahsilat };
-    }).filter(d => d.toplamAlacak > 0.005 || d.toplamTahsilat > 0.005);
+    // Cariler ile ortak kural: borç − tahsilat, her para biriminde ayrı hesaplanır.
+    const paraBirimiOzetleri = hesaplaParaBirimiBakiyeleri(
+      filtrelenmisFaturalar,
+      filtrelenmisOdemeler,
+    ).map(d => ({
+      paraBirimi: d.paraBirimi,
+      toplamAlacak: d.toplamBorc,
+      toplamTahsilat: d.toplamAlacak,
+      kalanBakiye: d.bakiye,
+    }));
 
     // Bakiye yalnızca hesabın para birimiyle eşleşen ödemelerden hesaplanır
     const bankaHesapBakiyeleri = filtrelenmisHesaplar.map(h => {

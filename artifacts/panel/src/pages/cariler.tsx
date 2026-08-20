@@ -54,6 +54,20 @@ const apiBase = () => {
 const fmt = (n: number) =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
+const bakiyeDurumu = (bakiye: number) =>
+  bakiye < -0.01 ? "Alacak Bakiyesi" : bakiye > 0.01 ? "Tahsil edilecek" : "Kapatılmış";
+
+function cariBakiyeDetay(cari: CariOzet): BakiyeDetay[] {
+  return cari.bakiyeDetay?.length
+    ? cari.bakiyeDetay
+    : [{
+        paraBirimi: cari.paraBirimi || "USD",
+        toplamBorc: cari.toplamBorc,
+        toplamAlacak: cari.toplamAlacak,
+        bakiye: cari.bakiye,
+      }];
+}
+
 function sonIslemYaz(tarih: string | null): string {
   if (!tarih) return "";
   try {
@@ -169,40 +183,37 @@ export default function Cariler() {
   const filtrelenmis = useMemo(() => {
     const filtered = cariler.filter(c => {
       const aramaUyum = !arama || c.ad.toLowerCase().includes(arama.toLowerCase());
+      const detaylar = cariBakiyeDetay(c);
       const bakiyeUyum =
         bakiyeFiltre === "tumu" ||
-        (bakiyeFiltre === "bakiyeli" && c.bakiye > 0.01) ||
-        (bakiyeFiltre === "temiz" && c.bakiye <= 0.01);
+        (bakiyeFiltre === "bakiyeli" && detaylar.some(d => d.bakiye > 0.01)) ||
+        (bakiyeFiltre === "alacakli" && detaylar.some(d => d.bakiye < -0.01)) ||
+        (bakiyeFiltre === "temiz" && detaylar.every(d => Math.abs(d.bakiye) <= 0.01));
       return aramaUyum && bakiyeUyum;
     });
 
     return [...filtered].sort((a, b) => {
+      const aBakiye = cariBakiyeDetay(a).length === 1 ? cariBakiyeDetay(a)[0].bakiye : 0;
+      const bBakiye = cariBakiyeDetay(b).length === 1 ? cariBakiyeDetay(b)[0].bakiye : 0;
       if (siralama === "ad_asc") return a.ad.localeCompare(b.ad, "tr");
       if (siralama === "ad_desc") return b.ad.localeCompare(a.ad, "tr");
-      if (siralama === "bakiye_asc") return a.bakiye - b.bakiye;
+      if (siralama === "bakiye_asc") return aBakiye - bBakiye;
       if (siralama === "sonIslem_desc") {
         const aT = a.sonIslemTarihi ?? "";
         const bT = b.sonIslemTarihi ?? "";
         return bT.localeCompare(aT);
       }
-      return b.bakiye - a.bakiye;
+      return bBakiye - aBakiye;
     });
   }, [cariler, arama, bakiyeFiltre, siralama]);
 
   const ozet = useMemo(() => {
-    const map: Record<string, { alacakBakiye: number; tahsilat: number }> = {};
+    const map: Record<string, { netBakiye: number; tahsilat: number }> = {};
     for (const c of filtrelenmis) {
-      if (c.bakiyeDetay && c.bakiyeDetay.length > 0) {
-        for (const d of c.bakiyeDetay) {
-          if (!map[d.paraBirimi]) map[d.paraBirimi] = { alacakBakiye: 0, tahsilat: 0 };
-          map[d.paraBirimi].alacakBakiye += Math.max(0, d.bakiye);
-          map[d.paraBirimi].tahsilat += d.toplamAlacak;
-        }
-      } else {
-        const pb = c.paraBirimi || "TRY";
-        if (!map[pb]) map[pb] = { alacakBakiye: 0, tahsilat: 0 };
-        map[pb].alacakBakiye += Math.max(0, c.bakiye);
-        map[pb].tahsilat += c.toplamAlacak;
+      for (const d of cariBakiyeDetay(c)) {
+        if (!map[d.paraBirimi]) map[d.paraBirimi] = { netBakiye: 0, tahsilat: 0 };
+        map[d.paraBirimi].netBakiye += d.bakiye;
+        map[d.paraBirimi].tahsilat += d.toplamAlacak;
       }
     }
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
@@ -241,20 +252,23 @@ export default function Cariler() {
                 <TrendingDown className="h-5 w-5 text-orange-500" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground mb-1">Toplam Alacak (Bakiye)</p>
+                <p className="text-xs text-muted-foreground mb-1">Toplam Net Bakiye</p>
                 {ozet.length === 0 ? (
                   <p className="text-lg font-display font-bold text-orange-600">0,00</p>
                 ) : ozet.length === 1 ? (
-                  <p className="text-lg font-display font-bold text-orange-600">
-                    {fmt(ozet[0][1].alacakBakiye)} {ozet[0][0]}
-                  </p>
+                  <>
+                    <p className={`text-lg font-display font-bold ${ozet[0][1].netBakiye < -0.01 ? "text-red-600" : ozet[0][1].netBakiye > 0.01 ? "text-orange-600" : "text-green-600"}`}>
+                      {fmt(ozet[0][1].netBakiye)} {ozet[0][0]}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{bakiyeDurumu(ozet[0][1].netBakiye)}</p>
+                  </>
                 ) : (
                   <div className="space-y-0.5">
                     {ozet.map(([pb, v]) => (
                       <div key={pb} className="flex items-baseline justify-between gap-2">
                         <span className="text-xs font-semibold text-muted-foreground">{pb}</span>
-                        <span className="text-sm font-display font-bold text-orange-600 tabular-nums">
-                          {fmt(v.alacakBakiye)}
+                        <span className={`text-sm font-display font-bold tabular-nums ${v.netBakiye < -0.01 ? "text-red-600" : v.netBakiye > 0.01 ? "text-orange-600" : "text-green-600"}`}>
+                          {fmt(v.netBakiye)}
                         </span>
                       </div>
                     ))}
@@ -310,7 +324,8 @@ export default function Cariler() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="tumu">Tüm Hesaplar</SelectItem>
-            <SelectItem value="bakiyeli">Bakiyeli</SelectItem>
+            <SelectItem value="bakiyeli">Borç Bakiyesi Olan</SelectItem>
+            <SelectItem value="alacakli">Alacak Bakiyesi Olan</SelectItem>
             <SelectItem value="temiz">Kapatılmış</SelectItem>
           </SelectContent>
         </Select>
@@ -337,13 +352,18 @@ export default function Cariler() {
       ) : (
         <div className="space-y-2">
           {filtrelenmis.map(c => {
+            const bakiyeDetay = cariBakiyeDetay(c);
+            const tekParaBirimi = bakiyeDetay.length === 1;
+            const anaBakiye = bakiyeDetay[0]?.bakiye ?? c.bakiye;
+            const borcBakiyesiVar = bakiyeDetay.some(d => d.bakiye > 0.01);
+            const alacakBakiyesiVar = bakiyeDetay.some(d => d.bakiye < -0.01);
             const bakiyeRenk =
-              c.bakiye > 0.01 ? "text-orange-600"
-              : c.bakiye < -0.01 ? "text-red-600"
+              borcBakiyesiVar ? "text-orange-600"
+              : alacakBakiyesiVar ? "text-red-600"
               : "text-green-600";
             const bakiyeBg =
-              c.bakiye > 0.01 ? "bg-orange-50 border-orange-200"
-              : c.bakiye < -0.01 ? "bg-red-50 border-red-200"
+              borcBakiyesiVar ? "bg-orange-50 border-orange-200"
+              : alacakBakiyesiVar ? "bg-red-50 border-red-200"
               : "bg-green-50 border-green-100";
             const kalintiYuzde = c.toplamBorc > 0
               ? Math.min(100, (c.toplamAlacak / c.toplamBorc) * 100)
@@ -387,20 +407,20 @@ export default function Cariler() {
                           )}
                         </div>
 
-                        {c.bakiyeDetay && c.bakiyeDetay.length > 1 ? (
+                        {!tekParaBirimi ? (
                           <div className="mt-3 space-y-1.5">
                             <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground font-medium mb-0.5">
                               <span>Para Birimi</span>
                               <span className="text-right">Fatura</span>
                               <span className="text-right">Bakiye</span>
                             </div>
-                            {c.bakiyeDetay.map(d => {
+                            {bakiyeDetay.map(d => {
                               const dRenk = d.bakiye > 0.01 ? "text-orange-600" : d.bakiye < -0.01 ? "text-red-600" : "text-green-600";
                               return (
                                 <div key={d.paraBirimi} className="grid grid-cols-3 gap-1 text-xs">
                                   <span className="font-semibold text-muted-foreground">{d.paraBirimi}</span>
                                   <span className="text-right tabular-nums">{fmt(d.toplamBorc)}</span>
-                                  <span className={`text-right tabular-nums font-bold ${dRenk}`}>{fmt(Math.abs(d.bakiye))}</span>
+                                   <span className={`text-right tabular-nums font-bold ${dRenk}`}>{fmt(d.bakiye)}</span>
                                 </div>
                               );
                             })}
@@ -416,13 +436,14 @@ export default function Cariler() {
                               <p className="font-medium text-green-700">{fmt(c.toplamAlacak)}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Bakiye</p>
-                              <p className={`font-bold ${bakiyeRenk}`}>{fmt(Math.abs(c.bakiye))}</p>
+                              <p className="text-xs text-muted-foreground">Net Bakiye</p>
+                              <p className={`font-bold ${bakiyeRenk}`}>{fmt(anaBakiye)}</p>
+                              <p className="text-xs text-muted-foreground">{bakiyeDurumu(anaBakiye)}</p>
                             </div>
                           </div>
                         )}
 
-                        {c.toplamBorc > 0 && (
+                        {tekParaBirimi && c.toplamBorc > 0 && (
                           <div className="mt-3">
                             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                               <div
@@ -432,7 +453,7 @@ export default function Cariler() {
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
                               %{kalintiYuzde.toFixed(0)} tahsil edildi
-                              {c.bakiyeDetay && c.bakiyeDetay.length <= 1 && <> &bull; {c.paraBirimi}</>}
+                              <> &bull; {bakiyeDetay[0]?.paraBirimi ?? c.paraBirimi}</>
                               {c.sonIslemTarihi && (
                                 <> &bull; Son işlem: {sonIslemYaz(c.sonIslemTarihi)}</>
                               )}
