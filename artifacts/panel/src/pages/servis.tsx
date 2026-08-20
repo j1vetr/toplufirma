@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useListFirmalar, getListFirmalarQueryKey, useListGemiler, getListGemilerQueryKey } from "@workspace/api-client-react";
+import { useListGemiler, getListGemilerQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { RichTextEditor } from "@/components/rich-text-editor";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { GemiSecici, type GemiSecenek } from "@/components/gemi-secici";
 import { Plus, Trash2, Upload, X, Image, FileText, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { useSirket } from "@/contexts/sirket-context";
 
@@ -95,7 +96,7 @@ const today = (() => {
 
 interface KayitFormProps {
   catiFirmaId: string;
-  gemiler: Array<{ id: number; ad: string; imoNumarasi: string | null; catiFirmaId: number | null }>;
+  gemiler: GemiSecenek[];
   mevcut: ServisKayit | null;
   onClose: () => void;
   onSaved: () => void;
@@ -113,8 +114,6 @@ export function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: Ka
   const [dosyalar, setDosyalar] = useState<ServisDosya[]>(mevcut?.dosyalar ?? []);
   const [yuklemeProgress, setYuklemeProgress] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const filtreliGemiler = gemiler;
 
   async function handleSave() {
     if (!gemiId || !baslik || !tarih) {
@@ -189,16 +188,15 @@ export function KayitForm({ catiFirmaId, gemiler, mevcut, onClose, onSaved }: Ka
       {!mevcut && (
         <div className="space-y-1.5">
           <Label>Gemi *</Label>
-          <Select value={gemiId} onValueChange={setGemiId}>
-            <SelectTrigger><SelectValue placeholder="Gemi seçin" /></SelectTrigger>
-            <SelectContent>
-              {filtreliGemiler.map(g => (
-                <SelectItem key={g.id} value={String(g.id)}>
-                  {g.ad}{g.imoNumarasi ? ` - IMO: ${g.imoNumarasi}` : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+           <GemiSecici
+             gemiler={gemiler}
+             value={gemiId}
+             onChange={nextGemiId => setGemiId(nextGemiId)}
+             placeholder="Gemi adı, IMO veya firma ile ara"
+           />
+           <p className="text-xs text-muted-foreground">
+             Listede aşağı kaydırabilir, gemi adı, IMO veya firma adıyla arama yapabilirsiniz.
+           </p>
         </div>
       )}
 
@@ -313,7 +311,7 @@ function GemiGrubu({ gemiAd, gemiImo, kayitlar, onEdit, onDelete, catiFirmaId, g
   onEdit: (k: ServisKayit) => void;
   onDelete: (id: number) => void;
   catiFirmaId: string;
-  gemiler: Array<{ id: number; ad: string; imoNumarasi: string | null; catiFirmaId: number | null }>;
+  gemiler: GemiSecenek[];
 }) {
   const [acik, setAcik] = useState(true);
   return (
@@ -432,14 +430,18 @@ export default function Servis() {
 
   const catiFirmaId = aktifSirketId ? String(aktifSirketId) : "";
 
-  const { data: catiFirmalar = [] } = useListFirmalar(
-    { tip: "cati" },
-    { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
-  );
   const gemiParams = catiFirmaId ? { catiFirmaId: Number(catiFirmaId) } : undefined;
   const { data: gemilerData = [] } = useListGemiler(gemiParams, { query: { queryKey: getListGemilerQueryKey(gemiParams) } });
 
-  const gemilerTyped = gemilerData as Array<{ id: number; ad: string; imoNumarasi: string | null; firmaId: number; catiFirmaId: number | null }>;
+  const gemilerTyped: GemiSecenek[] = gemilerData.map(g => ({
+    id: g.id,
+    ad: g.ad,
+    imoNumarasi: g.imoNumarasi,
+    firmaId: g.firmaId,
+    firmaAd: g.firmaAd,
+    catiFirmaId: g.catiFirmaId,
+    grupFirmaId: g.grupFirmaId,
+  }));
 
   async function yukle() {
     setYukleniyor(true);

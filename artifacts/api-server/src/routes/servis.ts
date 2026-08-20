@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { servisKayitlari, servisDosyalari, gemiler, firmalar } from "@workspace/db";
+import { servisKayitlari, servisDosyalari, gemiler } from "@workspace/db";
 import { eq, desc, inArray } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, firmaYazmaDenetimi, sirketlerFiltrele } from "../middleware/auth";
+import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 import multer from "multer";
 import sharp from "sharp";
 import path from "path";
@@ -114,8 +115,18 @@ router.post("/servis-kayitlari", requireYazma, async (req, res) => {
     if (!catiFirmaId || !gemiId || !baslik || !tarih) { res.status(400).json({ error: "Zorunlu alanlar eksik" }); return; }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Erişim yok" }); return; }
 
-    const [gemiRow] = await db.select({ ustFirmaId: firmalar.ustFirmaId }).from(gemiler).leftJoin(firmalar, eq(gemiler.firmaId, firmalar.id)).where(eq(gemiler.id, Number(gemiId)));
-    if (!gemiRow || gemiRow.ustFirmaId !== Number(catiFirmaId)) { res.status(400).json({ error: "Gemi bu firmaya ait değil" }); return; }
+    // Seçici yalnızca bu çatıya görünür gemileri listeler. Aynı görünürlük
+    // kuralını burada da uygula: grup üzerinden paylaşılan ve ustFirmaId'si
+    // boş eski bağlı firmaların gemileri de geçerli seçimlerdir.
+    const [gemiRow] = await db
+      .select({ firmaId: gemiler.firmaId })
+      .from(gemiler)
+      .where(eq(gemiler.id, Number(gemiId)));
+    const gorunurFirmaIds = await gorunurBagliFirmaIds(Number(catiFirmaId));
+    if (!gemiRow || !gorunurFirmaIds.includes(gemiRow.firmaId)) {
+      res.status(400).json({ error: "Seçilen gemi aktif firmada kullanılamıyor" });
+      return;
+    }
 
     const [row] = await db.insert(servisKayitlari).values({
       catiFirmaId: Number(catiFirmaId),

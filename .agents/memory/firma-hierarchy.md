@@ -25,3 +25,11 @@ Admin kullanıcı için `gecerliFirmaIdleri` = sadece `tip = "cati" AND ust_firm
 Tüm `tip = "cati"` alınırsa grup firmaları da dahil olur ve gruplama bozulur.
 
 **How to apply:** cariler.ts'de bağlı firma üst firma tespiti için her zaman `grupFirmaId` kullan; `ustFirmaId` null olabilir.
+
+## Gemili kayıtlar için görünürlük denetimi
+- Bir forma gemi listesi `gorunurBagliFirmaIds(catiFirmaId)` ile veriliyorsa, formun yazdığı API endpoint seçilen gemiyi doğrularken de aynı yardımcıyı kullanmalıdır.
+- Sadece `gemiler → firmalar.ustFirmaId === catiFirmaId` kontrolü kullanma.
+
+**Why:** Grup üzerinden görünür müşteri gemileri ve `ustFirmaId` boş eski bağlı firma kayıtları listede seçilebilir, ancak dar kontrolle kayıt sırasında yanlışlıkla "Gemi bu firmaya ait değil" hatası alır.
+
+**How to apply:** Önce çatı firma erişimini doğrula, ardından geminin `firmaId` değerini `gorunurBagliFirmaIds` sonucunda ara. Bu görünürlük kuralı gemi listeleme ile yazma akışında bire bir aynı kalmalıdır.
