@@ -555,6 +555,38 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
     const opsToplamTutar = opsKalemler.reduce((s, k) => s + Number(k.miktar) * Number(k.birimFiyat), 0);
     const toplamYazi = sayiyiIngilizceYaz(araToplam, t.paraBirimi);
 
+    function stripHtml(html: string): string {
+      return html
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+        .replace(/&nbsp;/g, " ").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+
+    const totalAmountBlock = {
+      columns: [
+        { width: "*", text: "" },
+        {
+          width: 240,
+          table: {
+            widths: ["*", "auto"],
+            body: [
+              [{ text: "TOTAL AMOUNT:", bold: true, fontSize: 11, color: "#0070d1" }, { text: `${araToplam.toFixed(2)} ${t.paraBirimi}`, alignment: "right" as const, bold: true, fontSize: 11, color: "#0070d1" }],
+            ],
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === node.table.body.length ? 2 : 0),
+            vLineWidth: () => 0,
+            hLineColor: () => "#0070d1",
+          },
+        },
+      ],
+      marginBottom: 8,
+    } as unknown as import("pdfmake/interfaces").Content;
+
     let satirNo = 0;
     const kalemSatiri = (k: typeof kalemler[number]): TableCell[] => {
       satirNo++;
@@ -669,6 +701,8 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
           layout: tabloLayout,
           marginBottom: 8,
         },
+        totalAmountBlock,
+        { text: `Amount in words: ${toplamYazi}`, italics: true, color: "#555", fontSize: 9, marginBottom: 0 },
         ...(opsKalemler.length > 0 ? [
           { text: "OPTIONAL ITEMS", style: "bolumBaslik", marginTop: 16, marginBottom: 6 } as unknown as import("pdfmake/interfaces").Content,
           {
@@ -685,38 +719,33 @@ router.get("/teklifler/:id/pdf", async (req, res) => {
                   { text: "Amount", style: "tabloBaslik", alignment: "right" as const },
                 ],
                 ...opsKalemler.map(kalemSatiri),
-                [
-                  { text: "Optional Total:", colSpan: 5, alignment: "right" as const, bold: true, color: "#555" }, {}, {}, {}, {},
-                  { text: `${opsToplamTutar.toFixed(2)} ${t.paraBirimi}`, alignment: "right" as const, bold: true, color: "#555" },
-                ],
               ] as unknown as TableCell[][]),
             },
             layout: { ...tabloLayout, hLineColor: (i: number) => (i === 0 || i === 1 ? "#aaa" : "#e8eaf0"), fillColor: (i: number) => (i === 0 ? "#aaa" : i % 2 === 0 ? "#f9fafc" : null) },
             marginBottom: 8,
           } as unknown as import("pdfmake/interfaces").Content,
+          {
+            columns: [
+              { width: "*", text: "" },
+              {
+                width: 240,
+                table: {
+                  widths: ["*", "auto"],
+                  body: [
+                    [{ text: "Optional Total:", bold: true, fontSize: 10, color: "#555" }, { text: `${opsToplamTutar.toFixed(2)} ${t.paraBirimi}`, alignment: "right" as const, bold: true, fontSize: 10, color: "#555" }],
+                  ],
+                },
+                layout: {
+                  hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === node.table.body.length ? 1 : 0),
+                  vLineWidth: () => 0,
+                  hLineColor: () => "#aaa",
+                },
+              },
+            ],
+            marginBottom: 8,
+          } as unknown as import("pdfmake/interfaces").Content,
         ] : []),
-        {
-          columns: [
-            { width: "*", text: "" },
-            {
-              width: 240,
-              table: {
-                widths: ["*", "auto"],
-                body: [
-                  [{ text: "TOTAL AMOUNT:", bold: true, fontSize: 11, color: "#0070d1" }, { text: `${araToplam.toFixed(2)} ${t.paraBirimi}`, alignment: "right" as const, bold: true, fontSize: 11, color: "#0070d1" }],
-                ],
-              },
-              layout: {
-                hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 || i === node.table.body.length ? 2 : 0),
-                vLineWidth: () => 0,
-                hLineColor: () => "#0070d1",
-              },
-            },
-          ],
-          marginBottom: 8,
-        },
-        { text: `Amount in words: ${toplamYazi}`, italics: true, color: "#555", fontSize: 9, marginBottom: 0 },
-        ...(t.notlar ? [{ text: t.notlar, marginTop: 16, color: "#555", italics: true, fontSize: 9 }] : []),
+        ...(t.notlar ? [{ text: stripHtml(t.notlar), marginTop: 16, color: "#555", italics: true, fontSize: 9 } as unknown as import("pdfmake/interfaces").Content] : []),
         ...(t.kosullar ? [
           { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: "#e8eaf0" }], marginTop: 20 } as unknown as import("pdfmake/interfaces").Content,
           { text: "TERMS & CONDITIONS", style: "bolumBaslik", marginBottom: 4 },
