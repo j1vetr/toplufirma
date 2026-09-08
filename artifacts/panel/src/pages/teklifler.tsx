@@ -897,7 +897,7 @@ export default function Teklifler() {
 
       {/* ── Faturaya Dönüştür Dialog ── */}
       <Dialog open={!!donusturTeklif} onOpenChange={o => !o && setDonusturTeklif(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Faturaya Dönüştür - {donusturTeklif?.teklifNo}</DialogTitle>
           </DialogHeader>
@@ -907,19 +907,12 @@ export default function Teklifler() {
             </p>
             <div className="space-y-1.5">
               <Label>Müşteri (Bağlı Firma) <span className="text-destructive">*</span></Label>
-              <Select
+              <FirmaSecici
+                firmalar={donusturBagliFirmalar.map(f => ({ id: f.id, ad: f.ad }))}
                 value={donusturBagliFirmaId}
-                onValueChange={setDonusturBagliFirmaId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Müşteri seçin…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {donusturBagliFirmalar.map(f => (
-                    <SelectItem key={f.id} value={String(f.id)}>{f.ad}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(firmaId) => setDonusturBagliFirmaId(firmaId)}
+                placeholder="Firma adı ile arayın…"
+              />
             </div>
             <p className="text-xs text-muted-foreground">
               Teklif kalemleri (zorunlular) taslak fatura olarak oluşturulur. KDV oranlarını ve vadeyi fatura detayında düzenleyebilirsiniz.
