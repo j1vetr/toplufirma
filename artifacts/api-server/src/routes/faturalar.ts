@@ -6,6 +6,7 @@ import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetim
 import nodemailer from "nodemailer";
 import { emailSablonuOlustur } from "../lib/emailSablonu";
 import { faturaNoTahsisEt } from "../lib/faturaNo";
+import { faturaDosyaAdi, pdfDisposition } from "../lib/faturaDosyaAdi";
 import ExcelJS from "exceljs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -594,7 +595,7 @@ router.get("/faturalar/:id/pdf", async (req, res) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfStream: NodeJS.ReadableStream & { end(): void } = await _pdfmake.createPdf(docDefinition).getStream();
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `inline; filename="invoice-${f.faturaNo}.pdf"`);
+    res.setHeader("Content-Disposition", pdfDisposition(faturaDosyaAdi(f.faturaNo, gemiAd, bagliFirmaAd)));
     res.setHeader("Cache-Control", "no-store, max-age=0");
     pdfStream.pipe(res);
     pdfStream.end();

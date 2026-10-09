@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pdfDosyaAdi } from "@/lib/pdf-dosya-adi";
 import { useRoute } from "wouter";
 import { Link } from "wouter";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -55,7 +56,7 @@ async function pdfIndir(id: number, faturaNo: string) {
   const blob = await resp.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = `invoice-${faturaNo}.pdf`; a.click();
+  a.href = url; a.download = pdfDosyaAdi(resp, faturaNo); a.click();
   URL.revokeObjectURL(url);
 }
 

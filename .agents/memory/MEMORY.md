@@ -14,3 +14,4 @@
 - [Sistemce üretilen kayıtlar](system-generated-records.md) — otomatik kayıtları açıklama metniyle değil kalıcı, API'den yazılamayan kolonla tanı (odemeler.otomatik)
 - [Dosya ve veritabanı tutarlılığı](file-db-lifecycle.md) — görsel yükleme ve silmede staging dosyalarıyla DB kaydını eşleştir, ani kapanmada başlangıç kurtarması uygula
 - [Servis günlüğü kapsamı](servis-gunlugu-kapsami.md) — bağımsız not/görsel zaman çizelgesi gemiye değil, tekil servis veya sözleşme kaydına aittir
+- [Fatura indirme adları](fatura-indirme-adlari.md) — indirilen PDF adı gemi adı, gemi yoksa müşteri firma adı ve fatura numarası olmalıdır.
