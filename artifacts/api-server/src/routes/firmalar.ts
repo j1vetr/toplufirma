@@ -5,6 +5,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { requireYazma, requireYonetici, sirketErisimKontrol, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 import { bagliFirmaErisimKontrol, ekstreVerisiGetir, EKSTRE_TIP_ETIKET } from "../utils/ekstre";
+import { ekstreGemiAciklamalari } from "../utils/ekstreAciklamasi";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
@@ -256,7 +257,7 @@ router.get("/firmalar/:id/ekstre/pdf", async (req, res) => {
     if (!(await bagliFirmaErisimKontrol(firma, req))) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
     const { kalemler: hamKalemler, toplamBorc, toplamAlacak, kalanBakiye } = await ekstreVerisiGetir(id, baslangicTarihi, bitisTarihi);
-    const kalemler = hamKalemler.map(k => ({ ...k, tip: EKSTRE_TIP_ETIKET[k.tip] }));
+    const kalemler = (await ekstreGemiAciklamalari(hamKalemler)).map(k => ({ ...k, tip: EKSTRE_TIP_ETIKET[k.tip] }));
 
     const docDef: TDocumentDefinitions = {
       pageSize: "A4",
@@ -269,7 +270,7 @@ router.get("/firmalar/:id/ekstre/pdf", async (req, res) => {
             headerRows: 1,
             widths: [60, 60, "*", 70, 60, 60],
             body: [
-              ["Tarih", "Tip", "Açıklama", "Referans", "Borç", "Alacak"].map(t => ({ text: t, bold: true, fillColor: "#f0f0f0" })),
+              ["Tarih", "Tip", "AÇIKLAMA", "Referans", "Borç", "Alacak"].map(t => ({ text: t, bold: true, fillColor: "#f0f0f0" })),
               ...kalemler.map(k => [k.tarih, k.tip, k.aciklama ?? "-", k.referansNo ?? "-", k.borc != null ? k.borc.toFixed(2) : "-", k.alacak != null ? k.alacak.toFixed(2) : "-"]),
             ],
           },
@@ -305,7 +306,7 @@ router.get("/firmalar/:id/ekstre/excel", async (req, res) => {
     if (!(await bagliFirmaErisimKontrol(firma, req))) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
     const { kalemler: hamKalemler } = await ekstreVerisiGetir(id, baslangicTarihi, bitisTarihi);
-    const kalemler = hamKalemler.map(k => ({ ...k, tip: EKSTRE_TIP_ETIKET[k.tip] }));
+    const kalemler = (await ekstreGemiAciklamalari(hamKalemler)).map(k => ({ ...k, tip: EKSTRE_TIP_ETIKET[k.tip] }));
 
     const wb = new ExcelJS.Workbook();
     wb.creator = "Muhasebe Paneli";
@@ -313,7 +314,7 @@ router.get("/firmalar/:id/ekstre/excel", async (req, res) => {
     ws.columns = [
       { header: "Tarih", key: "tarih", width: 14 },
       { header: "Tip", key: "tip", width: 14 },
-      { header: "Açıklama", key: "aciklama", width: 36 },
+      { header: "AÇIKLAMA", key: "aciklama", width: 36 },
       { header: "Referans No", key: "referansNo", width: 18 },
       { header: "Borç", key: "borc", width: 16 },
       { header: "Alacak", key: "alacak", width: 16 },

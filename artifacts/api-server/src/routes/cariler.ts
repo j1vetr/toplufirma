@@ -5,6 +5,7 @@ import { eq, and, inArray, or, gte, lte, lt, isNull } from "drizzle-orm";
 import { sirketErisimKontrol, requireYazma, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 import { hesaplaParaBirimiBakiyeleri } from "../utils/cariBakiye";
+import { ekstreGemiAciklamalari } from "../utils/ekstreAciklamasi";
 import { createRequire } from "node:module";
 import path from "node:path";
 import nodemailer from "nodemailer";
@@ -435,7 +436,7 @@ router.get("/cariler/grup/:grupFirmaId/pdf", async (req, res) => {
       acilisBakiyesi = preE.length > 0 ? preE[preE.length - 1].bakiye : 0;
     }
 
-    const kalemler = buildEntries(faturaRows, odemeRows);
+    const kalemler = await ekstreGemiAciklamalari(buildEntries(faturaRows, odemeRows));
     const toplamBorc = kalemler.reduce((s, e) => s + e.borc, 0);
     const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
     const paraBirimi = grupFirma.paraBirimi || "USD";
@@ -637,7 +638,7 @@ router.get("/cariler/grup/:grupFirmaId/excel", async (req, res) => {
       acilisBakiyesi = preE.length > 0 ? preE[preE.length - 1].bakiye : 0;
     }
 
-    const kalemler = buildEntries(faturaRows, odemeRows);
+    const kalemler = await ekstreGemiAciklamalari(buildEntries(faturaRows, odemeRows));
     const toplamBorc = kalemler.reduce((s, e) => s + e.borc, 0);
     const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
     const kapanisBakiyesi = acilisBakiyesi + toplamBorc - toplamAlacak;
@@ -691,7 +692,7 @@ router.get("/cariler/grup/:grupFirmaId/excel", async (req, res) => {
     hdrRow.height = 22;
     for (let c = 1; c <= 7; c++) {
       const cell = hdrRow.getCell(c);
-      cell.value = ["Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye"][c - 1];
+      cell.value = ["Tarih", "Belge No", "AÇIKLAMA", "Vade Tarihi", "Borç", "Alacak", "Bakiye"][c - 1];
       cell.font = { bold: true, color: { argb: WHITE }, size: 10 };
       cell.fill = solidFill(NAVY);
       cell.alignment = { vertical: "middle", horizontal: "center" };
@@ -798,7 +799,7 @@ router.get("/cariler/:bagliFirmaId/pdf", async (req, res) => {
       acilisBakiyesi = preEntries.length > 0 ? preEntries[preEntries.length - 1].bakiye : 0;
     }
 
-    const kalemler = buildEntries(faturaRows, odemeRows);
+    const kalemler = await ekstreGemiAciklamalari(buildEntries(faturaRows, odemeRows));
     const toplamBorc = kalemler.reduce((s, e) => s + e.borc, 0);
     const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
     const paraBirimi = bagliFirma.paraBirimi || "USD";
@@ -1050,7 +1051,7 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
       acilisBakiyesi = preEntries.length > 0 ? preEntries[preEntries.length - 1].bakiye : 0;
     }
 
-    const kalemler = buildEntries(faturaRows, odemeRows);
+    const kalemler = await ekstreGemiAciklamalari(buildEntries(faturaRows, odemeRows));
     const toplamBorc   = kalemler.reduce((s, e) => s + e.borc,   0);
     const toplamAlacak = kalemler.reduce((s, e) => s + e.alacak, 0);
     const kapanisBakiyesi = acilisBakiyesi + toplamBorc - toplamAlacak;
@@ -1138,7 +1139,7 @@ router.get("/cariler/:bagliFirmaId/excel", async (req, res) => {
     hdrRow.height = 22;
     for (let c = 1; c <= 7; c++) {
       const cell = hdrRow.getCell(c);
-      cell.value = ["Tarih", "Belge No", "Açıklama", "Vade Tarihi", "Borç", "Alacak", "Bakiye"][c - 1];
+      cell.value = ["Tarih", "Belge No", "AÇIKLAMA", "Vade Tarihi", "Borç", "Alacak", "Bakiye"][c - 1];
       cell.font  = { bold: true, color: { argb: WHITE }, size: 10 };
       cell.fill  = solidFill(NAVY);
       cell.alignment = { vertical: "middle", horizontal: "center" };
