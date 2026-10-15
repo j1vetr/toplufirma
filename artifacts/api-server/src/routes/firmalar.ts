@@ -6,6 +6,7 @@ import { requireYazma, requireYonetici, sirketErisimKontrol, firmaYazmaDenetimi 
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 import { bagliFirmaErisimKontrol, ekstreVerisiGetir, EKSTRE_TIP_ETIKET } from "../utils/ekstre";
 import { ekstreGemiAciklamalari } from "../utils/ekstreAciklamasi";
+import { firmaSilmeBaglantilari } from "../utils/firmaSilmeBaglantilari";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
@@ -208,18 +209,36 @@ router.patch("/firmalar/:id", requireYazma, async (req, res) => {
   }
 });
 
+router.get("/firmalar/:id/silme-baglantilari", requireYonetici, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Geçersiz firma kimliği" }); return;
+    }
+    const [firma] = await db.select({ id: firmalar.id, ad: firmalar.ad })
+      .from(firmalar).where(eq(firmalar.id, id));
+    if (!firma) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
+    const baglantilar = await firmaSilmeBaglantilari(id);
+    res.json({ firmaId: firma.id, firmaAd: firma.ad, baglantilar });
+  } catch (err) {
+    req.log.error({ err }, "Firma silme bağlantıları okunamadı");
+    res.status(500).json({ error: "Bağlı kayıtlar yüklenemedi. Silme işlemi yapılmadı." });
+  }
+});
+
 router.delete("/firmalar/:id", requireYonetici, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [existing] = await db.select().from(firmalar).where(eq(firmalar.id, id));
     if (!existing) { res.status(404).json({ error: "Firma bulunamadı" }); return; }
 
-    const bagliSayisi = (await db.select().from(firmalar).where(eq(firmalar.ustFirmaId, id))).length;
-    if (bagliSayisi > 0) { res.status(409).json({ error: "Bu firmaya bağlı alt firmalar var. Önce onları silin." }); return; }
-
-    if (existing.tip === "grup") {
-      const grupUyeSayisi = (await db.select().from(firmalar).where(eq(firmalar.grupFirmaId, id))).length;
-      if (grupUyeSayisi > 0) { res.status(409).json({ error: `Bu gruba bağlı ${grupUyeSayisi} firma var. Önce alt firmaların faturalarını ve diğer kayıtlarını, ardından alt firmaları silin veya grup bağlantılarını kaldırın.` }); return; }
+    const baglantilar = await firmaSilmeBaglantilari(id);
+    if (baglantilar.length > 0) {
+      const ilk = baglantilar.slice(0, 3).map(b => `${b.tur}: ${b.ad}`).join(", ");
+      res.status(409).json({
+        error: `Bu firmaya bağlı ${baglantilar.length} kayıt var. ${ilk}. Ayrıntılar için bağlı kayıtlar listesini açın.`,
+      });
+      return;
     }
 
     await db.delete(firmalar).where(eq(firmalar.id, id));

@@ -4,6 +4,7 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
+import { FirmaSilDialog } from "@/components/firma-sil-dialog";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel,
@@ -51,6 +52,9 @@ export function KayitSilButton({ id, tip, ad, onDeleted }: {
         title={`${ad} kaydını sil`} aria-label={`${ad} kaydını sil`} onClick={() => setAcik(true)}>
         <Trash2 className="h-3.5 w-3.5 mr-1" /> Sil
       </Button>
+      {tip === "firma" ? (
+        <FirmaSilDialog id={id} open={acik} onOpenChange={setAcik} onDeleted={onDeleted} />
+      ) : (
       <AlertDialog open={acik} onOpenChange={o => { if (!bekliyor) setAcik(o); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -70,6 +74,7 @@ export function KayitSilButton({ id, tip, ad, onDeleted }: {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      )}
     </span>
   );
 }

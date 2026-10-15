@@ -234,6 +234,26 @@ export const DeleteFirmaParams = zod.object({
 
 
 /**
+ * @summary Firma silmeyi engelleyen kayıtları listele (yalnızca yönetici)
+ */
+export const GetFirmaSilmeBaglantilariParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetFirmaSilmeBaglantilariResponse = zod.object({
+  "firmaId": zod.number(),
+  "firmaAd": zod.string(),
+  "baglantilar": zod.array(zod.object({
+  "id": zod.number(),
+  "tur": zod.string(),
+  "ad": zod.string(),
+  "detay": zod.string(),
+  "href": zod.string()
+}))
+})
+
+
+/**
  * @summary Firma ekstre (bağlı firmalar için)
  */
 export const GetFirmaEkstreParams = zod.object({

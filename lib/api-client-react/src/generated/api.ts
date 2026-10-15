@@ -47,6 +47,7 @@ import type {
   FirmaEpostaAyarlariInput,
   FirmaGelirNoktasi,
   FirmaInput,
+  FirmaSilmeBaglantilari,
   FirmaUpdate,
   Gemi,
   GemiDetay,
@@ -550,6 +551,83 @@ export const useDeleteFirma = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteFirmaMutationOptions(options));
     }
+
+export const getGetFirmaSilmeBaglantilariUrl = (id: number,) => {
+
+
+
+
+  return `/api/firmalar/${id}/silme-baglantilari`
+}
+
+/**
+ * @summary Firma silmeyi engelleyen kayıtları listele (yalnızca yönetici)
+ */
+export const getFirmaSilmeBaglantilari = async (id: number, options?: RequestInit): Promise<FirmaSilmeBaglantilari> => {
+
+  return customFetch<FirmaSilmeBaglantilari>(getGetFirmaSilmeBaglantilariUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFirmaSilmeBaglantilariQueryKey = (id: number,) => {
+    return [
+    `/api/firmalar/${id}/silme-baglantilari`
+    ] as const;
+    }
+
+
+export const getGetFirmaSilmeBaglantilariQueryOptions = <TData = Awaited<ReturnType<typeof getFirmaSilmeBaglantilari>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaSilmeBaglantilari>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFirmaSilmeBaglantilariQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFirmaSilmeBaglantilari>>> = ({ signal }) => getFirmaSilmeBaglantilari(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFirmaSilmeBaglantilari>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFirmaSilmeBaglantilariQueryResult = NonNullable<Awaited<ReturnType<typeof getFirmaSilmeBaglantilari>>>
+export type GetFirmaSilmeBaglantilariQueryError = ErrorType<void>
+
+
+/**
+ * @summary Firma silmeyi engelleyen kayıtları listele (yalnızca yönetici)
+ */
+
+export function useGetFirmaSilmeBaglantilari<TData = Awaited<ReturnType<typeof getFirmaSilmeBaglantilari>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFirmaSilmeBaglantilari>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFirmaSilmeBaglantilariQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetFirmaEkstreUrl = (id: number,
     params?: GetFirmaEkstreParams,) => {

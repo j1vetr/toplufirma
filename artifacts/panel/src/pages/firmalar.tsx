@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListFirmalar, getListFirmalarQueryKey,
-  useCreateFirma, useUpdateFirma, useDeleteFirma,
+  useCreateFirma, useUpdateFirma,
   useGetFirmaEkstre, getGetFirmaEkstreQueryKey,
   useListGemiler, getListGemilerQueryKey,
 } from "@workspace/api-client-react";
@@ -15,11 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { FirmaSilDialog } from "@/components/firma-sil-dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -149,7 +145,6 @@ export default function Firmalar() {
 
   const createFirma = useCreateFirma();
   const updateFirma = useUpdateFirma();
-  const deleteFirma = useDeleteFirma();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -602,24 +597,8 @@ export default function Firmalar() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!silId} onOpenChange={o => !o && setSilId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Firmayı sil</AlertDialogTitle>
-            <AlertDialogDescription>Firma kalıcı olarak silinecek. Bağlı firmalar, faturalar, ödemeler ve gemiler otomatik silinmez. Önce bu kayıtları temizlemeniz gerekir. Bu işlem geri alınamaz.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              if (!silId) return;
-              deleteFirma.mutate({ id: silId }, {
-                onSuccess: () => { qc.invalidateQueries({ queryKey: getListFirmalarQueryKey() }); setSilId(null); toast({ title: "Firma silindi" }); },
-                onError: (err) => toast({ title: err instanceof Error ? err.message : "Firma silinemedi", variant: "destructive" }),
-              });
-            }}>Sil</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {silId !== null && <FirmaSilDialog key={silId} id={silId} open
+        onOpenChange={o => { if (!o) setSilId(null); }} onDeleted={() => setSilId(null)} />}
     </div>
   );
 }

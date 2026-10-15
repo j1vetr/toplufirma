@@ -48,6 +48,8 @@ export * from './firmaEpostaAyarlariSmtpGuvenlik';
 export * from './firmaGelirNoktasi';
 export * from './firmaInput';
 export * from './firmaInputTip';
+export * from './firmaSilmeBaglantilari';
+export * from './firmaSilmeBaglantisi';
 export * from './firmaTip';
 export * from './firmaUpdate';
 export * from './gemi';

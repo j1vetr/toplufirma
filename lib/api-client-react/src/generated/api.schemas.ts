@@ -9,6 +9,20 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface FirmaSilmeBaglantisi {
+  id: number;
+  tur: string;
+  ad: string;
+  detay: string;
+  href: string;
+}
+
+export interface FirmaSilmeBaglantilari {
+  firmaId: number;
+  firmaAd: string;
+  baglantilar: FirmaSilmeBaglantisi[];
+}
+
 export type FirmaTip = typeof FirmaTip[keyof typeof FirmaTip];
 
 

@@ -154,6 +154,29 @@ paths:
         "204":
           description: Silindi
 
+  /firmalar/{id}/silme-baglantilari:
+    get:
+      operationId: getFirmaSilmeBaglantilari
+      tags: [firmalar]
+      summary: Firma silmeyi engelleyen kayıtları listele (yalnızca yönetici)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Silmeyi engelleyen doğrudan bağlantılar, filtrelenmemiş
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FirmaSilmeBaglantilari"
+        "403":
+          description: Yönetici yetkisi gerekli
+        "404":
+          description: Firma bulunamadı
+
   /firmalar/{id}/ekstre:
     get:
       operationId: getFirmaEkstre
@@ -1339,6 +1362,33 @@ components:
         - status
 
     # ── Firma ────────────────────────────────────────────────────────────────
+    FirmaSilmeBaglantisi:
+      type: object
+      required: [id, tur, ad, detay, href]
+      properties:
+        id:
+          type: integer
+        tur:
+          type: string
+        ad:
+          type: string
+        detay:
+          type: string
+        href:
+          type: string
+    FirmaSilmeBaglantilari:
+      type: object
+      required: [firmaId, firmaAd, baglantilar]
+      properties:
+        firmaId:
+          type: integer
+        firmaAd:
+          type: string
+        baglantilar:
+          type: array
+          items:
+            $ref: "#/components/schemas/FirmaSilmeBaglantisi"
+
     Firma:
       type: object
       required: [id, tip, ad, olusturmaTarihi]

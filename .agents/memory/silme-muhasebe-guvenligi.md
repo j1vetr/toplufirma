@@ -14,3 +14,9 @@ Firma ve grup silme alt kayıtları örtük olarak topluca silmez. Kullanıcı f
 **Why:** Kullanıcı yanlış açılan bir grup ve alt firmayı kaldırmak istedi. Kapsamı belirsiz tek tıklamalı toplu silme, başka kayıtları da kaybettirebilir.
 
 **How to apply:** Firma silmede yönetici yetkisini koruyun ve bağımlılık varsa anlaşılır hata gösterin.
+
+Firma silme engelleri yalnızca “bağlı kayıt var” mesajıyla açıklanmamalı. Kullanıcı hangi alt firma, ödeme veya diğer kaydın engel olduğunu adı ve kimliğiyle görmek istiyor. Normal ekran filtrelerinden bağımsız olarak pasif kayıtları ve faturası silinmiş manuel ödemeleri de açıklayın.
+
+**Why:** Kullanıcı faturaları sildikten sonra başka kayıt göremediği için firma silme engelini anlayamadı ve bağlı kayıtların görünür olmasını istedi.
+
+**How to apply:** Yeni bir firma bağımlılığı eklenirse silme önizlemesinde de gösterin. Geniş kapsamlı bağımlılık listesini yalnızca yöneticilere açın.
