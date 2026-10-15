@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
+import { KayitSilButton } from "@/components/kayit-sil-button";
 import {
   ArrowLeft, Download, Plus, Loader2, FileText, Trash2, Pencil,
   TrendingUp, TrendingDown, FileSpreadsheet, Building2, Users,
@@ -367,6 +368,7 @@ export default function GrupCariDetay() {
           )}
         </div>
         <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+          <KayitSilButton id={firma.id} tip="firma" ad={firma.ad} onDeleted={() => navigate("/cariler")} />
           {canWrite && (
             <Button variant="outline" size="sm" className="gap-1.5" onClick={openIslemModal}>
               <Plus className="h-4 w-4" />
@@ -387,12 +389,15 @@ export default function GrupCariDetay() {
       {firma.bagliFirmalar.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {firma.bagliFirmalar.map(bf => (
-            <Link key={bf.id} href={`/cariler/${bf.id}`}>
+            <div key={bf.id} className="flex items-center gap-1">
+            <Link href={`/cariler/${bf.id}`}>
               <span className="inline-flex items-center gap-1.5 text-xs border border-border rounded-full px-2.5 py-1 hover:bg-muted transition-colors cursor-pointer">
                 <Building2 className="h-3 w-3 text-muted-foreground" />
                 {bf.ad}
               </span>
             </Link>
+            <KayitSilButton id={bf.id} tip="firma" ad={bf.ad} />
+            </div>
           ))}
         </div>
       )}
@@ -577,8 +582,11 @@ export default function GrupCariDetay() {
                       </td>
                       {canWrite && (
                         <td className="py-2.5 px-1 w-16">
+                          {!isOdeme && kalem.faturaId && (
+                            <KayitSilButton id={kalem.faturaId} tip="fatura" ad={kalem.belgeNo ?? "Fatura"} />
+                          )}
                           {isOdeme && (
-                            <span className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="flex items-center justify-center gap-1">
                               <button
                                 onClick={(e) => { e.stopPropagation(); openDuzenleModal(kalem); }}
                                 className="p-1 text-muted-foreground hover:text-primary"

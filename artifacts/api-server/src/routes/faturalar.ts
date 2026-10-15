@@ -716,7 +716,14 @@ router.delete("/faturalar/:id", requireYazma, async (req, res) => {
     if (!existing) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
-    await db.delete(faturalar).where(eq(faturalar.id, id));
+    await db.transaction(async tx => {
+      // Serialize with payment creation/update flows that lock the invoice.
+      await tx.select({ id: faturalar.id }).from(faturalar).where(eq(faturalar.id, id)).for("update");
+      await tx.delete(odemeler).where(and(eq(odemeler.faturaId, id), eq(odemeler.otomatik, true)));
+      // Manual cash movements remain in the ledger rather than being lost.
+      await tx.update(odemeler).set({ faturaId: null }).where(eq(odemeler.faturaId, id));
+      await tx.delete(faturalar).where(eq(faturalar.id, id));
+    });
     res.status(204).send();
   } catch {
     res.status(500).json({ error: "Fatura silinemedi" });

@@ -219,12 +219,17 @@ router.delete("/firmalar/:id", requireYonetici, async (req, res) => {
 
     if (existing.tip === "grup") {
       const grupUyeSayisi = (await db.select().from(firmalar).where(eq(firmalar.grupFirmaId, id))).length;
-      if (grupUyeSayisi > 0) { res.status(409).json({ error: "Bu çatı firmaya bağlı firmalar var. Önce onların çatı firma bağlantısını kaldırın." }); return; }
+      if (grupUyeSayisi > 0) { res.status(409).json({ error: `Bu gruba bağlı ${grupUyeSayisi} firma var. Önce alt firmaların faturalarını ve diğer kayıtlarını, ardından alt firmaları silin veya grup bağlantılarını kaldırın.` }); return; }
     }
 
     await db.delete(firmalar).where(eq(firmalar.id, id));
     res.status(204).send();
-  } catch {
+  } catch (err) {
+    const cause = (err as { cause?: { code?: string }; code?: string });
+    if (cause.code === "23503" || cause.cause?.code === "23503") {
+      res.status(409).json({ error: "Firmaya bağlı fatura, ödeme, gemi veya başka kayıtlar var. Önce bu kayıtları silin ya da başka firmaya taşıyın. Hiçbir kayıt silinmedi." });
+      return;
+    }
     res.status(500).json({ error: "Firma silinemedi" });
   }
 });

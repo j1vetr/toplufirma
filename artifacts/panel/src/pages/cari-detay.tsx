@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
+import { KayitSilButton } from "@/components/kayit-sil-button";
 import {
   ArrowLeft, Download, Plus, Loader2, FileText,
   TrendingUp, TrendingDown, TriangleAlert, Trash2, Pencil,
@@ -457,6 +458,7 @@ export default function CariDetay() {
           {firma.vergiNo && <p className="text-xs text-muted-foreground">Vergi No: {firma.vergiNo}</p>}
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
+          <KayitSilButton id={firma.id} tip="firma" ad={firma.ad} onDeleted={() => navigate("/cariler")} />
           <Button variant="outline" size="sm" onClick={pdfIndir} disabled={pdfIndiriyor}>
             {pdfIndiriyor ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}
             {pdfIndiriyor ? "Hazırlanıyor..." : "PDF"}
@@ -685,6 +687,9 @@ export default function CariDetay() {
                       </td>
                       {canWrite && (
                         <td className="px-2 py-2.5 text-center w-16">
+                          {!isTahsilatOdeme && k.faturaId && (
+                            <KayitSilButton id={k.faturaId} tip="fatura" ad={k.aciklama || "Fatura"} />
+                          )}
                           {isTahsilatOdeme && (
                             <span className="flex items-center justify-center gap-1">
                               <button

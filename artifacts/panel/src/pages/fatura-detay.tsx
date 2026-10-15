@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { KayitSilButton } from "@/components/kayit-sil-button";
 import { pdfDosyaAdi } from "@/lib/pdf-dosya-adi";
 import { useRoute } from "wouter";
 import { Link } from "wouter";
@@ -205,6 +206,7 @@ export default function FaturaDetay() {
               <Copy className="mr-1 h-4 w-4" /> Kopyala
             </Button>
           )}
+          <KayitSilButton id={id} tip="fatura" ad={fatura.faturaNo} onDeleted={() => navigate("/faturalar")} />
           <Button
             variant="outline" size="sm"
             disabled={pdfIndiriyor}

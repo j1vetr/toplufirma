@@ -606,7 +606,7 @@ export default function Firmalar() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Firmayı sil</AlertDialogTitle>
-            <AlertDialogDescription>Bu işlem geri alınamaz. Firmaya bağlı tüm veriler de silinebilir.</AlertDialogDescription>
+            <AlertDialogDescription>Firma kalıcı olarak silinecek. Bağlı firmalar, faturalar, ödemeler ve gemiler otomatik silinmez. Önce bu kayıtları temizlemeniz gerekir. Bu işlem geri alınamaz.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>İptal</AlertDialogCancel>
@@ -614,7 +614,7 @@ export default function Firmalar() {
               if (!silId) return;
               deleteFirma.mutate({ id: silId }, {
                 onSuccess: () => { qc.invalidateQueries({ queryKey: getListFirmalarQueryKey() }); setSilId(null); toast({ title: "Firma silindi" }); },
-                onError: () => toast({ title: "Silinemedi", variant: "destructive" }),
+                onError: (err) => toast({ title: err instanceof Error ? err.message : "Firma silinemedi", variant: "destructive" }),
               });
             }}>Sil</AlertDialogAction>
           </AlertDialogFooter>

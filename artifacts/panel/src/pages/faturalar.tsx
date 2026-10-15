@@ -588,7 +588,7 @@ export default function Faturalar() {
 
       <AlertDialog open={!!silId} onOpenChange={o => !o && setSilId(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Faturayı sil</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Faturayı sil</AlertDialogTitle><AlertDialogDescription>Fatura, kalemleri ve otomatik tahsilatları kalıcı olarak silinecek. Elle girilen ödemeler korunacak ve faturayla bağlantıları kaldırılacak. Cari bakiye yeniden hesaplanacak. Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>İptal</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (!silId) return; deleteFatura.mutate({ id: silId }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() }); setSilId(null); toast({ title: "Fatura silindi" }); } }); }}>Sil</AlertDialogAction>
