@@ -21,6 +21,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import { KayitSilButton } from "@/components/kayit-sil-button";
+import { TahsilatGemiSecimi } from "@/components/tahsilat-gemi-secimi";
+import { FirmaSecici } from "@/components/firma-secici";
 import {
   ArrowLeft, Download, Plus, Loader2, FileText, Trash2, Pencil,
   TrendingUp, TrendingDown, FileSpreadsheet, Building2, Users,
@@ -109,6 +111,8 @@ export default function GrupCariDetay() {
   const [islemYontem, setIslemYontem] = useState("banka_havalesi");
   const [islemBanka, setIslemBanka] = useState("");
   const [islemAciklama, setIslemAciklama] = useState("");
+  const [islemGemiId, setIslemGemiId] = useState("");
+  const [islemBagliFirmaId, setIslemBagliFirmaId] = useState("");
   const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
   const [excelIndiriyor, setExcelIndiriyor] = useState(false);
   const [silId, setSilId] = useState<number | null>(null);
@@ -166,6 +170,8 @@ export default function GrupCariDetay() {
   }
 
   function openIslemModal() {
+    setIslemGemiId("");
+    setIslemBagliFirmaId("");
     setIslemTip("tahsilat");
     setIslemPb(detay?.firma.paraBirimi ?? "USD");
     setIslemTarih(new Date().toISOString().split("T")[0]);
@@ -231,7 +237,8 @@ export default function GrupCariDetay() {
       {
         data: {
           catiFirmaId: detay.catiFirma.id,
-          bagliFirmaId: id,
+          bagliFirmaId: islemBagliFirmaId ? Number(islemBagliFirmaId) : id,
+          gemiId: islemGemiId ? Number(islemGemiId) : undefined,
           tip: islemTip as import("@workspace/api-client-react").OdemeInputTip,
           tarih: islemTarih,
           tutar: Number(islemTutar),
@@ -243,12 +250,11 @@ export default function GrupCariDetay() {
       },
       {
         onSuccess: () => {
-          qc.invalidateQueries({ queryKey: ["grup-cari-detay", id] });
-          qc.invalidateQueries({ queryKey: ["cariler"] });
+          void qc.invalidateQueries();
           setIslemModal(false);
           toast({ title: "İşlem kaydedildi" });
         },
-        onError: () => toast({ title: "İşlem kaydedilemedi", variant: "destructive" }),
+        onError: err => toast({ title: err instanceof Error ? err.message : "İşlem kaydedilemedi", variant: "destructive" }),
       },
     );
   }
@@ -615,9 +621,9 @@ export default function GrupCariDetay() {
       </div>
 
       <Dialog open={islemModal} onOpenChange={setIslemModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Ödeme / Tahsilat — {firma.ad}</DialogTitle>
+            <DialogTitle>Ödeme / Tahsilat - {firma.ad}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -629,6 +635,23 @@ export default function GrupCariDetay() {
                   <SelectItem value="odeme">Ödeme</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <TahsilatGemiSecimi catiFirmaId={catiFirma?.id ?? null} value={islemGemiId}
+              firmaIds={firma.bagliFirmalar.map(f => f.id)}
+              onChange={(gemiId, gemi) => {
+                setIslemGemiId(gemiId);
+                if (gemi) setIslemBagliFirmaId(String(gemi.firmaId));
+              }} />
+            <div className="space-y-1.5">
+              <Label>Bağlı firma (isteğe bağlı)</Label>
+              <FirmaSecici firmalar={firma.bagliFirmalar} value={islemBagliFirmaId}
+                bosSecim bosSecimEtiketi="Grup geneli" placeholder="Grup geneli"
+                onChange={firmaId => { setIslemBagliFirmaId(firmaId); setIslemGemiId(""); }} />
+              <p className="text-xs text-muted-foreground">
+                {islemBagliFirmaId
+                  ? "Tahsilat bu bağlı firmanın hesabına ve grup toplamına yansır. Fatura seçilmez."
+                  : "Gemi veya bağlı firma seçmezseniz kayıt yalnızca grup geneline işlenir."}
+              </p>
             </div>
             <div className="flex gap-3">
               <div className="flex-1 space-y-1.5">

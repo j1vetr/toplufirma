@@ -30,6 +30,7 @@ import { useSirket } from "@/contexts/sirket-context";
 import { useYetki } from "@/hooks/use-yetki";
 import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
 import { FirmaSecici } from "@/components/firma-secici";
+import { TahsilatGemiSecimi } from "@/components/tahsilat-gemi-secimi";
 
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
@@ -63,6 +64,7 @@ export default function Odemeler() {
 
   const [catiFirmaId, setCatiFirmaId] = useState("");
   const [bagliFirmaId, setBagliFirmaId] = useState("");
+  const [gemiId, setGemiId] = useState("");
   const [tip, setTip] = useState("tahsilat");
   const [tarih, setTarih] = useState(new Date().toISOString().split("T")[0]);
   const [tutar, setTutar] = useState("");
@@ -80,8 +82,8 @@ export default function Odemeler() {
     { query: { queryKey: [...getListFirmalarQueryKey(), "cati"] } },
   );
   const { data: bagliFirmalar = [] } = useListFirmalar(
-    { tip: "bagli" },
-    { query: { queryKey: [...getListFirmalarQueryKey(), "bagli"] } },
+    { tip: "bagli", ...(catiFirmaId ? { catiFirmaId: Number(catiFirmaId) } : {}) },
+    { query: { queryKey: [...getListFirmalarQueryKey(), "odeme-bagli", catiFirmaId], enabled: !!catiFirmaId } },
   );
   const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, { query: { queryKey: getListBankaHesaplariQueryKey() } });
   const createOdeme = useCreateOdeme();
@@ -90,7 +92,7 @@ export default function Odemeler() {
 
   function formuSifirla() {
     setDuzenleId(null); setDuzenleFaturaId(null);
-    setCatiFirmaId(""); setBagliFirmaId(""); setTip("tahsilat");
+    setCatiFirmaId(aktifSirketId ? String(aktifSirketId) : ""); setBagliFirmaId(""); setGemiId(""); setTip("tahsilat");
     setTarih(new Date().toISOString().split("T")[0]);
     setTutar(""); setParaBirimi("USD"); setYontem("banka_havalesi");
     setBankaId(""); setAciklama("");
@@ -101,6 +103,7 @@ export default function Odemeler() {
     setDuzenleFaturaId(o.faturaId ?? null);
     setCatiFirmaId(String(o.catiFirmaId));
     setBagliFirmaId(o.bagliFirmaId != null ? String(o.bagliFirmaId) : "");
+    setGemiId(o.gemiId != null ? String(o.gemiId) : "");
     setTip(o.tip);
     setTarih(o.tarih);
     setTutar(String(o.tutar));
@@ -111,7 +114,7 @@ export default function Odemeler() {
     setModalAcik(true);
   }
 
-  const filtrelenmisBagliFirmalar = bagliFirmalar.filter(f => !catiFirmaId || f.ustFirmaId === Number(catiFirmaId));
+  const filtrelenmisBagliFirmalar = bagliFirmalar;
 
   const mevcutPblar = [...new Set(odemeler.map(o => o.paraBirimi))].filter(Boolean);
 
@@ -180,6 +183,7 @@ export default function Odemeler() {
     createOdeme.mutate({
       data: {
         catiFirmaId: Number(catiFirmaId), bagliFirmaId: Number(bagliFirmaId),
+        gemiId: gemiId ? Number(gemiId) : undefined,
         tip: tip as import("@workspace/api-client-react").OdemeInputTip, tarih, tutar: Number(tutar), paraBirimi,
         odemeYontemi: yontem as import("@workspace/api-client-react").OdemeInputOdemeYontemi,
         bankaHesabiId: bankaId && bankaId !== "none" ? Number(bankaId) : undefined,
@@ -187,7 +191,7 @@ export default function Odemeler() {
       },
     }, {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListOdemelerQueryKey() });
+        void qc.invalidateQueries();
         setModalAcik(false); formuSifirla();
         toast({ title: "Ödeme kaydedildi" });
       },
@@ -257,6 +261,7 @@ export default function Odemeler() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold">{o.bagliFirmaAd}</p>
+                {o.gemiAd && <p className="text-xs text-muted-foreground">Gemi: {o.gemiAd}</p>}
                 <p className="text-sm text-muted-foreground">{o.aciklama} - {YONTEM_ETIKET[o.odemeYontemi] ?? o.odemeYontemi}</p>
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-muted-foreground">{o.tarih}</p>
@@ -286,7 +291,7 @@ export default function Odemeler() {
       </div>
 
       <Dialog open={modalAcik} onOpenChange={o => { setModalAcik(o); if (!o) formuSifirla(); }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>{duzenleId != null ? "İşlemi Düzenle" : "Yeni Ödeme / Tahsilat"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="col-span-2 space-y-1.5">
@@ -304,18 +309,21 @@ export default function Odemeler() {
               <FirmaSecici
                 firmalar={catiFirmalar}
                 value={catiFirmaId}
-                onChange={firmaId => { setCatiFirmaId(firmaId); setBagliFirmaId(""); }}
+                onChange={firmaId => { setCatiFirmaId(firmaId); setBagliFirmaId(""); setGemiId(""); }}
                 disabled={duzenleId != null}
                 placeholder="Çatı Firma"
                 testId="select-yeni-odeme-sirket"
               />
             </div>
+            <TahsilatGemiSecimi catiFirmaId={catiFirmaId ? Number(catiFirmaId) : null}
+              value={gemiId} disabled={duzenleId != null}
+              onChange={(id, gemi) => { setGemiId(id); if (gemi) setBagliFirmaId(String(gemi.firmaId)); }} />
             <div className="space-y-1.5">
               <Label>Bağlı Firma *</Label>
               <FirmaSecici
                 firmalar={filtrelenmisBagliFirmalar}
                 value={bagliFirmaId}
-                onChange={setBagliFirmaId}
+                onChange={id => { setBagliFirmaId(id); setGemiId(""); }}
                 disabled={duzenleId != null}
                 placeholder="Bağlı Firma"
                 testId="select-yeni-odeme-cari"

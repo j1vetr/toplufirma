@@ -38,13 +38,34 @@ router.get("/odemeler", async (req, res) => {
 
 router.post("/odemeler", requireYazma, async (req, res) => {
   try {
-    const { catiFirmaId, bagliFirmaId, gemiId, bankaHesabiId, faturaId, tip, tarih, tutar, paraBirimi, odemeYontemi, aciklama } = req.body;
+    const { catiFirmaId, bankaHesabiId, faturaId, tip, tarih, tutar, paraBirimi, odemeYontemi, aciklama } = req.body;
+    let bagliFirmaId = req.body.bagliFirmaId == null ? null : Number(req.body.bagliFirmaId);
+    const gemiId = req.body.gemiId == null ? null : Number(req.body.gemiId);
     if (!catiFirmaId || !tip || !tarih || !tutar) {
       res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
     }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
     const tutarKurus = kurusaCevir(tutar);
     if (tutarKurus == null || tutarKurus <= 0) { res.status(400).json({ error: "Tutar sıfırdan büyük olmalı ve en fazla iki ondalık basamak içerebilir" }); return; }
+
+    if (gemiId != null) {
+      if (!Number.isSafeInteger(gemiId) || gemiId <= 0) {
+        res.status(400).json({ error: "Geçersiz gemi seçimi" }); return;
+      }
+      const [gemi] = await db.select({ firmaId: gemiler.firmaId }).from(gemiler).where(eq(gemiler.id, gemiId));
+      const gorunurIds = await gorunurBagliFirmaIds(Number(catiFirmaId));
+      if (!gemi || !gorunurIds.includes(gemi.firmaId)) {
+        res.status(400).json({ error: "Seçilen gemi bu firmaya ait değil veya erişilebilir değil" }); return;
+      }
+      if (bagliFirmaId != null && bagliFirmaId !== gemi.firmaId) {
+        res.status(400).json({ error: "Seçilen gemi ile bağlı firma eşleşmiyor" }); return;
+      }
+      // A ship-only, non-invoice receipt must land in its owner's ledger too.
+      bagliFirmaId = gemi.firmaId;
+    }
+    if (bagliFirmaId != null && (!Number.isSafeInteger(bagliFirmaId) || bagliFirmaId <= 0)) {
+      res.status(400).json({ error: "Geçersiz bağlı firma seçimi" }); return;
+    }
 
     if (bagliFirmaId) {
       const [targetFirma] = await db.select({ tip: firmalar.tip }).from(firmalar).where(eq(firmalar.id, Number(bagliFirmaId)));

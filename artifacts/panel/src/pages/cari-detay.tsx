@@ -17,6 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import { KayitSilButton } from "@/components/kayit-sil-button";
+import { TahsilatGemiSecimi } from "@/components/tahsilat-gemi-secimi";
 import {
   ArrowLeft, Download, Plus, Loader2, FileText,
   TrendingUp, TrendingDown, TriangleAlert, Trash2, Pencil,
@@ -87,6 +88,7 @@ export default function CariDetay() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { canWrite } = useYetki();
+  const [islemGemiId, setIslemGemiId] = useState("");
 
   const [baslangic, setBaslangic] = useState("");
   const [bitis, setBitis] = useState("");
@@ -171,6 +173,7 @@ export default function CariDetay() {
   }
 
   function openIslemModal() {
+    setIslemGemiId("");
     setIslemTip("tahsilat");
     setIslemPb(detay?.firma.paraBirimi ?? "USD");
     setIslemModal(true);
@@ -374,6 +377,7 @@ export default function CariDetay() {
         data: {
           catiFirmaId: detay.catiFirma.id,
           bagliFirmaId: id,
+          gemiId: islemGemiId ? Number(islemGemiId) : undefined,
           tip: islemTip as import("@workspace/api-client-react").OdemeInputTip,
           tarih: islemTarih,
           tutar: Number(islemTutar),
@@ -385,8 +389,7 @@ export default function CariDetay() {
       },
       {
         onSuccess: () => {
-          qc.invalidateQueries({ queryKey: ["cari-detay", id] });
-          qc.invalidateQueries({ queryKey: ["cariler"] });
+          void qc.invalidateQueries();
           setIslemModal(false);
           setIslemTutar(""); setIslemAciklama(""); setIslemBanka("");
           toast({ title: "İşlem kaydedildi" });
@@ -748,7 +751,7 @@ export default function CariDetay() {
       ))}
 
       <Dialog open={islemModal} onOpenChange={setIslemModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -756,6 +759,10 @@ export default function CariDetay() {
             </DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="col-span-2">
+              <TahsilatGemiSecimi catiFirmaId={catiFirma?.id ?? null} value={islemGemiId}
+                firmaIds={[id]} onChange={gemiId => setIslemGemiId(gemiId)} />
+            </div>
             <div className="col-span-2 space-y-1.5">
               <Label>İşlem Tipi <span className="text-destructive">*</span></Label>
               <Select value={islemTip} onValueChange={setIslemTip}>
