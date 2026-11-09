@@ -6,6 +6,7 @@ import {
   useListFaturalar, getListFaturalarQueryKey,
   useDeleteFatura,
   useTopluDurumGuncelle,
+  getFatura,
 } from "@workspace/api-client-react";
 import type { Fatura } from "@workspace/api-client-react";
 import OdemeModal from "@/components/odeme-modal";
@@ -110,6 +111,7 @@ export default function Faturalar() {
   const [aliciAdres, setAliciAdres] = useState("");
   const [aliciAd, setAliciAd] = useState("");
   const [gonderiyor, setGonderiyor] = useState(false);
+  const [aliciYukleniyor, setAliciYukleniyor] = useState(false);
   const [pdfIndiriyor, setPdfIndiriyor] = useState<number | null>(null);
 
   const [secilenler, setSecilenler] = useState<Set<number>>(new Set());
@@ -194,6 +196,23 @@ export default function Faturalar() {
     setOdemeModal(true);
   }
 
+  async function gonderPenceresiAc(fatura: Fatura) {
+    setAliciYukleniyor(true);
+    setAliciAdres("");
+    setAliciAd("");
+    try {
+      const guncelFatura = await getFatura(fatura.id);
+      setAliciAdres(guncelFatura.bagliFirmaEposta ?? "");
+      setAliciAd(guncelFatura.bagliFirmaAd ?? "");
+    } catch {
+      toast({ title: "Kayıtlı e-posta alınamadı. Adresi elle girebilirsiniz.", variant: "destructive" });
+    } finally {
+      setGonderFaturaId(fatura.id);
+      setGonderModal(true);
+      setAliciYukleniyor(false);
+    }
+  }
+
   async function gonderFatura() {
     if (!gonderFaturaId || !aliciAdres) return;
     setGonderiyor(true);
@@ -208,6 +227,8 @@ export default function Faturalar() {
       if (!resp.ok) throw new Error(data.error ?? "Gönderim başarısız");
       setGonderModal(false);
       setAliciAdres(""); setAliciAd("");
+      qc.invalidateQueries({ queryKey: ["gonderi-gecmisi-fatura"] });
+      qc.invalidateQueries({ queryKey: ["fatura-gonderi-gecmisi", gonderFaturaId] });
       toast({ title: data.mesaj ?? "E-posta gönderildi" });
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Hata", variant: "destructive" });
@@ -350,7 +371,7 @@ export default function Faturalar() {
             >
               <Download className="h-3.5 w-3.5" />
             </Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8" title="E-posta Gönder" onClick={() => { setGonderFaturaId(f.id); setGonderModal(true); }}>
+            <Button size="icon" variant="ghost" className="h-8 w-8" title="E-posta Gönder" disabled={aliciYukleniyor} onClick={() => gonderPenceresiAc(f)}>
               <Mail className="h-3.5 w-3.5" />
             </Button>
             {canWrite && (
@@ -546,8 +567,9 @@ export default function Faturalar() {
           <DialogHeader><DialogTitle>Faturayı E-posta ile Gönder</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Alıcı E-posta *</Label>
-              <Input type="email" value={aliciAdres} onChange={e => setAliciAdres(e.target.value)} placeholder="musteri@firma.com" />
+              <Label htmlFor="fatura-alicilar">Alıcı E-postaları *</Label>
+              <Input id="fatura-alicilar" type="text" inputMode="email" value={aliciAdres} onChange={e => setAliciAdres(e.target.value)} placeholder="musteri@firma.com, muhasebe@firma.com" />
+              <p className="text-xs text-muted-foreground">Kayıtlı adresi değiştirebilir veya virgülle ayırarak birden fazla adres ekleyebilirsiniz.</p>
             </div>
             <div className="space-y-1.5">
               <Label>Alıcı Ad</Label>

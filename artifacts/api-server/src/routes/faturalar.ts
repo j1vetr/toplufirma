@@ -4,6 +4,7 @@ import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri
 import { eq, sql, and } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import nodemailer from "nodemailer";
+import { epostaAlicilari } from "../lib/epostaAlicilari";
 import { emailSablonuOlustur } from "../lib/emailSablonu";
 import { faturaNoTahsisEt } from "../lib/faturaNo";
 import { faturaDosyaAdi, pdfDisposition } from "../lib/faturaDosyaAdi";
@@ -346,7 +347,7 @@ router.get("/faturalar/:id", async (req, res) => {
     if (!row) { res.status(404).json({ error: "Fatura bulunamadı" }); return; }
     if (!sirketErisimKontrol(row.f.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
 
-    const [bagliRow] = row.f.bagliFirmaId ? await db.select({ ad: firmalar.ad, adres: firmalar.adres }).from(firmalar).where(eq(firmalar.id, row.f.bagliFirmaId)) : [undefined];
+    const [bagliRow] = row.f.bagliFirmaId ? await db.select({ ad: firmalar.ad, adres: firmalar.adres, eposta: firmalar.eposta }).from(firmalar).where(eq(firmalar.id, row.f.bagliFirmaId)) : [undefined];
     const bagliFirmaAd = bagliRow?.ad ?? null;
     const bagliFirmaAdres = bagliRow?.adres ?? null;
     const grupFirmaAd = row.f.grupFirmaId ? (await db.select({ ad: firmalar.ad }).from(firmalar).where(eq(firmalar.id, row.f.grupFirmaId)))[0]?.ad ?? null : null;
@@ -358,6 +359,7 @@ router.get("/faturalar/:id", async (req, res) => {
       ...formatFatura(row.f, row.catiFirmaAd, bagliFirmaAd, row.gemiAd, odenen, grupFirmaAd),
       catiFirmaLogoUrl: row.catiFirmaLogoUrl ?? null,
       bagliFirmaAdres,
+      bagliFirmaEposta: bagliRow?.eposta ?? null,
       gemiAdImo: row.gemiAd ? `${row.gemiAd}${row.gemiImo ? ` (${row.gemiImo})` : ""}` : null,
       kalemler: kalemler.map(k => ({
         id: k.id, faturaId: k.faturaId, aciklama: k.aciklama, birim: k.birim,
@@ -734,7 +736,13 @@ router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const { aliciAdres, aliciAd, konu, mesaj } = req.body as { aliciAdres?: string; aliciAd?: string; konu?: string; mesaj?: string };
-    if (!aliciAdres) { res.status(400).json({ error: "aliciAdres zorunludur" }); return; }
+    let alicilar: string[];
+    try {
+      alicilar = epostaAlicilari(aliciAdres);
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : "Geçersiz alıcı adresi" });
+      return;
+    }
 
     const [row] = await db
       .select({
@@ -789,7 +797,7 @@ router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
       durum: row.f.durum,
     };
     const { subject: autoSubject, html, text } = await emailSablonuOlustur(
-      firmaData, belgeData, { ad: aliciAd, eposta: aliciAdres }, mesaj,
+      firmaData, belgeData, { ad: aliciAd, eposta: alicilar.join(", ") }, mesaj,
     );
 
     const guvenlik = ayarlar.smtpGuvenlik ?? "starttls";
@@ -804,7 +812,7 @@ router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
     const faturaNo = row.f.faturaNo;
     await transporter.sendMail({
       from: `"${ayarlar.gonderenAd}" <${ayarlar.gonderenAdres}>`,
-      to: aliciAd ? `"${aliciAd}" <${aliciAdres}>` : aliciAdres,
+      to: alicilar.map(address => ({ name: aliciAd || "", address })),
       subject: konu?.trim() ? konu : autoSubject,
       html,
       text,
@@ -814,14 +822,14 @@ router.post("/faturalar/:id/gonder", requireYazma, async (req, res) => {
     await db.insert(gonderiGecmisi).values({
       kayitTipi: "fatura",
       kayitId: id,
-      aliciEposta: aliciAdres,
+      aliciEposta: alicilar.join(", "),
       gonderenKullaniciId: req.kullanici?.id ?? null,
       gonderenAd: req.kullanici?.ad ?? null,
     });
 
-    res.json({ mesaj: `Fatura ${faturaNo} adresine gönderildi: ${aliciAdres}` });
+    res.json({ mesaj: `Fatura ${faturaNo} gönderildi: ${alicilar.join(", ")}` });
   } catch (err) {
-    console.error("[gonder] error:", err);
+    req.log.error({ err }, "Fatura e-posta gönderimi başarısız");
     if (!res.headersSent) res.status(500).json({ error: "E-posta gönderilemedi" });
   }
 });

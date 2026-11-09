@@ -18,3 +18,4 @@
 - [Ekstre açıklamaları](ekstre-aciklamalari.md) — PDF/Excel ekstrelerinde fatura satırının AÇIKLAMA alanı ilgili gemi adıdır, belge numarası ayrı kalır.
 - [Silme ve muhasebe güvenliği](silme-muhasebe-guvenligi.md) — fatura silmede manuel para hareketlerini koru, otomatik tahsilatı kaldır. Firma silmede örtük toplu silme yapma.
 - [Tahsilat kapsamı](tahsilat-kapsami.md) — bağımsız tahsilat gemi üzerinden bağlı firmaya atanabilir, fatura ödemesi sayılmaz.
+- [Fatura e-posta alıcıları](fatura-eposta-alicilari.md) — varsayılan adres bağlı firmanın kayıtlı e-postasıdır, değiştirilebilir ve birden fazla alıcı kullanılabilir.

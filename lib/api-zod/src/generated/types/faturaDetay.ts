@@ -21,6 +21,8 @@ export interface FaturaDetay {
   /** @nullable */
   bagliFirmaAdres?: string | null;
   /** @nullable */
+  bagliFirmaEposta?: string | null;
+  /** @nullable */
   grupFirmaId?: number | null;
   /** @nullable */
   grupFirmaAd?: string | null;

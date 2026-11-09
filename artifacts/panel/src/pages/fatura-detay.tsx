@@ -8,6 +8,7 @@ import {
   useGetFatura, getGetFaturaQueryKey,
   useListBankaHesaplari, getListBankaHesaplariQueryKey,
   useUpdateFatura,
+  getFatura,
 } from "@workspace/api-client-react";
 import OdemeModal from "@/components/odeme-modal";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,7 @@ export default function FaturaDetay() {
   const [gonderMesaj, setGonderMesaj] = useState("");
   const [gecmisAcik, setGecmisAcik] = useState(false);
   const [gonderiyor, setGonderiyor] = useState(false);
+  const [aliciYukleniyor, setAliciYukleniyor] = useState(false);
   const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
   const [onizlemeAcik, setOnizlemeAcik] = useState(false);
   const [onizlemeHtml, setOnizlemeHtml] = useState<string | null>(null);
@@ -109,6 +111,25 @@ export default function FaturaDetay() {
     });
   }
 
+  async function gonderPenceresiAc() {
+    if (!fatura) return;
+    setAliciYukleniyor(true);
+    setAliciAdres("");
+    setAliciAd("");
+    setGonderMesaj("");
+    setGonderKonu(`Fatura ${fatura.faturaNo} - ${fatura.catiFirmaAd ?? ""}`);
+    try {
+      const guncelFatura = await getFatura(fatura.id);
+      setAliciAdres(guncelFatura.bagliFirmaEposta ?? "");
+      setAliciAd(guncelFatura.bagliFirmaAd ?? "");
+    } catch {
+      toast({ title: "Kayıtlı e-posta alınamadı. Adresi elle girebilirsiniz.", variant: "destructive" });
+    } finally {
+      setGonderModal(true);
+      setAliciYukleniyor(false);
+    }
+  }
+
   async function gonderFatura() {
     if (!aliciAdres) return;
     setGonderiyor(true);
@@ -128,6 +149,7 @@ export default function FaturaDetay() {
       if (!resp.ok) throw new Error(data.error ?? "Gönderim başarısız");
       setGonderModal(false); setAliciAdres(""); setAliciAd("");
       qc.invalidateQueries({ queryKey: ["fatura-gonderi-gecmisi", id] });
+      qc.invalidateQueries({ queryKey: ["gonderi-gecmisi-fatura"] });
       toast({ title: data.mesaj ?? "E-posta gönderildi" });
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "Hata", variant: "destructive" });
@@ -219,7 +241,7 @@ export default function FaturaDetay() {
           >
             <Download className="mr-1 h-4 w-4" /> {pdfIndiriyor ? "İndiriliyor..." : "PDF"}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => { setGonderKonu(`Fatura ${fatura.faturaNo} - ${fatura.catiFirmaAd ?? ""}`); setGonderModal(true); }}>
+          <Button variant="outline" size="sm" disabled={aliciYukleniyor} onClick={gonderPenceresiAc}>
             <Mail className="mr-1 h-4 w-4" /> E-posta
           </Button>
           {canWrite && fatura.durum === "taslak" && (
@@ -393,8 +415,9 @@ export default function FaturaDetay() {
               Fatura PDF eki ile çatı firmanın SMTP ayarları üzerinden gönderilir.
             </p>
             <div className="space-y-1.5">
-              <Label>Alıcı E-posta <span className="text-destructive">*</span></Label>
-              <Input type="email" value={aliciAdres} onChange={e => setAliciAdres(e.target.value)} placeholder="musteri@firma.com" />
+              <Label htmlFor="fatura-alicilar">Alıcı E-postaları <span className="text-destructive">*</span></Label>
+              <Input id="fatura-alicilar" type="text" inputMode="email" value={aliciAdres} onChange={e => setAliciAdres(e.target.value)} placeholder="musteri@firma.com, muhasebe@firma.com" />
+              <p className="text-xs text-muted-foreground">Kayıtlı adresi değiştirebilir veya virgülle ayırarak birden fazla adres ekleyebilirsiniz.</p>
             </div>
             <div className="space-y-1.5">
               <Label>Alıcı Ad</Label>

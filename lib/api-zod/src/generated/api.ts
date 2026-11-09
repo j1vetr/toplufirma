@@ -756,6 +756,7 @@ export const GetFaturaResponse = zod.object({
   "bagliFirmaId": zod.number(),
   "bagliFirmaAd": zod.string().nullish(),
   "bagliFirmaAdres": zod.string().nullish(),
+  "bagliFirmaEposta": zod.string().nullish(),
   "grupFirmaId": zod.number().nullish(),
   "grupFirmaAd": zod.string().nullish(),
   "gemiId": zod.number().nullish(),
@@ -869,9 +870,10 @@ export const GonderFaturaParams = zod.object({
 })
 
 export const GonderFaturaBody = zod.object({
-  "aliciAdres": zod.string(),
+  "aliciAdres": zod.string().describe('Virgül, noktalı virgül veya boşlukla ayrılmış en fazla 50 alıcı e-posta adresi. Tekrarlanan adresler birleştirilir.'),
   "aliciAd": zod.string().optional(),
-  "konu": zod.string().optional()
+  "konu": zod.string().optional(),
+  "mesaj": zod.string().optional()
 })
 
 export const GonderFaturaResponse = zod.object({

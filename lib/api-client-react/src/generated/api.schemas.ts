@@ -264,9 +264,11 @@ export interface FirmaEkstre {
 }
 
 export interface FaturaGonderInput {
+  /** Virgül, noktalı virgül veya boşlukla ayrılmış en fazla 50 alıcı e-posta adresi. Tekrarlanan adresler birleştirilir. */
   aliciAdres: string;
   aliciAd?: string;
   konu?: string;
+  mesaj?: string;
 }
 
 export interface FaturaGonderSonuc {
@@ -538,6 +540,8 @@ export interface FaturaDetay {
   bagliFirmaAd?: string | null;
   /** @nullable */
   bagliFirmaAdres?: string | null;
+  /** @nullable */
+  bagliFirmaEposta?: string | null;
   /** @nullable */
   grupFirmaId?: number | null;
   /** @nullable */

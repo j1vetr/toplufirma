@@ -7,7 +7,9 @@
  */
 
 export interface FaturaGonderInput {
+  /** Virgül, noktalı virgül veya boşlukla ayrılmış en fazla 50 alıcı e-posta adresi. Tekrarlanan adresler birleştirilir. */
   aliciAdres: string;
   aliciAd?: string;
   konu?: string;
+  mesaj?: string;
 }

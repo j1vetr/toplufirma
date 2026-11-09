@@ -1593,9 +1593,12 @@ components:
       properties:
         aliciAdres:
           type: string
+          description: Virgül, noktalı virgül veya boşlukla ayrılmış en fazla 50 alıcı e-posta adresi. Tekrarlanan adresler birleştirilir.
         aliciAd:
           type: string
         konu:
+          type: string
+        mesaj:
           type: string
 
     FaturaGonderSonuc:
@@ -1990,6 +1993,8 @@ components:
         bagliFirmaAd:
           type: ["string", "null"]
         bagliFirmaAdres:
+          type: ["string", "null"]
+        bagliFirmaEposta:
           type: ["string", "null"]
         grupFirmaId:
           type: ["integer", "null"]
