@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import toovBeyaz from "@assets/toov__beyaz_logo_1782430202251.png";
-import lacivertLogo from "@assets/lacivert_light_logo_1763796346759-WC73pPaY_1787267387137.png";
+import toovBeyaz from "@/assets/branding/toov-white.png";
+import lacivertLogo from "@/assets/branding/lacivert-light.png";
 
 interface Props {
   onLogin: (token: string, kullanici: object) => void;

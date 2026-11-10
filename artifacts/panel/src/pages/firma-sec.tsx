@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useListFirmalar, getListFirmalarQueryKey } from "@workspace/api-client-react";
 import { useSirket } from "@/contexts/sirket-context";
-import toovBeyaz from "@assets/toov__beyaz_logo_1782430202251.png";
+import toovBeyaz from "@/assets/branding/toov-white.png";
 import { Building2, CheckCircle2 } from "lucide-react";
 import type { KullaniciInfo } from "@/App";
 

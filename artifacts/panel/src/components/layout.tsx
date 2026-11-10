@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import lacivertLogo from "@assets/lacivert_light_logo_1763796346759-WC73pPaY_1787267387137.png";
+import lacivertLogo from "@/assets/branding/lacivert-light.png";
 import {
   LayoutDashboard,
   Building2,

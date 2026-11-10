@@ -6,6 +6,7 @@
 - [Bağlı firma erişim/ekstre](firma-hierarchy.md) — bagli erişim kontrolü ustFirmaId'ye dayanamaz (UI-created firms: null); ekstre=cariler muhasebesiyle ortak kural, utils/ekstre.ts helper
 - [RichTextEditor TipTap](rich-text-editor.md) — TipTap controlled integration pattern; isSelfChange ref prevents circular update; notlar saved as HTML string; PDF rendering out-of-scope
 - [Per-currency accounting](per-currency-accounting.md) — borç=faturalar(taslak/iptal hariç)+odeme, tahsilat ayrı; totals always per para birimi, never mix currencies into one number
+- [Taşınabilir derleme görselleri](build-asset-portability.md) — yüklenen dosyalar Git aktarımında bulunmayabilir, sabit marka görselleri kaynaklarla sürümlenmeli.
 - [Gemi visibility filtering](gemi-visibility-filtering.md) — filter ships server-side via catiFirmaId param; client-side gemi.catiFirmaId checks drop ships of UI-created bağlı firms (ustFirmaId null)
 - [OpenAPI spec drift](openapi-spec-drift.md) — unknown-casts in panel signal openapi.yaml missing a real API field; fix spec + codegen, never cast
 - [Banka hesabı para birimleri](banka-hesap-para-birimleri.md) — scalar paraBirimi often stale TRY default; real currencies = scalar + ibanlar keys via hesapParaBirimleri() helper
