@@ -1454,12 +1454,160 @@ export const GetFirmaGelirResponse = zod.array(GetFirmaGelirResponseItem)
 
 
 /**
+ * @summary Tek para biriminde fatura ve nakit hareketleri raporu
+ */
+
+export const getFinansalRaporQueryYilMin = 1900;
+export const getFinansalRaporQueryYilMax = 2200;
+
+export const getFinansalRaporQueryAyMax = 12;
+
+export const getFinansalRaporQueryParaBirimiDefault = `USD`;
+export const getFinansalRaporQueryParaBirimiRegExp = new RegExp('^[A-Z]{3}$');
+
+
+export const GetFinansalRaporQueryParams = zod.object({
+  "catiFirmaId": zod.coerce.number().min(1).optional(),
+  "yil": zod.coerce.number().min(getFinansalRaporQueryYilMin).max(getFinansalRaporQueryYilMax).optional(),
+  "ay": zod.coerce.number().min(1).max(getFinansalRaporQueryAyMax).optional(),
+  "paraBirimi": zod.coerce.string().regex(getFinansalRaporQueryParaBirimiRegExp).default(getFinansalRaporQueryParaBirimiDefault)
+})
+
+export const getFinansalRaporResponseAylikItemTarihRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getFinansalRaporResponseYaslandirmaItemFaturalarItemFaturaTarihiRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getFinansalRaporResponseYaslandirmaItemFaturalarItemVadeTarihiRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getFinansalRaporResponseFaturalarItemFaturaTarihiRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getFinansalRaporResponseFaturalarItemVadeTarihiRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetFinansalRaporResponse = zod.object({
+  "paraBirimi": zod.string(),
+  "paraBirimleri": zod.array(zod.string()),
+  "yillar": zod.array(zod.number()),
+  "yil": zod.number(),
+  "ay": zod.number().nullable(),
+  "hesaplamaTarihi": zod.coerce.date(),
+  "ozet": zod.object({
+  "faturaSayisi": zod.number(),
+  "toplamFatura": zod.number(),
+  "faturayaSayilan": zod.number(),
+  "kalanAlacak": zod.number(),
+  "nakitTahsilat": zod.number(),
+  "nakitOdeme": zod.number(),
+  "netNakit": zod.number(),
+  "donemNetHareketi": zod.number()
+}),
+  "aylik": zod.array(zod.object({
+  "ay": zod.number(),
+  "tarih": zod.string().regex(getFinansalRaporResponseAylikItemTarihRegExp),
+  "ayAd": zod.string(),
+  "sayi": zod.number(),
+  "faturalanan": zod.number(),
+  "faturayaSayilan": zod.number(),
+  "kalan": zod.number(),
+  "tahsilat": zod.number(),
+  "odeme": zod.number(),
+  "netNakit": zod.number()
+})),
+  "durumlar": zod.array(zod.object({
+  "durum": zod.string(),
+  "sayi": zod.number(),
+  "tutar": zod.number()
+})),
+  "musteriler": zod.array(zod.object({
+  "id": zod.number().nullable(),
+  "ad": zod.string(),
+  "imo": zod.string().nullish(),
+  "faturaSayisi": zod.number(),
+  "faturalanan": zod.number(),
+  "karsilanan": zod.number(),
+  "kalan": zod.number()
+})),
+  "gemiler": zod.array(zod.object({
+  "id": zod.number().nullable(),
+  "ad": zod.string(),
+  "imo": zod.string().nullish(),
+  "faturaSayisi": zod.number(),
+  "faturalanan": zod.number(),
+  "karsilanan": zod.number(),
+  "kalan": zod.number()
+})),
+  "yaslandirma": zod.array(zod.object({
+  "etiket": zod.string(),
+  "kalan": zod.number(),
+  "faturaSayisi": zod.number(),
+  "faturalar": zod.array(zod.object({
+  "id": zod.number(),
+  "catiFirmaId": zod.number(),
+  "catiFirmaAd": zod.string(),
+  "bagliFirmaId": zod.number().nullable(),
+  "bagliFirmaAd": zod.string().nullable(),
+  "gemiId": zod.number().nullable(),
+  "gemiAd": zod.string().nullable(),
+  "faturaNo": zod.string(),
+  "faturaTarihi": zod.string().regex(getFinansalRaporResponseYaslandirmaItemFaturalarItemFaturaTarihiRegExp),
+  "vadeTarihi": zod.string().regex(getFinansalRaporResponseYaslandirmaItemFaturalarItemVadeTarihiRegExp),
+  "paraBirimi": zod.string(),
+  "durum": zod.string(),
+  "toplamTutar": zod.number(),
+  "kdvTutari": zod.number(),
+  "genelToplam": zod.number(),
+  "odenenTutar": zod.number(),
+  "kalanTutar": zod.number()
+}))
+})),
+  "kdv": zod.object({
+  "kdvHaricToplam": zod.number(),
+  "kdvTutariToplam": zod.number(),
+  "kdvDahilToplam": zod.number(),
+  "paraBirimiKirilim": zod.array(zod.object({
+  "paraBirimi": zod.string(),
+  "kdvHaric": zod.number(),
+  "kdvTutari": zod.number(),
+  "kdvDahil": zod.number()
+})),
+  "firmaKirilim": zod.array(zod.object({
+  "catiFirmaId": zod.number(),
+  "catiFirmaAd": zod.string(),
+  "kdvHaric": zod.number(),
+  "kdvTutari": zod.number(),
+  "kdvDahil": zod.number()
+}))
+}),
+  "faturalar": zod.array(zod.object({
+  "id": zod.number(),
+  "catiFirmaId": zod.number(),
+  "catiFirmaAd": zod.string(),
+  "bagliFirmaId": zod.number().nullable(),
+  "bagliFirmaAd": zod.string().nullable(),
+  "gemiId": zod.number().nullable(),
+  "gemiAd": zod.string().nullable(),
+  "faturaNo": zod.string(),
+  "faturaTarihi": zod.string().regex(getFinansalRaporResponseFaturalarItemFaturaTarihiRegExp),
+  "vadeTarihi": zod.string().regex(getFinansalRaporResponseFaturalarItemVadeTarihiRegExp),
+  "paraBirimi": zod.string(),
+  "durum": zod.string(),
+  "toplamTutar": zod.number(),
+  "kdvTutari": zod.number(),
+  "genelToplam": zod.number(),
+  "odenenTutar": zod.number(),
+  "kalanTutar": zod.number()
+}))
+})
+
+
+/**
  * @summary KDV özet raporu
  */
+export const getKdvOzetiQueryParaBirimiDefault = `USD`;
+export const getKdvOzetiQueryParaBirimiRegExp = new RegExp('^[A-Z]{3}$');
+
+
 export const GetKdvOzetiQueryParams = zod.object({
   "catiFirmaId": zod.coerce.number().nullish(),
   "yil": zod.coerce.number().optional(),
-  "ay": zod.coerce.number().optional()
+  "ay": zod.coerce.number().optional(),
+  "paraBirimi": zod.coerce.string().regex(getKdvOzetiQueryParaBirimiRegExp).default(getKdvOzetiQueryParaBirimiDefault)
 })
 
 export const GetKdvOzetiResponse = zod.object({
@@ -1485,8 +1633,20 @@ export const GetKdvOzetiResponse = zod.object({
 /**
  * @summary Alacak yaşlandırma raporu
  */
+export const getAlacakYaslandirmaQueryYilMin = 1900;
+export const getAlacakYaslandirmaQueryYilMax = 2200;
+
+export const getAlacakYaslandirmaQueryAyMax = 12;
+
+export const getAlacakYaslandirmaQueryParaBirimiDefault = `USD`;
+export const getAlacakYaslandirmaQueryParaBirimiRegExp = new RegExp('^[A-Z]{3}$');
+
+
 export const GetAlacakYaslandirmaQueryParams = zod.object({
-  "catiFirmaId": zod.coerce.number().nullish()
+  "catiFirmaId": zod.coerce.number().nullish(),
+  "yil": zod.coerce.number().min(getAlacakYaslandirmaQueryYilMin).max(getAlacakYaslandirmaQueryYilMax).optional(),
+  "ay": zod.coerce.number().min(1).max(getAlacakYaslandirmaQueryAyMax).optional(),
+  "paraBirimi": zod.coerce.string().regex(getAlacakYaslandirmaQueryParaBirimiRegExp).default(getAlacakYaslandirmaQueryParaBirimiDefault)
 })
 
 export const GetAlacakYaslandirmaResponse = zod.object({

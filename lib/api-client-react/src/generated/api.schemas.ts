@@ -797,6 +797,82 @@ export interface AylikGelirNoktasi {
   toplamTahsilat: number;
 }
 
+export interface RaporOzet {
+  faturaSayisi: number;
+  toplamFatura: number;
+  faturayaSayilan: number;
+  kalanAlacak: number;
+  nakitTahsilat: number;
+  nakitOdeme: number;
+  netNakit: number;
+  donemNetHareketi: number;
+}
+
+export interface RaporAy {
+  ay: number;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  tarih: string;
+  ayAd: string;
+  sayi: number;
+  faturalanan: number;
+  faturayaSayilan: number;
+  kalan: number;
+  tahsilat: number;
+  odeme: number;
+  netNakit: number;
+}
+
+export interface RaporDurum {
+  durum: string;
+  sayi: number;
+  tutar: number;
+}
+
+export interface RaporKirilim {
+  /** @nullable */
+  id: number | null;
+  ad: string;
+  /** @nullable */
+  imo?: string | null;
+  faturaSayisi: number;
+  faturalanan: number;
+  karsilanan: number;
+  kalan: number;
+}
+
+export interface RaporFatura {
+  id: number;
+  catiFirmaId: number;
+  catiFirmaAd: string;
+  /** @nullable */
+  bagliFirmaId: number | null;
+  /** @nullable */
+  bagliFirmaAd: string | null;
+  /** @nullable */
+  gemiId: number | null;
+  /** @nullable */
+  gemiAd: string | null;
+  faturaNo: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  faturaTarihi: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  vadeTarihi: string;
+  paraBirimi: string;
+  durum: string;
+  toplamTutar: number;
+  kdvTutari: number;
+  genelToplam: number;
+  odenenTutar: number;
+  kalanTutar: number;
+}
+
+export interface RaporYaslandirma {
+  etiket: string;
+  kalan: number;
+  faturaSayisi: number;
+  faturalar: RaporFatura[];
+}
+
 export interface KdvParaBirimiKirilim {
   paraBirimi: string;
   kdvHaric: number;
@@ -818,6 +894,24 @@ export interface KdvOzeti {
   kdvDahilToplam: number;
   paraBirimiKirilim: KdvParaBirimiKirilim[];
   firmaKirilim: KdvFirmaKirilim[];
+}
+
+export interface FinansalRapor {
+  paraBirimi: string;
+  paraBirimleri: string[];
+  yillar: number[];
+  yil: number;
+  /** @nullable */
+  ay: number | null;
+  hesaplamaTarihi: string;
+  ozet: RaporOzet;
+  aylik: RaporAy[];
+  durumlar: RaporDurum[];
+  musteriler: RaporKirilim[];
+  gemiler: RaporKirilim[];
+  yaslandirma: RaporYaslandirma[];
+  kdv: KdvOzeti;
+  faturalar: RaporFatura[];
 }
 
 export interface YaslandirmaDilimi {
@@ -1055,6 +1149,27 @@ yil?: number;
 paraBirimi?: string;
 };
 
+export type GetFinansalRaporParams = {
+/**
+ * @minimum 1
+ */
+catiFirmaId?: number;
+/**
+ * @minimum 1900
+ * @maximum 2200
+ */
+yil?: number;
+/**
+ * @minimum 1
+ * @maximum 12
+ */
+ay?: number;
+/**
+ * @pattern ^[A-Z]{3}$
+ */
+paraBirimi?: string;
+};
+
 export type GetKdvOzetiParams = {
 /**
  * @nullable
@@ -1062,6 +1177,10 @@ export type GetKdvOzetiParams = {
 catiFirmaId?: number | null;
 yil?: number;
 ay?: number;
+/**
+ * @pattern ^[A-Z]{3}$
+ */
+paraBirimi?: string;
 };
 
 export type GetAlacakYaslandirmaParams = {
@@ -1069,6 +1188,20 @@ export type GetAlacakYaslandirmaParams = {
  * @nullable
  */
 catiFirmaId?: number | null;
+/**
+ * @minimum 1900
+ * @maximum 2200
+ */
+yil?: number;
+/**
+ * @minimum 1
+ * @maximum 12
+ */
+ay?: number;
+/**
+ * @pattern ^[A-Z]{3}$
+ */
+paraBirimi?: string;
 };
 
 export type GlobalAramaParams = {

@@ -22,6 +22,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useYetki } from "@/hooks/use-yetki";
 import { KayitSilButton } from "@/components/kayit-sil-button";
 import { TahsilatGemiSecimi } from "@/components/tahsilat-gemi-secimi";
+import { CariFaturaOdemeSecimi } from "@/components/cari-fatura-odeme-secimi";
+import { useCariFaturaOdemesi } from "@/hooks/use-cari-fatura-odemesi";
 import { FirmaSecici } from "@/components/firma-secici";
 import {
   ArrowLeft, Download, Plus, Loader2, FileText, Trash2, Pencil,
@@ -113,6 +115,7 @@ export default function GrupCariDetay() {
   const [islemAciklama, setIslemAciklama] = useState("");
   const [islemGemiId, setIslemGemiId] = useState("");
   const [islemBagliFirmaId, setIslemBagliFirmaId] = useState("");
+  const faturaOdeme = useCariFaturaOdemesi();
   const [pdfIndiriyor, setPdfIndiriyor] = useState(false);
   const [excelIndiriyor, setExcelIndiriyor] = useState(false);
   const [silId, setSilId] = useState<number | null>(null);
@@ -620,6 +623,7 @@ export default function GrupCariDetay() {
         )}
       </div>
 
+      {faturaOdeme.modal}
       <Dialog open={islemModal} onOpenChange={setIslemModal}>
         <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
@@ -649,10 +653,15 @@ export default function GrupCariDetay() {
                 onChange={firmaId => { setIslemBagliFirmaId(firmaId); setIslemGemiId(""); }} />
               <p className="text-xs text-muted-foreground">
                 {islemBagliFirmaId
-                  ? "Tahsilat bu bağlı firmanın hesabına ve grup toplamına yansır. Fatura seçilmez."
+                  ? "Tahsilat bu bağlı firmanın hesabına ve grup toplamına yansır. Aşağıdan isteğe bağlı fatura seçebilirsiniz."
                   : "Gemi veya bağlı firma seçmezseniz kayıt yalnızca grup geneline işlenir."}
               </p>
             </div>
+            {islemTip === "tahsilat" && <CariFaturaOdemeSecimi enabled={islemModal}
+              catiFirmaId={catiFirma?.id} firmaId={islemBagliFirmaId ? Number(islemBagliFirmaId) : null}
+              grupFirmaId={id} bagliFirmaIds={firma.bagliFirmalar.map(f => f.id)}
+              gemiId={islemGemiId ? Number(islemGemiId) : null}
+              onSelect={fatura => { setIslemModal(false); faturaOdeme.ac(fatura); }} />}
             <div className="flex gap-3">
               <div className="flex-1 space-y-1.5">
                 <Label>Tutar *</Label>

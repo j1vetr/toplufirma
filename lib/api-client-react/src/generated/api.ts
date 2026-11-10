@@ -40,6 +40,7 @@ import type {
   FaturaSeriInput,
   FaturaSeriUpdate,
   FaturaUpdate,
+  FinansalRapor,
   Firma,
   FirmaDetay,
   FirmaEkstre,
@@ -56,6 +57,7 @@ import type {
   GetAlacakYaslandirmaParams,
   GetAylikGelirParams,
   GetDashboardOzetParams,
+  GetFinansalRaporParams,
   GetFirmaEkstreExcelParams,
   GetFirmaEkstreParams,
   GetFirmaEkstrePdfParams,
@@ -4348,6 +4350,90 @@ export function useGetFirmaGelir<TData = Awaited<ReturnType<typeof getFirmaGelir
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetFirmaGelirQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetFinansalRaporUrl = (params?: GetFinansalRaporParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/raporlar/finansal-ozet?${stringifiedParams}` : `/api/raporlar/finansal-ozet`
+}
+
+/**
+ * @summary Tek para biriminde fatura ve nakit hareketleri raporu
+ */
+export const getFinansalRapor = async (params?: GetFinansalRaporParams, options?: RequestInit): Promise<FinansalRapor> => {
+
+  return customFetch<FinansalRapor>(getGetFinansalRaporUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFinansalRaporQueryKey = (params?: GetFinansalRaporParams,) => {
+    return [
+    `/api/raporlar/finansal-ozet`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFinansalRaporQueryOptions = <TData = Awaited<ReturnType<typeof getFinansalRapor>>, TError = ErrorType<void>>(params?: GetFinansalRaporParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFinansalRapor>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFinansalRaporQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFinansalRapor>>> = ({ signal }) => getFinansalRapor(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFinansalRapor>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFinansalRaporQueryResult = NonNullable<Awaited<ReturnType<typeof getFinansalRapor>>>
+export type GetFinansalRaporQueryError = ErrorType<void>
+
+
+/**
+ * @summary Tek para biriminde fatura ve nakit hareketleri raporu
+ */
+
+export function useGetFinansalRapor<TData = Awaited<ReturnType<typeof getFinansalRapor>>, TError = ErrorType<void>>(
+ params?: GetFinansalRaporParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFinansalRapor>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFinansalRaporQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

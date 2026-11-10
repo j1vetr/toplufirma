@@ -20,3 +20,9 @@ Fatura listesinde her satıra ayrı bir “Tahsilattan Ödendi” düğmesi koym
 **Why:** Kullanıcı ayrı düğmelerin tüm faturalar tahsilattan ödenmiş gibi görünmesine neden olduğunu belirtti ve listeden kaldırılıp ödeme penceresinde kalmasını seçti.
 
 **How to apply:** Fatura listesinde ödeme işlemleri için tek giriş noktasını koru. İşlem seçeneklerini ödeme penceresinde sun.
+
+Cari ekranlarında fatura seçimi isteğe bağlı olmalı. Fatura seçildiğinde fatura ekranlarıyla aynı Yeni Tahsilat Kaydet / Tahsilattan Ödendi akışı kullanılmalı. Fatura seçilmezse bağımsız tahsilat korunmalı. Müşteriye yapılan ödeme, fatura tahsilatından ayrı kalmalı.
+
+**Why:** Kullanıcı farklı sayfalardaki Ödeme Kaydet davranışlarının aynı olup olmadığını sordu ve cari ekranlarında isteğe bağlı fatura seçimiyle ortak akışa geçilmesini onayladı.
+
+**How to apply:** Yeni ödeme giriş noktalarında faturayı zorunlu yapma. Faturaya bağlanan işlemlerde aynı tam/kısmi ödeme ve bilgi açıklamalarını koru.

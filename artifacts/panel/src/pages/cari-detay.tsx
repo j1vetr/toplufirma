@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
+import { CariFaturaOdemeSecimi } from "@/components/cari-fatura-odeme-secimi";
+import { useCariFaturaOdemesi } from "@/hooks/use-cari-fatura-odemesi";
 
 interface CariKalem {
   id: string;
@@ -89,6 +91,7 @@ export default function CariDetay() {
   const { toast } = useToast();
   const { canWrite } = useYetki();
   const [islemGemiId, setIslemGemiId] = useState("");
+  const faturaOdeme = useCariFaturaOdemesi();
 
   const [baslangic, setBaslangic] = useState("");
   const [bitis, setBitis] = useState("");
@@ -180,6 +183,7 @@ export default function CariDetay() {
   }
 
   function openOdemeModal() {
+    setIslemGemiId("");
     setIslemTip("tahsilat");
     setIslemPb(detay?.firma.paraBirimi ?? "USD");
     setIslemTarih(new Date().toISOString().split("T")[0]);
@@ -750,6 +754,7 @@ export default function CariDetay() {
         </div>
       ))}
 
+      {faturaOdeme.modal}
       <Dialog open={islemModal} onOpenChange={setIslemModal}>
         <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
@@ -777,6 +782,11 @@ export default function CariDetay() {
                 </SelectContent>
               </Select>
             </div>
+            {islemTip === "tahsilat" && <div className="col-span-2">
+              <CariFaturaOdemeSecimi enabled={islemModal} catiFirmaId={catiFirma?.id} firmaId={id}
+                gemiId={islemGemiId ? Number(islemGemiId) : null}
+                onSelect={fatura => { setIslemModal(false); faturaOdeme.ac(fatura); }} />
+            </div>}
             <div className="space-y-1.5">
               <Label>Tutar <span className="text-destructive">*</span></Label>
               <Input

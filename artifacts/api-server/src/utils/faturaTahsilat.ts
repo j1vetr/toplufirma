@@ -53,12 +53,12 @@ export async function tahsilatDagitimlari(ids: number[]) {
   return map;
 }
 
-export async function faturaOdenenMap(fats: { id: number; paraBirimi: string }[]) {
+export async function faturaOdenenMap(fats: { id: number; paraBirimi: string }[], tx: FinansDb = db) {
   const map: Record<number, number> = {};
   if (!fats.length) return map;
   const ids = fats.map(f => f.id), currencies = new Map(fats.map(f => [f.id, f.paraBirimi]));
-  const payments = await db.select().from(odemeler).where(inArray(odemeler.faturaId, ids));
-  const matches = await db.select().from(tahsilatEslesmeleri).where(inArray(tahsilatEslesmeleri.faturaId, ids));
+  const payments = await tx.select().from(odemeler).where(inArray(odemeler.faturaId, ids));
+  const matches = await tx.select().from(tahsilatEslesmeleri).where(inArray(tahsilatEslesmeleri.faturaId, ids));
   const kuruslar: Record<number, number> = {};
   for (const p of payments) {
     if (p.faturaId && p.tip === "tahsilat" && p.paraBirimi === currencies.get(p.faturaId)) {

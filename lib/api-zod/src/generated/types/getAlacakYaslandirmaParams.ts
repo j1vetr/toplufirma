@@ -11,4 +11,18 @@ export type GetAlacakYaslandirmaParams = {
  * @nullable
  */
 catiFirmaId?: number | null;
+/**
+ * @minimum 1900
+ * @maximum 2200
+ */
+yil?: number;
+/**
+ * @minimum 1
+ * @maximum 12
+ */
+ay?: number;
+/**
+ * @pattern ^[A-Z]{3}$
+ */
+paraBirimi?: string;
 };

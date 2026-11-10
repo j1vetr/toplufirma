@@ -13,4 +13,8 @@ export type GetKdvOzetiParams = {
 catiFirmaId?: number | null;
 yil?: number;
 ay?: number;
+/**
+ * @pattern ^[A-Z]{3}$
+ */
+paraBirimi?: string;
 };

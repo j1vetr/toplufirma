@@ -21,6 +21,8 @@ import {
 import type { OdemeInputOdemeYontemi } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
+import { CariFaturaOdemeSecimi } from "@/components/cari-fatura-odeme-secimi";
+import { useCariFaturaOdemesi } from "@/hooks/use-cari-fatura-odemesi";
 
 interface BakiyeDetay {
   paraBirimi: string;
@@ -92,6 +94,7 @@ export default function Cariler() {
   const { aktifSirketId } = useSirket();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const faturaOdeme = useCariFaturaOdemesi();
   const [arama, setArama] = useState("");
   const [bakiyeFiltre, setBakiyeFiltre] = useState("tumu");
   const [siralama, setSiralama] = useState("bakiye_desc");
@@ -157,8 +160,7 @@ export default function Cariler() {
       },
     }, {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: ["cariler"] });
-        qc.invalidateQueries({ queryKey: ["grup-cari-detay"] });
+        qc.invalidateQueries();
         setOdemeModal(null);
         toast({ title: "Ödeme kaydedildi" });
       },
@@ -489,12 +491,18 @@ export default function Cariler() {
         </div>
       )}
 
+      {faturaOdeme.modal}
       <Dialog open={!!odemeModal} onOpenChange={open => { if (!open) setOdemeModal(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Ödeme Kaydet — {odemeModal?.ad}</DialogTitle>
+            <DialogTitle>Ödeme Kaydet - {odemeModal?.ad}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <CariFaturaOdemeSecimi enabled={!!odemeModal}
+              catiFirmaId={odemeModal?.catiFirmaId}
+              firmaId={odemeModal?.tip === "bagli" ? odemeModal.id : null}
+              grupFirmaId={odemeModal?.tip === "grup" ? odemeModal.id : null}
+              onSelect={fatura => { setOdemeModal(null); faturaOdeme.ac(fatura); }} />
             <div className="flex gap-3">
               <div className="flex-1 space-y-1.5">
                 <Label>Tutar *</Label>

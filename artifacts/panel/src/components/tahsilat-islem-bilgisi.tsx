@@ -36,6 +36,11 @@ export default function TahsilatIslemBilgisi() {
         </div>
         <div className="space-y-4 text-sm leading-relaxed">
           <section className="space-y-1">
+            <h4 className="font-semibold">Cari Ekranından Fatura Seçimi</h4>
+            <p>Fatura seçimi isteğe bağlıdır. Bir fatura seçerseniz ortak ödeme penceresinde aşağıdaki iki işlemden birini kullanabilirsiniz. Fatura seçmezseniz cari ekranındaki kayıt bağımsız bir tahsilat olur, cari bakiyeyi azaltır ama herhangi bir faturayı otomatik kapatmaz.</p>
+            <p className="text-muted-foreground">Müşteriye yapılan Ödeme, müşteriden alınan Tahsilat işleminden farklıdır. Müşteriye ödeme yaparken bu fatura kapatma seçenekleri kullanılmaz.</p>
+          </section>
+          <section className="space-y-1">
             <h4 className="font-semibold">1. Yeni Tahsilat Kaydet</h4>
             <p>Müşteriden yeni para geldiyse ve bu parayı henüz sisteme girmediyseniz seçin. Tutar, tarih, ödeme yöntemi ve varsa banka hesabını belirtin.</p>
             <p className="text-muted-foreground">Tahsilat kaydı bir kez oluşturulur, cari bakiyeyi azaltır ve seçtiğiniz hesaba yansır. Aynı tutar faturanın ödenen tutarına da eklenir.</p>

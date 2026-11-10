@@ -31,6 +31,8 @@ import { useYetki } from "@/hooks/use-yetki";
 import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
 import { FirmaSecici } from "@/components/firma-secici";
 import { TahsilatGemiSecimi } from "@/components/tahsilat-gemi-secimi";
+import { CariFaturaOdemeSecimi } from "@/components/cari-fatura-odeme-secimi";
+import { useCariFaturaOdemesi } from "@/hooks/use-cari-fatura-odemesi";
 
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi", eft: "EFT", nakit: "Nakit",
@@ -60,6 +62,7 @@ export default function Odemeler() {
   const [modalAcik, setModalAcik] = useState(false);
   const [duzenleId, setDuzenleId] = useState<number | null>(null);
   const [duzenleFaturaId, setDuzenleFaturaId] = useState<number | null>(null);
+  const faturaOdeme = useCariFaturaOdemesi();
   const [silId, setSilId] = useState<number | null>(null);
 
   const [catiFirmaId, setCatiFirmaId] = useState("");
@@ -293,6 +296,7 @@ export default function Odemeler() {
         )}
       </div>
 
+      {faturaOdeme.modal}
       <Dialog open={modalAcik} onOpenChange={o => { setModalAcik(o); if (!o) formuSifirla(); }}>
         <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>{duzenleId != null ? "İşlemi Düzenle" : "Yeni Ödeme / Tahsilat"}</DialogTitle></DialogHeader>
@@ -332,6 +336,13 @@ export default function Odemeler() {
                 testId="select-yeni-odeme-cari"
               />
             </div>
+            {duzenleId == null && tip === "tahsilat" && <div className="col-span-2">
+              <CariFaturaOdemeSecimi enabled={modalAcik}
+                catiFirmaId={catiFirmaId ? Number(catiFirmaId) : null}
+                firmaId={bagliFirmaId ? Number(bagliFirmaId) : null}
+                gemiId={gemiId ? Number(gemiId) : null}
+                onSelect={fatura => { setModalAcik(false); formuSifirla(); faturaOdeme.ac(fatura); }} />
+            </div>}
             <div className="space-y-1.5">
               <Label>Tutar *</Label>
               <Input type="number" value={tutar} onChange={e => setTutar(e.target.value)} step="0.01" data-testid="input-yeni-odeme-tutar" />
