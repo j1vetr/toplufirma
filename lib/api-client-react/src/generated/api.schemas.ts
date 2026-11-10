@@ -263,6 +263,25 @@ export interface FirmaEkstre {
   kalanBakiye: number;
 }
 
+export interface TahsilatEslesmeInput {
+  /** @exclusiveMinimum 0 */
+  tutar: number;
+}
+
+export interface TahsilatEslesme {
+  id: number;
+  tahsilatId: number;
+  tarih: string;
+  tutar: number;
+  /** @nullable */
+  aciklama?: string | null;
+}
+
+export interface TahsilatEslesmeOzeti {
+  kullanilabilirTutar: number;
+  eslesmeler: TahsilatEslesme[];
+}
+
 export interface FaturaGonderInput {
   /** Virgül, noktalı virgül veya boşlukla ayrılmış en fazla 50 alıcı e-posta adresi. Tekrarlanan adresler birleştirilir. */
   aliciAdres: string;
@@ -497,6 +516,12 @@ export const OdemeOdemeYontemi = {
   diger: 'diger',
 } as const;
 
+export interface TahsilatFaturaDagitimi {
+  faturaId: number;
+  faturaNo: string;
+  tutar: number;
+}
+
 export interface Odeme {
   id: number;
   catiFirmaId: number;
@@ -525,6 +550,9 @@ export interface Odeme {
   odemeYontemi: OdemeOdemeYontemi;
   /** @nullable */
   aciklama?: string | null;
+  faturaEslesmeleri?: TahsilatFaturaDagitimi[];
+  /** @nullable */
+  kullanilmamisTutar?: number | null;
   olusturmaTarihi: string;
 }
 

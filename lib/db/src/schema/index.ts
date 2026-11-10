@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
+export * from "./tahsilat-eslesmeleri";
 
 // ── Enums ──────────────────────────────────────────────────────────────────
 export const firmaTipEnum = pgEnum("firma_tip", ["cati", "bagli", "grup"]);

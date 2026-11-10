@@ -5,6 +5,8 @@ import { eq } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import { gorunurBagliFirmaIds } from "../utils/gorunurluk";
 import { hesapParaBirimleri } from "../utils/bankaParaBirimleri";
+import { tahsilatEslesmeleri } from "@workspace/db";
+import { finansKilidi, faturaOdenenKurus, faturaDurumuHesapla, tahsilatDagitimlari } from "../utils/faturaTahsilat";
 
 const router = Router();
 
@@ -30,7 +32,14 @@ router.get("/odemeler", async (req, res) => {
     if (faturaId) rows = rows.filter(r => r.o.faturaId === Number(faturaId));
     if (tip) rows = rows.filter(r => r.o.tip === tip);
 
-    res.json(rows.map(r => formatOdeme(r.o, r.catiFirmaAd, r.gemiAd, null, r.faturaNo)));
+    const dagitimlar = await tahsilatDagitimlari(rows.map(r => r.o.id));
+    res.json(rows.map(r => {
+      const eslesmeler = dagitimlar.get(r.o.id) ?? [];
+      return { ...formatOdeme(r.o, r.catiFirmaAd, r.gemiAd, null, r.faturaNo),
+        faturaEslesmeleri: eslesmeler,
+        kullanilmamisTutar: r.o.tip === "tahsilat" && !r.o.faturaId ? (Math.round(Number(r.o.tutar) * 100) - eslesmeler.reduce((s, e) => s + Math.round(e.tutar * 100), 0)) / 100 : null,
+      };
+    }));
   } catch {
     res.status(500).json({ error: "Ödemeler listelenemedi" });
   }
@@ -45,6 +54,7 @@ router.post("/odemeler", requireYazma, async (req, res) => {
       res.status(400).json({ error: "Zorunlu alanlar eksik" }); return;
     }
     if (!sirketErisimKontrol(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
+    if (!firmaYazmaDenetimi(Number(catiFirmaId), req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
     const tutarKurus = kurusaCevir(tutar);
     if (tutarKurus == null || tutarKurus <= 0) { res.status(400).json({ error: "Tutar sıfırdan büyük olmalı ve en fazla iki ondalık basamak içerebilir" }); return; }
 
@@ -95,9 +105,12 @@ router.post("/odemeler", requireYazma, async (req, res) => {
     // Fatura doğrulaması + kayıt tek transaksiyonda: fatura satırı kilitlenir ki
     // eşzamanlı iki tahsilat aynı "kalan"ı görüp birlikte limit aşamasın.
     const sonuc = await db.transaction(async (tx) => {
+      await finansKilidi(tx, Number(catiFirmaId));
       if (faturaId) {
         const [fat] = await tx.select().from(faturalar).where(eq(faturalar.id, Number(faturaId))).for("update");
         if (!fat || fat.catiFirmaId !== Number(catiFirmaId)) return { hata: "Belirtilen fatura bu firmaya ait değil" } as const;
+        if (bagliFirmaId != null && bagliFirmaId !== fat.bagliFirmaId) return { hata: "Ödeme ile faturanın bağlı firması eşleşmiyor" } as const;
+        bagliFirmaId = fat.bagliFirmaId;
         const hata = await faturaOdemeKuralHatasi(tx, fat, { tip, tutarKurus, paraBirimi: odemePb });
         if (hata) return { hata } as const;
       }
@@ -129,7 +142,11 @@ router.get("/odemeler/:id", async (req, res) => {
       .where(eq(odemeler.id, id));
     if (!row) { res.status(404).json({ error: "Ödeme bulunamadı" }); return; }
     if (!sirketErisimKontrol(row.o.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
-    res.json(formatOdeme(row.o, row.catiFirmaAd, row.gemiAd, null, row.faturaNo));
+    const eslesmeler = (await tahsilatDagitimlari([id])).get(id) ?? [];
+    res.json({ ...formatOdeme(row.o, row.catiFirmaAd, row.gemiAd, null, row.faturaNo),
+      faturaEslesmeleri: eslesmeler,
+      kullanilmamisTutar: row.o.tip === "tahsilat" && !row.o.faturaId ? (Math.round(Number(row.o.tutar) * 100) - eslesmeler.reduce((s, e) => s + Math.round(e.tutar * 100), 0)) / 100 : null,
+    });
   } catch {
     res.status(500).json({ error: "Ödeme getirilemedi" });
   }
@@ -160,6 +177,14 @@ router.patch("/odemeler/:id", requireYazma, async (req, res) => {
       }
     }
     const sonuc = await db.transaction(async (tx) => {
+      await finansKilidi(tx, existing.catiFirmaId);
+      const [current] = await tx.select().from(odemeler).where(eq(odemeler.id, id));
+      if (!current) return { hata: "Ödeme bulunamadı" } as const;
+      const eslesmeler = await tx.select().from(tahsilatEslesmeleri).where(eq(tahsilatEslesmeleri.tahsilatId, id));
+      const ayrilan = eslesmeler.reduce((s, e) => s + Math.round(Number(e.tutar) * 100), 0);
+      if ((yeniTutarKurus ?? Math.round(Number(current.tutar) * 100)) < ayrilan) {
+        return { hata: "Tutar faturalara saydırılmış tutardan az olamaz. Önce fatura eşleştirmesini kaldırın." } as const;
+      }
       if (existing.faturaId) {
         const [fat] = await tx.select().from(faturalar).where(eq(faturalar.id, existing.faturaId)).for("update");
         if (fat) {
@@ -197,11 +222,14 @@ router.delete("/odemeler/:id", requireYazma, async (req, res) => {
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
     await db.transaction(async (tx) => {
+      await finansKilidi(tx, existing.catiFirmaId);
+      const eslesmeler = await tx.select().from(tahsilatEslesmeleri).where(eq(tahsilatEslesmeleri.tahsilatId, id));
       if (existing.faturaId) {
         await tx.select({ id: faturalar.id }).from(faturalar).where(eq(faturalar.id, existing.faturaId)).for("update");
       }
       await tx.delete(odemeler).where(eq(odemeler.id, id));
       if (existing.faturaId) await guncelleFaturaDurum(existing.faturaId, tx);
+      for (const e of eslesmeler) await guncelleFaturaDurum(e.faturaId, tx);
     });
     res.status(204).send();
   } catch {
@@ -245,10 +273,7 @@ async function faturaOdemeKuralHatasi(
     return `Ödemenin para birimi (${odeme.paraBirimi}) fatura para birimiyle (${fat.paraBirimi}) eşleşmeli`;
   }
   if (odeme.tip === "tahsilat") {
-    const ods = await tx.select().from(odemeler).where(eq(odemeler.faturaId, fat.id));
-    const odenenKurus = ods
-      .filter(o => o.tip === "tahsilat" && o.paraBirimi === fat.paraBirimi && o.id !== odeme.haricOdemeId)
-      .reduce((s, o) => s + Math.round(Number(o.tutar) * 100), 0);
+    const odenenKurus = await faturaOdenenKurus(tx, fat, odeme.haricOdemeId);
     const kalanKurus = Math.round(Number(fat.genelToplam) * 100) - odenenKurus;
     if (odeme.tutarKurus > kalanKurus) {
       return `Tahsilat tutarı faturanın kalan tutarını aşamaz (kalan: ${(Math.max(kalanKurus, 0) / 100).toFixed(2)} ${fat.paraBirimi})`;
@@ -258,21 +283,7 @@ async function faturaOdemeKuralHatasi(
 }
 
 async function guncelleFaturaDurum(faturaId: number, tx: DbVeyaTx = db) {
-  try {
-    const [fatura] = await tx.select().from(faturalar).where(eq(faturalar.id, faturaId));
-    if (!fatura) return;
-    // Manuel taslak/iptal durumunu otomatik hesaplama asla ezmemeli.
-    if (fatura.durum === "taslak" || fatura.durum === "iptal") return;
-    const ods = await tx.select().from(odemeler).where(eq(odemeler.faturaId, faturaId));
-    const odenenKurus = ods
-      .filter(o => o.tip === "tahsilat" && o.paraBirimi === fatura.paraBirimi)
-      .reduce((s, o) => s + Math.round(Number(o.tutar) * 100), 0);
-    const genelKurus = Math.round(Number(fatura.genelToplam) * 100);
-    let durum: typeof faturalar.$inferSelect["durum"] = "acik";
-    if (odenenKurus >= genelKurus) durum = "odendi";
-    else if (odenenKurus > 0) durum = "kismi_odendi";
-    await tx.update(faturalar).set({ durum }).where(eq(faturalar.id, faturaId));
-  } catch {}
+  await faturaDurumuHesapla(tx, faturaId);
 }
 
 function formatOdeme(

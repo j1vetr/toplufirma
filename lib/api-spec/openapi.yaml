@@ -672,6 +672,60 @@ paths:
         "204":
           description: Silindi
 
+  /faturalar/{id}/tahsilat-eslesmeleri:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      operationId: getFaturaTahsilatEslesmeleri
+      tags: [faturalar]
+      responses:
+        "200":
+          description: Mevcut tahsilat eşleştirmeleri ve kullanılabilir tutar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TahsilatEslesmeOzeti"
+    post:
+      operationId: karsilaFaturaTahsilattan
+      tags: [faturalar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TahsilatEslesmeInput"
+      responses:
+        "200":
+          description: Tahsilat oluşturulmadan faturaya sayıldı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TahsilatEslesmeOzeti"
+        "400":
+          description: Yetersiz tahsilat veya geçersiz tutar
+  /faturalar/{id}/tahsilat-eslesmeleri/{eslesmeId}:
+    delete:
+      operationId: deleteFaturaTahsilatEslesme
+      tags: [faturalar]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: eslesmeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Tahsilat korunarak eşleştirme kaldırıldı
+
   /faturalar/{id}/gonder:
     post:
       operationId: gonderFatura
@@ -1587,6 +1641,38 @@ components:
         kalanBakiye:
           type: number
 
+    TahsilatEslesmeInput:
+      type: object
+      required: [tutar]
+      properties:
+        tutar:
+          type: number
+          exclusiveMinimum: 0
+    TahsilatEslesme:
+      type: object
+      required: [id, tahsilatId, tarih, tutar]
+      properties:
+        id:
+          type: integer
+        tahsilatId:
+          type: integer
+        tarih:
+          type: string
+        tutar:
+          type: number
+        aciklama:
+          type: ["string", "null"]
+    TahsilatEslesmeOzeti:
+      type: object
+      required: [kullanilabilirTutar, eslesmeler]
+      properties:
+        kullanilabilirTutar:
+          type: number
+        eslesmeler:
+          type: array
+          items:
+            $ref: "#/components/schemas/TahsilatEslesme"
+
     FaturaGonderInput:
       type: object
       required: [aliciAdres]
@@ -2181,9 +2267,26 @@ components:
           enum: [banka_havalesi, eft, nakit, kredi_karti, wise, paypal, diger]
         aciklama:
           type: ["string", "null"]
+        faturaEslesmeleri:
+          type: array
+          items:
+            $ref: "#/components/schemas/TahsilatFaturaDagitimi"
+        kullanilmamisTutar:
+          type: ["number", "null"]
         olusturmaTarihi:
           type: string
           format: date-time
+
+    TahsilatFaturaDagitimi:
+      type: object
+      required: [faturaId, faturaNo, tutar]
+      properties:
+        faturaId:
+          type: integer
+        faturaNo:
+          type: string
+        tutar:
+          type: number
 
     OdemeInput:
       type: object

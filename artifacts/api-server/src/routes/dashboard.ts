@@ -4,6 +4,7 @@ import { faturalar, odemeler, firmalar, bankaHesaplari } from "@workspace/db";
 import { eq, or, inArray } from "drizzle-orm";
 import { sirketErisimKontrol } from "../middleware/auth";
 import { hesaplaParaBirimiBakiyeleri } from "../utils/cariBakiye";
+import { tahsilatEslesmeleri } from "@workspace/db";
 
 const router = Router();
 
@@ -13,16 +14,20 @@ const AY_ADLARI = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Ey
  * Fatura başına ödenen tutarı hesaplar: yalnızca fatura para birimiyle eşleşen
  * "tahsilat" hareketleri toplanır (fatura detay API'siyle aynı mantık).
  */
-function odenenTutarMap(
+async function odenenTutarMap(
   fats: { id: number; paraBirimi: string | null }[],
   ods: { faturaId: number | null; tip: string; paraBirimi: string | null; tutar: string }[],
-): Map<number, number> {
+): Promise<Map<number, number>> {
   const fatPb = new Map(fats.map(f => [f.id, f.paraBirimi]));
   const map = new Map<number, number>();
   for (const o of ods) {
     if (o.faturaId == null || o.tip !== "tahsilat" || !fatPb.has(o.faturaId)) continue;
     if (o.paraBirimi !== fatPb.get(o.faturaId)) continue;
     map.set(o.faturaId, (map.get(o.faturaId) ?? 0) + Number(o.tutar));
+  }
+  if (fats.length) {
+    const matched = await db.select().from(tahsilatEslesmeleri).where(inArray(tahsilatEslesmeleri.faturaId, fats.map(f => f.id)));
+    for (const e of matched) map.set(e.faturaId, (map.get(e.faturaId) ?? 0) + Number(e.tutar));
   }
   return map;
 }
@@ -126,7 +131,7 @@ router.get("/dashboard/vadesi-yaklasan", async (req, res) => {
     const ilgiliOdemeler = scoped.length > 0
       ? await db.select().from(odemeler).where(inArray(odemeler.faturaId, scoped.map(f => f.id)))
       : [];
-    const odenenMap = odenenTutarMap(scoped, ilgiliOdemeler);
+    const odenenMap = await odenenTutarMap(scoped, ilgiliOdemeler);
 
     res.json(scoped.map(f => {
       const odenen = odenenMap.get(f.id) ?? 0;
@@ -160,7 +165,7 @@ router.get("/dashboard/son-islemler", async (req, res) => {
     if (!scopedFats || !scopedOds) { res.status(403).json({ error: "Bu firmaya erişim izniniz yok" }); return; }
 
     const sonFats = scopedFats.slice(-n).reverse();
-    const odenenMap = odenenTutarMap(sonFats, allOds);
+    const odenenMap = await odenenTutarMap(sonFats, allOds);
     const sonFaturalar = sonFats.map(f => {
       const odenen = odenenMap.get(f.id) ?? 0;
       const kalan = Math.round((Number(f.genelToplam) - odenen) * 100) / 100;

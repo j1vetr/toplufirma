@@ -11,6 +11,7 @@ import {
   getFatura,
 } from "@workspace/api-client-react";
 import OdemeModal from "@/components/odeme-modal";
+import FaturaTahsilatEslesmeleri from "@/components/fatura-tahsilat-eslesmeleri";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,7 @@ export default function FaturaDetay() {
   const { toast } = useToast();
   const { canWrite } = useYetki();
   const [odemeModal, setOdemeModal] = useState(false);
+  const [odemeMode, setOdemeMode] = useState<"yeni" | "tahsilat">("yeni");
 
   const [gonderModal, setGonderModal] = useState(false);
   const [aliciAdres, setAliciAdres] = useState("");
@@ -105,6 +107,11 @@ export default function FaturaDetay() {
   const faturaHesaplari = bankaHesaplari.filter(b => b.catiFirmaId === fatura?.catiFirmaId && b.faturadaGoster !== false);
 
   function durumGuncelle(durum: string) {
+    if (durum === "odendi" || durum === "kismi_odendi") {
+      setOdemeMode("yeni");
+      setOdemeModal(true);
+      return;
+    }
     updateFatura.mutate({ id, data: { durum } }, {
       onSuccess: () => { qc.invalidateQueries({ queryKey: getGetFaturaQueryKey(id) }); toast({ title: "Durum güncellendi" }); },
       onError: () => toast({ title: "Hata", variant: "destructive" }),
@@ -250,7 +257,12 @@ export default function FaturaDetay() {
             </Button>
           )}
           {canWrite && (fatura.durum === "acik" || fatura.durum === "kismi_odendi") && (
-            <Button size="sm" onClick={() => setOdemeModal(true)} data-testid="button-odeme-ekle">
+            <Button variant="outline" size="sm" onClick={() => { setOdemeMode("tahsilat"); setOdemeModal(true); }}>
+              Tahsilattan Ödendi
+            </Button>
+          )}
+          {canWrite && (fatura.durum === "acik" || fatura.durum === "kismi_odendi") && (
+            <Button size="sm" onClick={() => { setOdemeMode("yeni"); setOdemeModal(true); }} data-testid="button-odeme-ekle">
               <Plus className="mr-1 h-4 w-4" /> Ödeme Kaydet
             </Button>
           )}
@@ -405,7 +417,8 @@ export default function FaturaDetay() {
         </Card>
       </Collapsible>
 
-      <OdemeModal open={odemeModal} onOpenChange={setOdemeModal} fatura={fatura ?? null} />
+      <FaturaTahsilatEslesmeleri id={id} paraBirimi={fatura.paraBirimi} />
+      <OdemeModal open={odemeModal} onOpenChange={setOdemeModal} fatura={fatura ?? null} initialMode={odemeMode} />
 
       <Dialog open={gonderModal} onOpenChange={o => { setGonderModal(o); if (!o) { setAliciAdres(""); setAliciAd(""); setGonderKonu(""); setGonderMesaj(""); } }}>
         <DialogContent className="max-w-sm">

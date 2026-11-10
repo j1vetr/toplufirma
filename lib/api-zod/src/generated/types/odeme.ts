@@ -7,6 +7,7 @@
  */
 import type { OdemeOdemeYontemi } from './odemeOdemeYontemi';
 import type { OdemeTip } from './odemeTip';
+import type { TahsilatFaturaDagitimi } from './tahsilatFaturaDagitimi';
 
 export interface Odeme {
   id: number;
@@ -36,5 +37,8 @@ export interface Odeme {
   odemeYontemi: OdemeOdemeYontemi;
   /** @nullable */
   aciklama?: string | null;
+  faturaEslesmeleri?: TahsilatFaturaDagitimi[];
+  /** @nullable */
+  kullanilmamisTutar?: number | null;
   olusturmaTarihi: Date;
 }

@@ -4,6 +4,8 @@ import { faturalar, faturaKalemleri, firmalar, gemiler, odemeler, faturaSerileri
 import { eq, sql, and } from "drizzle-orm";
 import { requireYazma, sirketErisimKontrol, sirketlerFiltrele, firmaYazmaDenetimi } from "../middleware/auth";
 import nodemailer from "nodemailer";
+import { tahsilatEslesmeleri } from "@workspace/db";
+import { finansKilidi, faturaOdenenKurus, faturaDurumuHesapla } from "../utils/faturaTahsilat";
 import { epostaAlicilari } from "../lib/epostaAlicilari";
 import { emailSablonuOlustur } from "../lib/emailSablonu";
 import { faturaNoTahsisEt } from "../lib/faturaNo";
@@ -186,10 +188,7 @@ type DbVeyaTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
  */
 async function odendiTahsilatTamamla(tx: DbVeyaTx, fat: typeof faturalar.$inferSelect) {
   if (fat.durum !== "odendi") return;
-  const ods = await tx.select().from(odemeler).where(eq(odemeler.faturaId, fat.id));
-  const odenenKurus = ods
-    .filter(o => o.tip === "tahsilat" && o.paraBirimi === fat.paraBirimi)
-    .reduce((s, o) => s + Math.round(Number(o.tutar) * 100), 0);
+  const odenenKurus = await faturaOdenenKurus(tx, fat);
   const kalanKurus = Math.round(Number(fat.genelToplam) * 100) - odenenKurus;
   if (kalanKurus <= 0) return;
   await tx.insert(odemeler).values({
@@ -242,6 +241,7 @@ router.patch("/faturalar/toplu-durum", requireYazma, async (req, res) => {
       // Durum güncellemesi + otomatik tahsilat tek transaction'da, satır kilitli:
       // eşzamanlı istekler aynı kalanı görüp çift tahsilat oluşturamaz.
       await db.transaction(async (tx) => {
+        await finansKilidi(tx, existing.catiFirmaId);
         const [fat] = await tx.select().from(faturalar).where(eq(faturalar.id, id)).for("update");
         if (!fat) return;
         const [guncel] = await tx.update(faturalar)
@@ -252,6 +252,7 @@ router.patch("/faturalar/toplu-durum", requireYazma, async (req, res) => {
         // Ödendi işareti geri alındıysa otomatik tahsilat da geri alınır ki
         // fatura açık görünürken bakiye sıfır kalmasın.
         else if (fat.durum === "odendi") await odendiTahsilatGeriAl(tx, id);
+        await faturaDurumuHesapla(tx, id);
       });
       guncellenen++;
     }
@@ -353,7 +354,7 @@ router.get("/faturalar/:id", async (req, res) => {
     const grupFirmaAd = row.f.grupFirmaId ? (await db.select({ ad: firmalar.ad }).from(firmalar).where(eq(firmalar.id, row.f.grupFirmaId)))[0]?.ad ?? null : null;
     const kalemler = await db.select().from(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
     const ods = await db.select().from(odemeler).where(eq(odemeler.faturaId, id));
-    const odenen = ods.filter(o => o.tip === "tahsilat" && o.paraBirimi === row.f.paraBirimi).reduce((s, o) => s + Number(o.tutar), 0);
+    const odenen = await faturaOdenenKurus(db, row.f) / 100;
 
     res.json({
       ...formatFatura(row.f, row.catiFirmaAd, bagliFirmaAd, row.gemiAd, odenen, grupFirmaAd),
@@ -622,6 +623,7 @@ router.patch("/faturalar/:id", requireYazma, async (req, res) => {
     }
     // Durum güncellemesi + otomatik tahsilat tek transaction'da, satır kilitli.
     const row = await db.transaction(async (tx) => {
+      await finansKilidi(tx, existing.catiFirmaId);
       const [onceki] = await tx.select().from(faturalar).where(eq(faturalar.id, id)).for("update");
       const [r] = await tx.update(faturalar)
         .set({
@@ -635,9 +637,10 @@ router.patch("/faturalar/:id", requireYazma, async (req, res) => {
       // Ödendi işareti geri alındıysa otomatik tahsilat da geri alınır ki
       // fatura açık görünürken bakiye sıfır kalmasın.
       else if (durum !== undefined && onceki?.durum === "odendi") await odendiTahsilatGeriAl(tx, id);
-      return r;
+      await faturaDurumuHesapla(tx, id);
+      return (await tx.select().from(faturalar).where(eq(faturalar.id, id)))[0];
     });
-    res.json(formatFatura(row, null, null, null, 0));
+    res.json(formatFatura(row, null, null, null, await faturaOdenenKurus(db, row) / 100));
   } catch {
     res.status(500).json({ error: "Fatura güncellenemedi" });
   }
@@ -679,7 +682,16 @@ router.put("/faturalar/:id", requireYazma, async (req, res) => {
     });
     const genelToplam = toplamTutar + kdvToplam;
 
-    await db.update(faturalar).set({
+    const hata = await db.transaction(async tx => {
+      await finansKilidi(tx, existing.catiFirmaId);
+      const [current] = await tx.select().from(faturalar).where(eq(faturalar.id, id)).for("update");
+      if (!current || ["odendi", "iptal"].includes(current.durum)) return "Ödenmiş veya iptal edilmiş fatura düzenlenemez";
+      const paid = await faturaOdenenKurus(tx, current);
+      if (paid > 0 && ((bagliFirmaId != null && Number(bagliFirmaId) !== current.bagliFirmaId) || (paraBirimi && paraBirimi !== current.paraBirimi))) {
+        return "Ödemesi olan faturanın bağlı firması veya para birimi değiştirilemez. Önce ödeme bağlantılarını kaldırın.";
+      }
+      if (Math.round(genelToplam * 100) < paid) return "Fatura toplamı ödenen tutardan az olamaz";
+      await tx.update(faturalar).set({
       ...(bagliFirmaId != null ? { bagliFirmaId: Number(bagliFirmaId) } : {}),
       grupFirmaId: grupFirmaId != null ? Number(grupFirmaId) : null,
       gemiId: gemiId != null && gemiId !== "none" ? Number(gemiId) : null,
@@ -694,8 +706,12 @@ router.put("/faturalar/:id", requireYazma, async (req, res) => {
       genelToplam: genelToplam.toFixed(2),
     }).where(eq(faturalar.id, id));
 
-    await db.delete(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
-    await db.insert(faturaKalemleri).values(kalemlerHazir);
+      await tx.delete(faturaKalemleri).where(eq(faturaKalemleri.faturaId, id));
+      await tx.insert(faturaKalemleri).values(kalemlerHazir);
+      await faturaDurumuHesapla(tx, id);
+      return null;
+    });
+    if (hata) { res.status(400).json({ error: hata }); return; }
 
     const [updated] = await db
       .select({ f: faturalar, catiFirmaAd: firmalar.ad, gemiAd: gemiler.ad })
@@ -704,7 +720,7 @@ router.put("/faturalar/:id", requireYazma, async (req, res) => {
       .leftJoin(gemiler, eq(faturalar.gemiId, gemiler.id))
       .where(eq(faturalar.id, id));
 
-    res.json(formatFatura(updated.f, updated.catiFirmaAd, null, updated.gemiAd, 0));
+    res.json(formatFatura(updated.f, updated.catiFirmaAd, null, updated.gemiAd, await faturaOdenenKurus(db, updated.f) / 100));
   } catch (err) {
     console.error("[faturalar/put] error:", err);
     if (!res.headersSent) res.status(500).json({ error: "Fatura güncellenemedi" });
@@ -719,6 +735,7 @@ router.delete("/faturalar/:id", requireYazma, async (req, res) => {
     if (!sirketErisimKontrol(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu kayda erişim izniniz yok" }); return; }
     if (!firmaYazmaDenetimi(existing.catiFirmaId, req)) { res.status(403).json({ error: "Bu firmada yazma yetkiniz yok" }); return; }
     await db.transaction(async tx => {
+      await finansKilidi(tx, existing.catiFirmaId);
       // Serialize with payment creation/update flows that lock the invoice.
       await tx.select({ id: faturalar.id }).from(faturalar).where(eq(faturalar.id, id)).for("update");
       await tx.delete(odemeler).where(and(eq(odemeler.faturaId, id), eq(odemeler.otomatik, true)));
@@ -921,6 +938,9 @@ async function hesaplaOdenenler(): Promise<Record<number, number>> {
     .groupBy(odemeler.faturaId);
   const result: Record<number, number> = {};
   for (const r of rows) { if (r.faturaId != null) result[r.faturaId] = Number(r.toplam ?? 0); }
+  const matched = await db.select({ faturaId: tahsilatEslesmeleri.faturaId, toplam: sql<string>`sum(${tahsilatEslesmeleri.tutar})` })
+    .from(tahsilatEslesmeleri).groupBy(tahsilatEslesmeleri.faturaId);
+  for (const r of matched) result[r.faturaId] = (result[r.faturaId] ?? 0) + Number(r.toplam);
   return result;
 }
 

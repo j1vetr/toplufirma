@@ -82,6 +82,8 @@ import type {
   OdemeInput,
   OdemeUpdate,
   SonIslemler,
+  TahsilatEslesmeInput,
+  TahsilatEslesmeOzeti,
   TekrarlayanFatura,
   TekrarlayanFaturaInput,
   TekrarlayanFaturaUpdate,
@@ -2396,6 +2398,209 @@ export const useDeleteFatura = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteFaturaMutationOptions(options));
+    }
+
+export const getGetFaturaTahsilatEslesmeleriUrl = (id: number,) => {
+
+
+
+
+  return `/api/faturalar/${id}/tahsilat-eslesmeleri`
+}
+
+export const getFaturaTahsilatEslesmeleri = async (id: number, options?: RequestInit): Promise<TahsilatEslesmeOzeti> => {
+
+  return customFetch<TahsilatEslesmeOzeti>(getGetFaturaTahsilatEslesmeleriUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFaturaTahsilatEslesmeleriQueryKey = (id: number,) => {
+    return [
+    `/api/faturalar/${id}/tahsilat-eslesmeleri`
+    ] as const;
+    }
+
+
+export const getGetFaturaTahsilatEslesmeleriQueryOptions = <TData = Awaited<ReturnType<typeof getFaturaTahsilatEslesmeleri>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFaturaTahsilatEslesmeleri>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFaturaTahsilatEslesmeleriQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFaturaTahsilatEslesmeleri>>> = ({ signal }) => getFaturaTahsilatEslesmeleri(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFaturaTahsilatEslesmeleri>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFaturaTahsilatEslesmeleriQueryResult = NonNullable<Awaited<ReturnType<typeof getFaturaTahsilatEslesmeleri>>>
+export type GetFaturaTahsilatEslesmeleriQueryError = ErrorType<unknown>
+
+
+
+export function useGetFaturaTahsilatEslesmeleri<TData = Awaited<ReturnType<typeof getFaturaTahsilatEslesmeleri>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFaturaTahsilatEslesmeleri>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFaturaTahsilatEslesmeleriQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getKarsilaFaturaTahsilattanUrl = (id: number,) => {
+
+
+
+
+  return `/api/faturalar/${id}/tahsilat-eslesmeleri`
+}
+
+export const karsilaFaturaTahsilattan = async (id: number,
+    tahsilatEslesmeInput: TahsilatEslesmeInput, options?: RequestInit): Promise<TahsilatEslesmeOzeti> => {
+
+  return customFetch<TahsilatEslesmeOzeti>(getKarsilaFaturaTahsilattanUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      tahsilatEslesmeInput,)
+  }
+);}
+
+
+
+
+export const getKarsilaFaturaTahsilattanMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof karsilaFaturaTahsilattan>>, TError,{id: number;data: BodyType<TahsilatEslesmeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof karsilaFaturaTahsilattan>>, TError,{id: number;data: BodyType<TahsilatEslesmeInput>}, TContext> => {
+
+const mutationKey = ['karsilaFaturaTahsilattan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof karsilaFaturaTahsilattan>>, {id: number;data: BodyType<TahsilatEslesmeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  karsilaFaturaTahsilattan(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KarsilaFaturaTahsilattanMutationResult = NonNullable<Awaited<ReturnType<typeof karsilaFaturaTahsilattan>>>
+    export type KarsilaFaturaTahsilattanMutationBody = BodyType<TahsilatEslesmeInput>
+    export type KarsilaFaturaTahsilattanMutationError = ErrorType<void>
+
+    export const useKarsilaFaturaTahsilattan = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof karsilaFaturaTahsilattan>>, TError,{id: number;data: BodyType<TahsilatEslesmeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof karsilaFaturaTahsilattan>>,
+        TError,
+        {id: number;data: BodyType<TahsilatEslesmeInput>},
+        TContext
+      > => {
+      return useMutation(getKarsilaFaturaTahsilattanMutationOptions(options));
+    }
+
+export const getDeleteFaturaTahsilatEslesmeUrl = (id: number,
+    eslesmeId: number,) => {
+
+
+
+
+  return `/api/faturalar/${id}/tahsilat-eslesmeleri/${eslesmeId}`
+}
+
+export const deleteFaturaTahsilatEslesme = async (id: number,
+    eslesmeId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteFaturaTahsilatEslesmeUrl(id,eslesmeId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteFaturaTahsilatEslesmeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFaturaTahsilatEslesme>>, TError,{id: number;eslesmeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFaturaTahsilatEslesme>>, TError,{id: number;eslesmeId: number}, TContext> => {
+
+const mutationKey = ['deleteFaturaTahsilatEslesme'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFaturaTahsilatEslesme>>, {id: number;eslesmeId: number}> = (props) => {
+          const {id,eslesmeId} = props ?? {};
+
+          return  deleteFaturaTahsilatEslesme(id,eslesmeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFaturaTahsilatEslesmeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFaturaTahsilatEslesme>>>
+
+    export type DeleteFaturaTahsilatEslesmeMutationError = ErrorType<unknown>
+
+    export const useDeleteFaturaTahsilatEslesme = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFaturaTahsilatEslesme>>, TError,{id: number;eslesmeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFaturaTahsilatEslesme>>,
+        TError,
+        {id: number;eslesmeId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteFaturaTahsilatEslesmeMutationOptions(options));
     }
 
 export const getGonderFaturaUrl = (id: number,) => {

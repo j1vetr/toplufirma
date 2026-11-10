@@ -164,11 +164,7 @@ export default function Odemeler() {
         },
       }, {
         onSuccess: () => {
-          qc.invalidateQueries({ queryKey: getListOdemelerQueryKey() });
-          if (duzenleFaturaId != null) {
-            qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() });
-            qc.invalidateQueries({ queryKey: getGetFaturaQueryKey(duzenleFaturaId) });
-          }
+          qc.invalidateQueries();
           setModalAcik(false); formuSifirla();
           toast({ title: "İşlem güncellendi" });
         },
@@ -262,6 +258,13 @@ export default function Odemeler() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold">{o.bagliFirmaAd}</p>
                 {o.gemiAd && <p className="text-xs text-muted-foreground">Gemi: {o.gemiAd}</p>}
+                {!!o.faturaEslesmeleri?.length && <div className="space-y-1 border-l-2 pl-2 my-2">
+                  {o.faturaEslesmeleri.map(e => <p key={e.faturaId} className="text-xs">
+                    <a className="underline" href={`${import.meta.env.BASE_URL}faturalar/${e.faturaId}`}>{e.faturaNo}</a>
+                    {" için "}{e.tutar.toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {o.paraBirimi} saydırıldı
+                  </p>)}
+                  <p className="text-xs text-muted-foreground">Kullanılmamış tutar: {(o.kullanilmamisTutar ?? 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {o.paraBirimi}</p>
+                </div>}
                 <p className="text-sm text-muted-foreground">{o.aciklama} - {YONTEM_ETIKET[o.odemeYontemi] ?? o.odemeYontemi}</p>
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-muted-foreground">{o.tarih}</p>
@@ -388,10 +391,10 @@ export default function Odemeler() {
 
       <AlertDialog open={!!silId} onOpenChange={o => !o && setSilId(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>İşlemi sil</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>İşlemi sil</AlertDialogTitle><AlertDialogDescription>Bu işlem geri alınamaz. Tahsilat faturalara saydırılmışsa eşleştirmeleri de kaldırılır ve ilgili faturaların ödeme durumları yeniden hesaplanır.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>İptal</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (!silId) return; deleteOdeme.mutate({ id: silId }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListOdemelerQueryKey() }); setSilId(null); } }); }}>Sil</AlertDialogAction>
+            <AlertDialogAction onClick={() => { if (!silId) return; deleteOdeme.mutate({ id: silId }, { onSuccess: () => { qc.invalidateQueries(); setSilId(null); }, onError: () => toast({ title: "İşlem silinemedi", variant: "destructive" }) }); }}>Sil</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

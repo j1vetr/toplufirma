@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { faturalar, firmalar, gemiler, odemeler } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { sirketErisimKontrol } from "../middleware/auth";
+import { faturaOdenenMap } from "../utils/faturaTahsilat";
 
 const AY_ADLARI = ["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"];
 
@@ -120,6 +121,7 @@ router.get("/raporlar/alacak-yaslandirma", async (req, res) => {
       acikFaturalar = acikFaturalar.filter(r => izinli.includes(r.f.catiFirmaId));
     }
 
+    const odenenMap = await faturaOdenenMap(acikFaturalar.map(r => r.f));
     const dilimler = [
       { etiket: "0-30 Gün", min: 0, max: 30 },
       { etiket: "31-60 Gün", min: 31, max: 60 },
@@ -134,7 +136,7 @@ router.get("/raporlar/alacak-yaslandirma", async (req, res) => {
       });
       return {
         etiket: d.etiket,
-        toplamTutar: dilimFaturalar.reduce((s, r) => s + Number(r.f.genelToplam), 0),
+        toplamTutar: dilimFaturalar.reduce((s, r) => s + Math.max(0, Number(r.f.genelToplam) - (odenenMap[r.f.id] ?? 0)), 0),
         faturaSayisi: dilimFaturalar.length,
         faturalar: dilimFaturalar.map(r => ({
           id: r.f.id, catiFirmaId: r.f.catiFirmaId, catiFirmaAd: catiFirmaAdMap[r.f.catiFirmaId] ?? null,
@@ -143,7 +145,7 @@ router.get("/raporlar/alacak-yaslandirma", async (req, res) => {
           faturaNo: r.f.faturaNo, faturaTarihi: r.f.faturaTarihi, vadeTarihi: r.f.vadeTarihi,
           paraBirimi: r.f.paraBirimi, durum: r.f.durum,
           toplamTutar: Number(r.f.toplamTutar), kdvTutari: Number(r.f.kdvTutari),
-          genelToplam: Number(r.f.genelToplam), odenenTutar: 0, kalanTutar: Number(r.f.genelToplam),
+          genelToplam: Number(r.f.genelToplam), odenenTutar: odenenMap[r.f.id] ?? 0, kalanTutar: Math.max(0, Number(r.f.genelToplam) - (odenenMap[r.f.id] ?? 0)),
           notlar: r.f.notlar, aciklama: r.f.aciklama, olusturmaTarihi: r.f.olusturmaTarihi,
         })),
       };
@@ -186,17 +188,7 @@ router.get("/raporlar/gemi-gelir", async (req, res) => {
 
     if (yil) filtered = filtered.filter(r => r.f.faturaTarihi.startsWith(yil));
 
-    const faturaIds = filtered.map(r => r.f.id);
-    const odemeRows = faturaIds.length > 0
-      ? await db.select().from(odemeler).where(inArray(odemeler.faturaId, faturaIds))
-      : [];
-
-    const tahsilatMap: Record<number, number> = {};
-    for (const o of odemeRows) {
-      if (o.faturaId && o.tip === "tahsilat") {
-        tahsilatMap[o.faturaId] = (tahsilatMap[o.faturaId] ?? 0) + Number(o.tutar);
-      }
-    }
+    const tahsilatMap = await faturaOdenenMap(filtered.map(r => r.f));
 
     const gemiMap: Record<number, {
       gemiId: number; gemiAd: string; gemiImo: string | null;
@@ -266,7 +258,7 @@ router.get("/raporlar/fatura-ozeti", async (req, res) => {
     const odemeRows = faturaIds.length > 0
       ? await db.select().from(odemeler).where(inArray(odemeler.faturaId, faturaIds))
       : [];
-    const toplamTahsilat = odemeRows.filter(o => o.tip === "tahsilat").reduce((s, o) => s + Number(o.tutar), 0);
+    const toplamTahsilat = Object.values(await faturaOdenenMap(rows)).reduce((s, n) => s + n, 0);
     const toplamFatura = rows.filter(f => f.durum !== "taslak").reduce((s, f) => s + Number(f.genelToplam), 0);
     const toplamAcik = rows.filter(f => f.durum === "acik" || f.durum === "kismi_odendi").reduce((s, f) => s + Number(f.genelToplam), 0);
 
@@ -304,16 +296,7 @@ router.get("/raporlar/bagli-firma-analiz", async (req, res) => {
     }
     if (yil) filtered = filtered.filter(r => r.f.faturaTarihi.startsWith(yil));
 
-    const faturaIds = filtered.map(r => r.f.id);
-    const odemeRows = faturaIds.length > 0
-      ? await db.select().from(odemeler).where(inArray(odemeler.faturaId, faturaIds))
-      : [];
-    const tahsilatMap: Record<number, number> = {};
-    for (const o of odemeRows) {
-      if (o.faturaId && o.tip === "tahsilat") {
-        tahsilatMap[o.faturaId] = (tahsilatMap[o.faturaId] ?? 0) + Number(o.tutar);
-      }
-    }
+    const tahsilatMap = await faturaOdenenMap(filtered.map(r => r.f));
 
     const map: Record<string, { bagliFirmaId: number | null; bagliFirmaAd: string; toplamFatura: number; toplamTahsilat: number; acikFatura: number; faturaSayisi: number }> = {};
     for (const r of filtered) {

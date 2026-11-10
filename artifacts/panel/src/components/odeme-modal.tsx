@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListBankaHesaplari, getListBankaHesaplariQueryKey,
-  useCreateOdeme, getListOdemelerQueryKey, getListFaturalarQueryKey, getGetFaturaQueryKey,
+  useCreateOdeme,
+  useGetFaturaTahsilatEslesmeleri, getGetFaturaTahsilatEslesmeleriQueryKey, useKarsilaFaturaTahsilattan,
 } from "@workspace/api-client-react";
 import type { OdemeInputOdemeYontemi } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -57,9 +58,10 @@ interface OdemeModalProps {
   onOpenChange: (open: boolean) => void;
   fatura: OdemeModalFatura | null;
   onSuccess?: () => void;
+  initialMode?: "yeni" | "tahsilat";
 }
 
-export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: OdemeModalProps) {
+export default function OdemeModal({ open, onOpenChange, fatura, onSuccess, initialMode = "yeni" }: OdemeModalProps) {
   const qc = useQueryClient();
   const { toast } = useToast();
 
@@ -69,6 +71,11 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
   const [odemeYontemi, setOdemeYontemi] = useState("banka_havalesi");
   const [odemeBankaId, setOdemeBankaId] = useState("none");
   const [odemeAciklama, setOdemeAciklama] = useState("");
+  const [mode, setMode] = useState(initialMode);
+  const eslesme = useKarsilaFaturaTahsilattan();
+  const mevcut = useGetFaturaTahsilatEslesmeleri(fatura?.id ?? 0, {
+    query: { queryKey: getGetFaturaTahsilatEslesmeleriQueryKey(fatura?.id ?? 0), enabled: open && !!fatura, staleTime: 0, refetchOnMount: "always" },
+  });
 
   const { data: bankaHesaplari = [] } = useListBankaHesaplari(undefined, {
     query: { queryKey: getListBankaHesaplariQueryKey(), enabled: open && !!fatura },
@@ -90,10 +97,25 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
     setOdemeYontemi("banka_havalesi");
     setOdemeBankaId("none");
     setOdemeAciklama("");
-  }, [open, fatura]);
+    setMode(initialMode);
+  }, [open, fatura?.id, initialMode]);
+
+  function basarili(mesaj: string) {
+    qc.invalidateQueries();
+    onOpenChange(false);
+    toast({ title: mesaj });
+    onSuccess?.();
+  }
 
   function odemeKaydet() {
     if (!fatura || !odemeTutar || !odemeTarih) return;
+    if (mode === "tahsilat") {
+      eslesme.mutate({ id: fatura.id, data: { tutar: Number(odemeTutar) } }, {
+        onSuccess: () => basarili("Mevcut tahsilattan karşılandı. Yeni para girişi oluşturulmadı."),
+        onError: (e: unknown) => toast({ title: "Tahsilattan karşılanamadı", description: apiHataMesaji(e, "Sunucu hatası"), variant: "destructive" }),
+      });
+      return;
+    }
     createOdeme.mutate({
       data: {
         catiFirmaId: fatura.catiFirmaId,
@@ -109,12 +131,7 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
       },
     }, {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListFaturalarQueryKey() });
-        qc.invalidateQueries({ queryKey: getListOdemelerQueryKey() });
-        qc.invalidateQueries({ queryKey: getGetFaturaQueryKey(fatura.id) });
-        onOpenChange(false);
-        toast({ title: "Ödeme kaydedildi" });
-        onSuccess?.();
+        basarili("Ödeme kaydedildi");
       },
       onError: (e: unknown) => toast({ title: "Ödeme kaydedilemedi", description: apiHataMesaji(e, "Sunucu hatası"), variant: "destructive" }),
     });
@@ -122,11 +139,34 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Ödeme Kaydet - {fatura?.faturaNo}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>İşlem</Label>
+            <Select value={mode} onValueChange={v => setMode(v === "tahsilat" ? "tahsilat" : "yeni")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yeni">Yeni tahsilat kaydet</SelectItem>
+                <SelectItem value="tahsilat">Tahsilattan Ödendi</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {mode === "yeni"
+                ? "Yeni para girişi kaydedilir. Tutar borcun bir kısmını karşılıyorsa fatura Kısmi Ödendi olur."
+                : "Daha önce aynı bağlı firma ve para birimi için girilmiş tahsilatlar kullanılır. Yeni tahsilat veya kasa hareketi oluşmaz. En eski tahsilattan başlanır."}
+            </p>
+          </div>
+          {mode === "tahsilat" && (
+            <div className="border p-3 text-sm">
+              {mevcut.isLoading ? "Kullanılabilir tahsilatlar yükleniyor..." : mevcut.isError ? (
+                <div>Tahsilatlar alınamadı. <Button variant="link" onClick={() => mevcut.refetch()}>Tekrar dene</Button></div>
+              ) : <>Kullanılabilir tahsilat: <strong>{(mevcut.data?.kullanilabilirTutar ?? 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {fatura?.paraBirimi}</strong></>}
+            </div>
+          )}
+          <p className="text-sm text-muted-foreground">Fatura kalan borcu: {(fatura?.kalanTutar ?? fatura?.genelToplam ?? 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} {fatura?.paraBirimi}. Kısmi ödeme için karşılanan tutarı girin.</p>
           <div className="flex gap-3">
             <div className="flex-1 space-y-1.5">
               <Label>Tutar *</Label>
@@ -135,7 +175,8 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
                 value={odemeTutar}
                 onChange={e => setOdemeTutar(e.target.value)}
                 step="0.01"
-                min="0"
+                min="0.01"
+                max={fatura?.kalanTutar ?? fatura?.genelToplam}
               />
             </div>
             <div className="w-28 space-y-1.5">
@@ -150,7 +191,7 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          {mode === "yeni" && <><div className="space-y-1.5">
             <Label>Tarih *</Label>
             <Input
               type="date"
@@ -206,16 +247,16 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess }: Od
               onChange={e => setOdemeAciklama(e.target.value)}
               placeholder={`Fatura ${fatura?.faturaNo ?? ""} ödemesi`}
             />
-          </div>
+          </div></>}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>İptal</Button>
           <Button
             onClick={odemeKaydet}
-            disabled={!odemeTutar || !odemeTarih || createOdeme.isPending}
+            disabled={!odemeTutar || Number(odemeTutar) <= 0 || Number(odemeTutar) > (fatura?.kalanTutar ?? fatura?.genelToplam ?? 0) || !odemeTarih || createOdeme.isPending || eslesme.isPending || (mode === "tahsilat" && (mevcut.isLoading || mevcut.isError || Number(odemeTutar) > (mevcut.data?.kullanilabilirTutar ?? 0)))}
           >
-            {createOdeme.isPending ? "Kaydediliyor..." : "Kaydet"}
+            {createOdeme.isPending || eslesme.isPending ? "Kaydediliyor..." : mode === "tahsilat" ? "Tahsilattan karşıla" : "Kaydet"}
           </Button>
         </DialogFooter>
       </DialogContent>

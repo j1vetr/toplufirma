@@ -8,3 +8,9 @@ Bağımsız tahsilatta gemi seçilerek tahsilat geminin bağlı firmasına atana
 **Why:** Kullanıcı tahsilatı yalnızca genel cariye değil bağlı firmaya da eklemek istediğini, fatura ödemesinden bahsetmediğini açıkça belirtti.
 
 **How to apply:** Tahsilat oluşturma akışlarında gemi ve bağlı firma seçimini destekle. Bağımsız tahsilatı gemisine bakarak otomatik olarak faturayla eşleştirme.
+
+Mevcut tahsilatın faturaya saydırılması yeni tahsilat veya kasa hareketi değildir. Bir tahsilat birden fazla faturaya kısmen dağıtılabilir. Faturanın durumu karşılanan tutardan hesaplanmalı ve aynı para tekrar kullanılamamalı. Yeni Ödeme Kaydet işlemi ise para girişini bir kez oluşturmalı.
+
+**Why:** Kullanıcı iki 500 USD faturaya tek 750 USD tahsilat girildiğinde faturaları kapatmanın toplam tahsilatı 1250 USD göstermesini istemedi. Mevcut tahsilattan karşılayıp birini tam, diğerini kısmi ödendi yapma akışını onayladı.
+
+**How to apply:** Cari ve kasa toplamlarına yalnızca gerçek para hareketlerini dahil et. Faturayla eşleştirmeyi geri almak tahsilatı silmemeli. Fatura veya tahsilat silindiğinde kalan tutarları ve fatura durumlarını birlikte tutarlı tut.

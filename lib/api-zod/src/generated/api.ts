@@ -805,6 +805,12 @@ export const GetFaturaResponse = zod.object({
   "paraBirimi": zod.string(),
   "odemeYontemi": zod.enum(['banka_havalesi', 'eft', 'nakit', 'kredi_karti', 'wise', 'paypal', 'diger']),
   "aciklama": zod.string().nullish(),
+  "faturaEslesmeleri": zod.array(zod.object({
+  "faturaId": zod.number(),
+  "faturaNo": zod.string(),
+  "tutar": zod.number()
+})).optional(),
+  "kullanilmamisTutar": zod.number().nullish(),
   "olusturmaTarihi": zod.coerce.date()
 })).optional(),
   "olusturmaTarihi": zod.coerce.date()
@@ -862,6 +868,52 @@ export const DeleteFaturaParams = zod.object({
 })
 
 
+export const GetFaturaTahsilatEslesmeleriParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetFaturaTahsilatEslesmeleriResponse = zod.object({
+  "kullanilabilirTutar": zod.number(),
+  "eslesmeler": zod.array(zod.object({
+  "id": zod.number(),
+  "tahsilatId": zod.number(),
+  "tarih": zod.string(),
+  "tutar": zod.number(),
+  "aciklama": zod.string().nullish()
+}))
+})
+
+
+export const KarsilaFaturaTahsilattanParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const karsilaFaturaTahsilattanBodyTutarExclusiveMin = 0;
+
+
+
+export const KarsilaFaturaTahsilattanBody = zod.object({
+  "tutar": zod.number().gt(karsilaFaturaTahsilattanBodyTutarExclusiveMin)
+})
+
+export const KarsilaFaturaTahsilattanResponse = zod.object({
+  "kullanilabilirTutar": zod.number(),
+  "eslesmeler": zod.array(zod.object({
+  "id": zod.number(),
+  "tahsilatId": zod.number(),
+  "tarih": zod.string(),
+  "tutar": zod.number(),
+  "aciklama": zod.string().nullish()
+}))
+})
+
+
+export const DeleteFaturaTahsilatEslesmeParams = zod.object({
+  "id": zod.coerce.number(),
+  "eslesmeId": zod.coerce.number()
+})
+
+
 /**
  * @summary Faturayı e-posta ile gönder
  */
@@ -909,6 +961,12 @@ export const ListOdemelerResponseItem = zod.object({
   "paraBirimi": zod.string(),
   "odemeYontemi": zod.enum(['banka_havalesi', 'eft', 'nakit', 'kredi_karti', 'wise', 'paypal', 'diger']),
   "aciklama": zod.string().nullish(),
+  "faturaEslesmeleri": zod.array(zod.object({
+  "faturaId": zod.number(),
+  "faturaNo": zod.string(),
+  "tutar": zod.number()
+})).optional(),
+  "kullanilmamisTutar": zod.number().nullish(),
   "olusturmaTarihi": zod.coerce.date()
 })
 export const ListOdemelerResponse = zod.array(ListOdemelerResponseItem)
@@ -957,6 +1015,12 @@ export const GetOdemeResponse = zod.object({
   "paraBirimi": zod.string(),
   "odemeYontemi": zod.enum(['banka_havalesi', 'eft', 'nakit', 'kredi_karti', 'wise', 'paypal', 'diger']),
   "aciklama": zod.string().nullish(),
+  "faturaEslesmeleri": zod.array(zod.object({
+  "faturaId": zod.number(),
+  "faturaNo": zod.string(),
+  "tutar": zod.number()
+})).optional(),
+  "kullanilmamisTutar": zod.number().nullish(),
   "olusturmaTarihi": zod.coerce.date()
 })
 
@@ -994,6 +1058,12 @@ export const UpdateOdemeResponse = zod.object({
   "paraBirimi": zod.string(),
   "odemeYontemi": zod.enum(['banka_havalesi', 'eft', 'nakit', 'kredi_karti', 'wise', 'paypal', 'diger']),
   "aciklama": zod.string().nullish(),
+  "faturaEslesmeleri": zod.array(zod.object({
+  "faturaId": zod.number(),
+  "faturaNo": zod.string(),
+  "tutar": zod.number()
+})).optional(),
+  "kullanilmamisTutar": zod.number().nullish(),
   "olusturmaTarihi": zod.coerce.date()
 })
 
@@ -1335,6 +1405,12 @@ export const GetSonIslemlerResponse = zod.object({
   "paraBirimi": zod.string(),
   "odemeYontemi": zod.enum(['banka_havalesi', 'eft', 'nakit', 'kredi_karti', 'wise', 'paypal', 'diger']),
   "aciklama": zod.string().nullish(),
+  "faturaEslesmeleri": zod.array(zod.object({
+  "faturaId": zod.number(),
+  "faturaNo": zod.string(),
+  "tutar": zod.number()
+})).optional(),
+  "kullanilmamisTutar": zod.number().nullish(),
   "olusturmaTarihi": zod.coerce.date()
 }))
 })
