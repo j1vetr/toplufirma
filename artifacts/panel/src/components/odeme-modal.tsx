@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
+import TahsilatIslemBilgisi from "@/components/tahsilat-islem-bilgisi";
 
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi",
@@ -145,11 +146,14 @@ export default function OdemeModal({ open, onOpenChange, fatura, onSuccess, init
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>İşlem</Label>
+            <div className="flex items-center gap-1">
+              <Label>İşlem</Label>
+              <TahsilatIslemBilgisi />
+            </div>
             <Select value={mode} onValueChange={v => setMode(v === "tahsilat" ? "tahsilat" : "yeni")}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="yeni">Yeni tahsilat kaydet</SelectItem>
+                <SelectItem value="yeni">Yeni Tahsilat Kaydet</SelectItem>
                 <SelectItem value="tahsilat">Tahsilattan Ödendi</SelectItem>
               </SelectContent>
             </Select>
