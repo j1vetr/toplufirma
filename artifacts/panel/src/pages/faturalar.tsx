@@ -104,7 +104,6 @@ export default function Faturalar() {
   const [silId, setSilId] = useState<number | null>(null);
 
   const [odemeModal, setOdemeModal] = useState(false);
-  const [odemeMode, setOdemeMode] = useState<"yeni" | "tahsilat">("yeni");
   const [secilenFatura, setSecilenFatura] = useState<Fatura | null>(null);
 
   const [gonderModal, setGonderModal] = useState(false);
@@ -193,7 +192,6 @@ export default function Faturalar() {
   }
 
   function acOdemeModal(f: Fatura) {
-    setOdemeMode("yeni");
     setSecilenFatura(f);
     setOdemeModal(true);
   }
@@ -356,11 +354,6 @@ export default function Faturalar() {
             )}
           </div>
           <div className="flex gap-1 shrink-0">
-            {canWrite && (f.durum === "acik" || f.durum === "kismi_odendi") && (
-              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { setSecilenFatura(f); setOdemeMode("tahsilat"); setOdemeModal(true); }}>
-                Tahsilattan Ödendi
-              </Button>
-            )}
             {canWrite && (f.durum === "acik" || f.durum === "kismi_odendi") && (
               <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" title="Ödeme Kaydet" onClick={() => acOdemeModal(f)}>
                 <CreditCard className="h-3.5 w-3.5" />
@@ -567,7 +560,7 @@ export default function Faturalar() {
         })}
       </div>
 
-      <OdemeModal open={odemeModal} onOpenChange={setOdemeModal} fatura={secilenFatura} initialMode={odemeMode} />
+      <OdemeModal open={odemeModal} onOpenChange={setOdemeModal} fatura={secilenFatura} />
 
       <Dialog open={gonderModal} onOpenChange={o => { setGonderModal(o); if (!o) { setAliciAdres(""); setAliciAd(""); } }}>
         <DialogContent>
@@ -607,7 +600,7 @@ export default function Faturalar() {
               </Select>
             </div>
             <p className="text-xs text-muted-foreground">Seçili {secilenler.size} faturanın durumu "{DURUM_ETIKET[topluDurum]}" olarak güncellenir.</p>
-            <p className="text-xs text-muted-foreground">Ödendi ve Kısmi Ödendi işlemleri için faturanın Ödeme Kaydet veya Tahsilattan Ödendi seçeneğini kullanın.</p>
+            <p className="text-xs text-muted-foreground">Ödendi ve Kısmi Ödendi işlemleri için Ödeme Kaydet penceresini açın. Buradan Yeni Tahsilat Kaydet veya Tahsilattan Ödendi seçeneğini kullanabilirsiniz.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTopluDurumModal(false)}>İptal</Button>

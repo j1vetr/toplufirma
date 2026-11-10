@@ -14,3 +14,9 @@ Mevcut tahsilatın faturaya saydırılması yeni tahsilat veya kasa hareketi de�
 **Why:** Kullanıcı iki 500 USD faturaya tek 750 USD tahsilat girildiğinde faturaları kapatmanın toplam tahsilatı 1250 USD göstermesini istemedi. Mevcut tahsilattan karşılayıp birini tam, diğerini kısmi ödendi yapma akışını onayladı.
 
 **How to apply:** Cari ve kasa toplamlarına yalnızca gerçek para hareketlerini dahil et. Faturayla eşleştirmeyi geri almak tahsilatı silmemeli. Fatura veya tahsilat silindiğinde kalan tutarları ve fatura durumlarını birlikte tutarlı tut.
+
+Fatura listesinde her satıra ayrı bir “Tahsilattan Ödendi” düğmesi koyma. Bu seçenek Ödeme Kaydet penceresinde, Yeni Tahsilat Kaydet seçeneği ve bilgi simgesiyle birlikte kalmalı.
+
+**Why:** Kullanıcı ayrı düğmelerin tüm faturalar tahsilattan ödenmiş gibi görünmesine neden olduğunu belirtti ve listeden kaldırılıp ödeme penceresinde kalmasını seçti.
+
+**How to apply:** Fatura listesinde ödeme işlemleri için tek giriş noktasını koru. İşlem seçeneklerini ödeme penceresinde sun.
