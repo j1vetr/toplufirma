@@ -84,6 +84,8 @@ import type {
   OdemeInput,
   OdemeUpdate,
   SonIslemler,
+  TahsilatDagitimInput,
+  TahsilatDagitimSonucu,
   TahsilatEslesmeInput,
   TahsilatEslesmeOzeti,
   TekrarlayanFatura,
@@ -2400,6 +2402,77 @@ export const useDeleteFatura = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteFaturaMutationOptions(options));
+    }
+
+export const getDagitFaturaTahsilatiUrl = () => {
+
+
+
+
+  return `/api/faturalar/tahsilat-dagitimi`
+}
+
+/**
+ * @summary Tek tahsilatı birden fazla faturaya atomik dağıt
+ */
+export const dagitFaturaTahsilati = async (tahsilatDagitimInput: TahsilatDagitimInput, options?: RequestInit): Promise<TahsilatDagitimSonucu> => {
+
+  return customFetch<TahsilatDagitimSonucu>(getDagitFaturaTahsilatiUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      tahsilatDagitimInput,)
+  }
+);}
+
+
+
+
+export const getDagitFaturaTahsilatiMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dagitFaturaTahsilati>>, TError,{data: BodyType<TahsilatDagitimInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dagitFaturaTahsilati>>, TError,{data: BodyType<TahsilatDagitimInput>}, TContext> => {
+
+const mutationKey = ['dagitFaturaTahsilati'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dagitFaturaTahsilati>>, {data: BodyType<TahsilatDagitimInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  dagitFaturaTahsilati(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DagitFaturaTahsilatiMutationResult = NonNullable<Awaited<ReturnType<typeof dagitFaturaTahsilati>>>
+    export type DagitFaturaTahsilatiMutationBody = BodyType<TahsilatDagitimInput>
+    export type DagitFaturaTahsilatiMutationError = ErrorType<void>
+
+    /**
+ * @summary Tek tahsilatı birden fazla faturaya atomik dağıt
+ */
+export const useDagitFaturaTahsilati = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dagitFaturaTahsilati>>, TError,{data: BodyType<TahsilatDagitimInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof dagitFaturaTahsilati>>,
+        TError,
+        {data: BodyType<TahsilatDagitimInput>},
+        TContext
+      > => {
+      return useMutation(getDagitFaturaTahsilatiMutationOptions(options));
     }
 
 export const getGetFaturaTahsilatEslesmeleriUrl = (id: number,) => {

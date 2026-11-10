@@ -868,6 +868,39 @@ export const DeleteFaturaParams = zod.object({
 })
 
 
+/**
+ * @summary Tek tahsilatı birden fazla faturaya atomik dağıt
+ */
+
+
+
+
+export const dagitFaturaTahsilatiBodyDagitimlarItemTutarExclusiveMin = 0;
+
+export const dagitFaturaTahsilatiBodyDagitimlarMax = 100;
+
+
+
+export const DagitFaturaTahsilatiBody = zod.object({
+  "catiFirmaId": zod.number().min(1),
+  "kaynak": zod.enum(['yeni', 'tahsilat']),
+  "tahsilatId": zod.number().min(1).optional(),
+  "tarih": zod.coerce.date().optional(),
+  "odemeYontemi": zod.enum(['banka_havalesi', 'eft', 'nakit', 'kredi_karti', 'wise', 'paypal', 'diger']).optional(),
+  "bankaHesabiId": zod.number().min(1).optional(),
+  "aciklama": zod.string().optional(),
+  "dagitimlar": zod.array(zod.object({
+  "faturaId": zod.number().min(1),
+  "tutar": zod.number().gt(dagitFaturaTahsilatiBodyDagitimlarItemTutarExclusiveMin)
+})).min(1).max(dagitFaturaTahsilatiBodyDagitimlarMax)
+})
+
+export const DagitFaturaTahsilatiResponse = zod.object({
+  "tahsilatId": zod.number(),
+  "toplamTutar": zod.number()
+})
+
+
 export const GetFaturaTahsilatEslesmeleriParams = zod.object({
   "id": zod.coerce.number()
 })

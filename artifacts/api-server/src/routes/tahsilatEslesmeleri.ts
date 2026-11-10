@@ -1,11 +1,30 @@
 import { Router } from "express";
 import { db, faturalar, odemeler, tahsilatEslesmeleri } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
-import { KarsilaFaturaTahsilattanBody } from "@workspace/api-zod";
+import { KarsilaFaturaTahsilattanBody, DagitFaturaTahsilatiBody, DagitFaturaTahsilatiResponse } from "@workspace/api-zod";
 import { requireYazma, sirketErisimKontrol, firmaYazmaDenetimi } from "../middleware/auth";
 import { finansKilidi, faturaDurumuHesapla, faturaOdenenKurus, kullanilabilirTahsilatlar, kurusaCevir, type FinansDb } from "../utils/faturaTahsilat";
+import { topluTahsilatDagit, TahsilatDagitimHatasi } from "../utils/topluTahsilat";
+import { z } from "zod";
 
 const router = Router();
+// Keep calendar dates as strings rather than the generator's coerced Date.
+const dagitimInput = DagitFaturaTahsilatiBody.extend({ tarih: z.string().optional() });
+router.post("/faturalar/tahsilat-dagitimi", requireYazma, async (req, res): Promise<void> => {
+  const parsed = dagitimInput.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Dağıtım bilgilerini kontrol edin" }); return; }
+  const input = parsed.data;
+  if (!sirketErisimKontrol(input.catiFirmaId, req) || !firmaYazmaDenetimi(input.catiFirmaId, req)) {
+    res.status(403).json({ error: "Bu firmada işlem yetkiniz yok" }); return;
+  }
+  try {
+    res.json(DagitFaturaTahsilatiResponse.parse(await topluTahsilatDagit(input)));
+  } catch (err) {
+    if (err instanceof TahsilatDagitimHatasi) { res.status(400).json({ error: err.message }); return; }
+    req.log.error({ err }, "Toplu tahsilat dağıtımı başarısız");
+    res.status(500).json({ error: "Dağıtım kaydedilemedi. Hiçbir değişiklik yapılmadı." });
+  }
+});
 async function ozet(tx: FinansDb, fat: typeof faturalar.$inferSelect) {
   const kaynaklar = await kullanilabilirTahsilatlar(tx, fat);
   const rows = await tx.select({ id: tahsilatEslesmeleri.id, tahsilatId: odemeler.id, tarih: odemeler.tarih,

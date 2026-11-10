@@ -77,6 +77,68 @@ try {
   await click(`Array.from(document.querySelectorAll("button")).find(b=>b.textContent.toLocaleLowerCase("tr-TR").includes("giriş yap"))`);
   await until(`!!localStorage.getItem("panel_token")`, "normal password login");
   await evaluate(`localStorage.setItem("aktifSirketId",${JSON.stringify(String(fixture.catiId))})`);
+  if (process.argv.includes("--batch")) {
+    async function selectMultiple() {
+      await click(selector('[data-testid="button-coklu-fatura-sec"]'));
+      for (const no of fixture.faturaNos) {
+        await click(selector(`[role="checkbox"][aria-label="${no} seç"]`));
+      }
+      await click(selector('[data-testid="button-toplu-odeme-ac"]'));
+      await until(`!!document.querySelector('[data-testid="toplu-odeme-modal"]')`, "batch allocation dialog");
+      await until(`document.querySelectorAll('[role="dialog"][data-state="open"]').length === 1`, "one active batch dialog");
+      await type(`#dagitim-${fixture.faturaIds[1]}`, 250);
+      await until(`document.querySelector('[data-testid="toplu-dagitim-toplami"]').textContent.includes("750,00 USD")`, "one total of 750");
+    }
+    async function verifyBatch() {
+      const a = await api(`/api/faturalar/${fixture.faturaIds[0]}`);
+      const b = await api(`/api/faturalar/${fixture.faturaIds[1]}`);
+      assert.equal(a.durum, "odendi");
+      assert.equal(a.kalanTutar, 0);
+      assert.equal(b.durum, "kismi_odendi");
+      assert.equal(b.kalanTutar, 250);
+      const payments = await api(`/api/odemeler?catiFirmaId=${fixture.catiId}`);
+      assert.equal(payments.length, 1);
+      assert.equal(payments[0].tutar, 750);
+      assert.equal(payments[0].faturaEslesmeleri.length, 2);
+      const group = await api(`/api/cariler/grup/${fixture.grupId}?catiFirmaId=${fixture.catiId}`);
+      assert.equal(group.ozet.bakiye, 250);
+      return payments[0].id;
+    }
+    await navigate(`/cariler/${fixture.bagliId}`, `!!${button("Ödeme Kaydet")}`);
+    await click(button("Ödeme Kaydet"));
+    await selectMultiple();
+    await click(selector('[data-testid="select-toplu-kaynak"]'));
+    await click(`Array.from(document.querySelectorAll('[role="option"]')).find(e=>e.textContent.trim()==="Tahsilattan Ödendi")`);
+    await until(`!!document.querySelector('[data-testid="select-toplu-tahsilat"]')`, "existing receipt selector");
+    assert.equal(await evaluate(`document.querySelector('[data-testid="button-toplu-dagitim-kaydet"]').disabled`), true);
+    await click(selector('[data-testid="select-toplu-tahsilat"]'));
+    await click(`Array.from(document.querySelectorAll('[role="option"]')).find(e=>e.textContent.includes("#${fixture.receiptId} -"))`);
+    await type(`#dagitim-${fixture.faturaIds[1]}`, 251);
+    assert.equal(await evaluate(`document.querySelector('[data-testid="button-toplu-dagitim-kaydet"]').disabled`), true);
+    await type(`#dagitim-${fixture.faturaIds[1]}`, 250);
+    await until(`!document.querySelector('[data-testid="button-toplu-dagitim-kaydet"]').disabled`, "existing receipt allocation enabled");
+    await click(selector('[data-testid="button-toplu-dagitim-kaydet"]'));
+    await until(`!document.querySelector('[role="dialog"]')`, "existing receipt batch saved");
+    const receiptId = await verifyBatch();
+    assert.equal(receiptId, fixture.receiptId);
+    console.log("PASS: cari multi-select -> existing single receipt -> 500 + 250, one movement and 250 debt.");
+
+    // Remove only this isolated test receipt. This reopens its invoices for the new-money flow.
+    await evaluate(`fetch("/api/odemeler/${receiptId}", {method:"DELETE", headers:{Authorization:"Bearer "+localStorage.getItem("panel_token")}}).then(r=>{if(r.status!==204) throw new Error("Fixture reset failed")})`);
+    await navigate(`/cariler/grup/${fixture.grupId}`, `!!${button("Ödeme")}`);
+    await click(button("Ödeme"));
+    await selectMultiple();
+    await until(`!document.querySelector('[data-testid="button-toplu-dagitim-kaydet"]').disabled`, "new receipt allocation enabled");
+    await click(selector('[data-testid="button-toplu-dagitim-kaydet"]'));
+    await until(`!document.querySelector('[role="dialog"]')`, "new receipt batch saved");
+    await verifyBatch();
+    await navigate(`/cariler/grup/${fixture.grupId}`, `!!${button("Ödeme")}`);
+    await click(button("Ödeme"));
+    await chooseInvoice();
+    await click(button("İptal"));
+    await verifyBatch();
+    console.log("PASS: group multi-select -> one new 750 receipt -> full/partial statuses, persists after navigation and cancellation.");
+  } else {
   if (!process.argv.includes("--remaining")) {
   await navigate(`/cariler/${fixture.bagliId}`, `!!${button("Ödeme Kaydet")}`);
   await click(button("Ödeme Kaydet"));
@@ -133,6 +195,7 @@ try {
   assert.equal(after.length, 1);
   assert.equal(after[0].tutar, 750);
   console.log("PASS: all four paths preserve exactly one 750 USD cash movement.");
+  }
 } catch (error) {
   try {
     const shot = await command("Page.captureScreenshot", { format: "png" });

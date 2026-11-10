@@ -672,6 +672,28 @@ paths:
         "204":
           description: Silindi
 
+  /faturalar/tahsilat-dagitimi:
+    post:
+      operationId: dagitFaturaTahsilati
+      tags: [faturalar]
+      summary: Tek tahsilatı birden fazla faturaya atomik dağıt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TahsilatDagitimInput"
+      responses:
+        "200":
+          description: Dağıtım tamamlandı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TahsilatDagitimSonucu"
+        "400":
+          description: Geçersiz dağıtım veya yetersiz tahsilat
+        "403":
+          description: Yazma yetkisi yok
   /faturalar/{id}/tahsilat-eslesmeleri:
     parameters:
       - name: id
@@ -2319,6 +2341,54 @@ components:
           type: string
           format: date-time
 
+    TahsilatDagitimInput:
+      type: object
+      required: [catiFirmaId, kaynak, dagitimlar]
+      properties:
+        catiFirmaId:
+          type: integer
+          minimum: 1
+        kaynak:
+          type: string
+          enum: [yeni, tahsilat]
+        tahsilatId:
+          type: integer
+          minimum: 1
+        tarih:
+          type: string
+          format: date
+        odemeYontemi:
+          type: string
+          enum: [banka_havalesi, eft, nakit, kredi_karti, wise, paypal, diger]
+        bankaHesabiId:
+          type: integer
+          minimum: 1
+        aciklama:
+          type: string
+        dagitimlar:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/TahsilatDagitimSatiri"
+    TahsilatDagitimSatiri:
+      type: object
+      required: [faturaId, tutar]
+      properties:
+        faturaId:
+          type: integer
+          minimum: 1
+        tutar:
+          type: number
+          exclusiveMinimum: 0
+    TahsilatDagitimSonucu:
+      type: object
+      required: [tahsilatId, toplamTutar]
+      properties:
+        tahsilatId:
+          type: integer
+        toplamTutar:
+          type: number
     TahsilatFaturaDagitimi:
       type: object
       required: [faturaId, faturaNo, tutar]

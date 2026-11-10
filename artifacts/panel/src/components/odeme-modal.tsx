@@ -18,6 +18,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { hesapParaBirimleri } from "@/lib/banka-para-birimleri";
 import TahsilatIslemBilgisi from "@/components/tahsilat-islem-bilgisi";
+import TopluOdemeModal from "@/components/toplu-odeme-modal";
 
 const YONTEM_ETIKET: Record<string, string> = {
   banka_havalesi: "Banka Havalesi",
@@ -58,11 +59,17 @@ interface OdemeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   fatura: OdemeModalFatura | null;
+  faturalar?: OdemeModalFatura[];
   onSuccess?: () => void;
   initialMode?: "yeni" | "tahsilat";
 }
 
-export default function OdemeModal({ open, onOpenChange, fatura, onSuccess, initialMode = "yeni" }: OdemeModalProps) {
+export default function OdemeModal(props: OdemeModalProps) {
+  if (props.faturalar?.length) return <TopluOdemeModal {...props} faturalar={props.faturalar} />;
+  return <TekilOdemeModal {...props} />;
+}
+
+function TekilOdemeModal({ open, onOpenChange, fatura, onSuccess, initialMode = "yeni" }: OdemeModalProps) {
   const qc = useQueryClient();
   const { toast } = useToast();
 

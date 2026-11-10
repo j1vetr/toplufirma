@@ -640,6 +640,57 @@ export interface FaturaUpdate {
   durum?: string;
 }
 
+export type TahsilatDagitimInputKaynak = typeof TahsilatDagitimInputKaynak[keyof typeof TahsilatDagitimInputKaynak];
+
+
+export const TahsilatDagitimInputKaynak = {
+  yeni: 'yeni',
+  tahsilat: 'tahsilat',
+} as const;
+
+export type TahsilatDagitimInputOdemeYontemi = typeof TahsilatDagitimInputOdemeYontemi[keyof typeof TahsilatDagitimInputOdemeYontemi];
+
+
+export const TahsilatDagitimInputOdemeYontemi = {
+  banka_havalesi: 'banka_havalesi',
+  eft: 'eft',
+  nakit: 'nakit',
+  kredi_karti: 'kredi_karti',
+  wise: 'wise',
+  paypal: 'paypal',
+  diger: 'diger',
+} as const;
+
+export interface TahsilatDagitimSatiri {
+  /** @minimum 1 */
+  faturaId: number;
+  /** @exclusiveMinimum 0 */
+  tutar: number;
+}
+
+export interface TahsilatDagitimInput {
+  /** @minimum 1 */
+  catiFirmaId: number;
+  kaynak: TahsilatDagitimInputKaynak;
+  /** @minimum 1 */
+  tahsilatId?: number;
+  tarih?: string;
+  odemeYontemi?: TahsilatDagitimInputOdemeYontemi;
+  /** @minimum 1 */
+  bankaHesabiId?: number;
+  aciklama?: string;
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  dagitimlar: TahsilatDagitimSatiri[];
+}
+
+export interface TahsilatDagitimSonucu {
+  tahsilatId: number;
+  toplamTutar: number;
+}
+
 export type OdemeInputTip = typeof OdemeInputTip[keyof typeof OdemeInputTip];
 
 

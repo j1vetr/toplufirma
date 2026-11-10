@@ -1,10 +1,11 @@
-import { beforeAll, beforeEach, afterAll, describe, it, expect } from "vitest";
+import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from "vitest";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import { eq, inArray } from "drizzle-orm";
 import { db, firmalar, odemeler, faturalar, kullanicilar, firmaSirketGorunurluk, tahsilatEslesmeleri } from "@workspace/db";
 import app from "../app";
 import { JWT_SECRET } from "../middleware/auth";
+import * as finans from "../utils/faturaTahsilat";
 
 const suffix = `eslesme-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const today = new Date().toISOString().slice(0, 10);
@@ -30,6 +31,144 @@ beforeAll(async () => {
     { tip: "bagli", ad: suffix, grupFirmaId: grupId }, { tip: "bagli", ad: `${suffix}-diger`, grupFirmaId: grupId },
   ]).returning();
   bagliId = b.id; digerBagliId = dBagli.id;
+});
+
+const dagit = (dagitimlar: { faturaId: number; tutar: number }[], extra: object = {}) =>
+  request(app).post("/api/faturalar/tahsilat-dagitimi").set(auth()).send({
+    catiFirmaId: catiId, kaynak: "yeni", tarih: today, odemeYontemi: "nakit", dagitimlar, ...extra,
+  });
+
+describe.sequential("Tek ekranda atomik toplu tahsilat dağıtımı", () => {
+  it("yeni 750 USD tahsilatı tek hareketle 500 ve 250 dağıtır, cari ve grup borcu 250 kalır", async () => {
+    const a = await invoice(), b = await invoice();
+    const result = await dagit([{ faturaId: a.id, tutar: 500 }, { faturaId: b.id, tutar: 250 }]);
+    expect(result.status).toBe(200);
+    expect(result.body.toplamTutar).toBe(750);
+    const rows = await db.select().from(odemeler).where(eq(odemeler.catiFirmaId, catiId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: result.body.tahsilatId, faturaId: null, bagliFirmaId: bagliId, tip: "tahsilat", tarih: today });
+    expect(Number(rows[0].tutar)).toBe(750);
+    expect(await detail(a.id)).toMatchObject({ durum: "odendi", odenenTutar: 500, kalanTutar: 0 });
+    expect(await detail(b.id)).toMatchObject({ durum: "kismi_odendi", odenenTutar: 250, kalanTutar: 250 });
+    for (const path of [`/api/cariler/${bagliId}?catiFirmaId=${catiId}`, `/api/cariler/grup/${grupId}?catiFirmaId=${catiId}`]) {
+      const cari = await request(app).get(path).set(auth());
+      expect(cari.body.ozet).toMatchObject({ toplamBorc: 1000, toplamAlacak: 750, bakiye: 250 });
+    }
+    expect((await request(app).get(`/api/odemeler/${rows[0].id}`).set(auth())).body).toMatchObject({
+      kullanilmamisTutar: 0, faturaEslesmeleri: expect.arrayContaining([
+        expect.objectContaining({ faturaId: a.id, tutar: 500 }), expect.objectContaining({ faturaId: b.id, tutar: 250 }),
+      ]),
+    });
+  });
+  it("seçilen mevcut tek tahsilatı kullanır, başka kaynak tüketmez veya para hareketi oluşturmaz", async () => {
+    const a = await invoice(), b = await invoice();
+    const older = await receipt(1000), selected = await receipt(750);
+    const result = await dagit([{ faturaId: a.id, tutar: 500 }, { faturaId: b.id, tutar: 250 }], {
+      kaynak: "tahsilat", tahsilatId: selected.id, tarih: undefined, odemeYontemi: undefined,
+    });
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ tahsilatId: selected.id, toplamTutar: 750 });
+    expect(await db.select().from(odemeler).where(eq(odemeler.catiFirmaId, catiId))).toHaveLength(2);
+    expect((await request(app).get(`/api/odemeler/${older.id}`).set(auth())).body.kullanilmamisTutar).toBe(1000);
+    expect(await detail(a.id)).toMatchObject({ durum: "odendi", odenenTutar: 500 });
+    expect(await detail(b.id)).toMatchObject({ durum: "kismi_odendi", odenenTutar: 250 });
+  });
+  it("son satırda borç aşımı varsa ilk satıra da kayıt bırakmaz", async () => {
+    const a = await invoice(), b = await invoice();
+    const result = await dagit([{ faturaId: a.id, tutar: 500 }, { faturaId: b.id, tutar: 501 }]);
+    expect(result.status).toBe(400);
+    expect(await db.select().from(odemeler).where(eq(odemeler.catiFirmaId, catiId))).toHaveLength(0);
+    expect(await detail(a.id)).toMatchObject({ durum: "acik", odenenTutar: 0 });
+    expect(await detail(b.id)).toMatchObject({ durum: "acik", odenenTutar: 0 });
+  });
+  it("yazma sırasında hata çıkarsa tahsilatı, eşleştirmeleri ve durum değişikliklerini geri alır", async () => {
+    const a = await invoice(), b = await invoice();
+    const original = finans.faturaDurumuHesapla;
+    let calls = 0;
+    const spy = vi.spyOn(finans, "faturaDurumuHesapla").mockImplementation(async (...args) => {
+      if (++calls === 2) throw new Error("test-only write failure");
+      return original(...args);
+    });
+    try {
+      const result = await dagit([{ faturaId: a.id, tutar: 500 }, { faturaId: b.id, tutar: 250 }]);
+      expect(result.status).toBe(500);
+      expect(calls).toBe(2);
+    } finally { spy.mockRestore(); }
+    expect(await db.select().from(odemeler).where(eq(odemeler.catiFirmaId, catiId))).toHaveLength(0);
+    expect(await db.select().from(tahsilatEslesmeleri).where(inArray(tahsilatEslesmeleri.faturaId, [a.id, b.id]))).toHaveLength(0);
+    expect(await detail(a.id)).toMatchObject({ durum: "acik", odenenTutar: 0 });
+    expect(await detail(b.id)).toMatchObject({ durum: "acik", odenenTutar: 0 });
+  });
+  it("aynı tahsilatı toplu ve tekil eşzamanlı isteklerle iki kez harcatmaz", async () => {
+    const a = await invoice(), b = await invoice(), c = await invoice();
+    const r = await receipt(750);
+    const results = await Promise.all([
+      dagit([{ faturaId: a.id, tutar: 500 }, { faturaId: b.id, tutar: 250 }], {
+        kaynak: "tahsilat", tahsilatId: r.id, tarih: undefined, odemeYontemi: undefined,
+      }), match(c.id, 400),
+    ]);
+    expect(results.map(r => r.status).sort()).toEqual([200, 400]);
+    const rows = await db.select().from(tahsilatEslesmeleri).where(eq(tahsilatEslesmeleri.tahsilatId, r.id));
+    const amount = rows.reduce((s, row) => s + Number(row.tutar), 0);
+    expect([400, 750]).toContain(amount);
+  });
+  it("aynı faturaları kapatan eşzamanlı iki yeni tahsilattan yalnızca birini kaydeder", async () => {
+    const a = await invoice(), b = await invoice();
+    const allocations = [{ faturaId: a.id, tutar: 500 }, { faturaId: b.id, tutar: 250 }];
+    const results = await Promise.all([dagit(allocations), dagit(allocations)]);
+    expect(results.map(r => r.status).sort()).toEqual([200, 400]);
+    expect(await db.select().from(odemeler).where(eq(odemeler.catiFirmaId, catiId))).toHaveLength(1);
+  });
+  it("kullanılmış tahsilatta yalnızca kalan tutarı dağıtır ve yetersizliği atomik reddeder", async () => {
+    const a = await invoice(), b = await invoice(), c = await invoice();
+    const r = await receipt(750);
+    await match(a.id, 300);
+    const extra = { kaynak: "tahsilat", tahsilatId: r.id, tarih: undefined, odemeYontemi: undefined };
+    expect((await dagit([{ faturaId: b.id, tutar: 300 }, { faturaId: c.id, tutar: 151 }], extra)).status).toBe(400);
+    expect(await detail(b.id)).toMatchObject({ odenenTutar: 0 });
+    expect((await dagit([{ faturaId: a.id, tutar: 200 }, { faturaId: b.id, tutar: 250 }], extra)).status).toBe(200);
+    expect(await detail(a.id)).toMatchObject({ durum: "odendi", odenenTutar: 500 });
+  });
+  it("farklı firma, para birimi, taslak, iptal, yinelenen satır ve geçersiz tutarı reddeder", async () => {
+    const a = await invoice();
+    for (const extra of [{ bagliFirmaId: digerBagliId }, { paraBirimi: "EUR" }, { durum: "taslak" as const }, { durum: "iptal" as const }, { catiFirmaId: digerCatiId }]) {
+      const b = await invoice(500, extra);
+      expect((await dagit([{ faturaId: a.id, tutar: 100 }, { faturaId: b.id, tutar: 100 }])).status).toBe(400);
+    }
+    for (const amount of [0, -1, 0.001]) {
+      expect((await dagit([{ faturaId: a.id, tutar: amount }])).status).toBe(400);
+    }
+    expect((await dagit([{ faturaId: a.id, tutar: 100 }, { faturaId: a.id, tutar: 100 }])).status).toBe(400);
+    expect((await dagit([])).status).toBe(400);
+    expect((await dagit(Array.from({ length: 101 }, () => ({ faturaId: a.id, tutar: 1 })))).status).toBe(400);
+    expect(await db.select().from(odemeler).where(eq(odemeler.catiFirmaId, catiId))).toHaveLength(0);
+    await db.delete(faturalar).where(eq(faturalar.catiFirmaId, digerCatiId));
+  });
+  it("yanlış kaynak, başka firma tahsilatı ve hatalı tarihi kabul etmez", async () => {
+    const a = await invoice(), b = await invoice();
+    const r = await receipt(750, { bagliFirmaId: digerBagliId });
+    const allocations = [{ faturaId: a.id, tutar: 100 }, { faturaId: b.id, tutar: 100 }];
+    expect((await dagit(allocations, { kaynak: "tahsilat" })).status).toBe(400);
+    expect((await dagit(allocations, { kaynak: "tahsilat", tahsilatId: r.id, tarih: undefined, odemeYontemi: undefined })).status).toBe(400);
+    expect((await dagit(allocations, { tahsilatId: r.id })).status).toBe(400);
+    expect((await dagit(allocations, { tarih: "2026-02-30" })).status).toBe(400);
+    expect((await dagit(allocations, { tarih: "not-a-date" })).status).toBe(400);
+    expect((await dagit(allocations, { bankaHesabiId: 2147483647 })).status).toBe(400);
+    expect(await db.select().from(odemeler).where(eq(odemeler.catiFirmaId, catiId))).toHaveLength(1);
+  });
+  it("kimliksiz ve firma erişimi olmayan istekte kayıt bırakmaz", async () => {
+    const a = await invoice();
+    const data = { catiFirmaId: catiId, kaynak: "yeni", tarih: today, odemeYontemi: "nakit", dagitimlar: [{ faturaId: a.id, tutar: 100 }] };
+    expect((await request(app).post("/api/faturalar/tahsilat-dagitimi").send(data)).status).toBe(401);
+    const [user] = await db.insert(kullanicilar).values({
+      ad: "Kısıtlı test", email: `${suffix}-restricted@test.local`, parola: "x", rol: "muhasebeci", aktif: true,
+    }).returning();
+    try {
+      const restricted = jwt.sign({ id: user.id, rol: user.rol, sirketler: [] }, JWT_SECRET, { expiresIn: "1h" });
+      expect((await request(app).post("/api/faturalar/tahsilat-dagitimi").set({ Authorization: `Bearer ${restricted}` }).send(data)).status).toBe(403);
+    } finally { await db.delete(kullanicilar).where(eq(kullanicilar.id, user.id)); }
+    expect(await db.select().from(odemeler).where(eq(odemeler.catiFirmaId, catiId))).toHaveLength(0);
+  });
 });
 beforeEach(temizle);
 afterAll(async () => {
